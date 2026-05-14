@@ -5,18 +5,29 @@ import { useAuthStore } from "../store/useAuthStore";
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+
   const navigate = useNavigate();
   const { login, continueAsGuest } = useAuthStore();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    login({
-      id: "1",
-      name: "Shalu Gahlot",
-      phone: "+91 98765 43210",
-      avatar: "SG",
-    });
-    navigate("/");
+    setLoginError("");
+
+    // Check against our specific credentials
+    if (loginUsername === "Shalu Gahlot" && loginPassword === "prakhar") {
+      login({
+        id: "1",
+        name: loginUsername,
+        phone: "N/A", // Not needed for this login method
+        avatar: "SG",
+      });
+      navigate("/");
+    } else {
+      setLoginError("Invalid username or password");
+    }
   };
 
   const handleSignUp = (e: React.FormEvent) => {
@@ -38,7 +49,6 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-[#061311] flex items-center justify-center p-4 overflow-hidden font-sans">
       <div className="relative w-full max-w-5xl min-h-[750px] md:min-h-[600px] bg-[#0B1F1B] border border-[#1B3530] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:block">
-        {/* Form Container (Sliding Panel) */}
         <div
           className={`absolute top-0 left-0 w-full md:w-1/2 h-[60%] md:h-full bg-[#0B1F1B] transition-transform duration-700 ease-in-out z-10 ${isSignUp ? "md:translate-x-full" : "translate-x-0"}`}
         >
@@ -57,11 +67,13 @@ export default function AuthPage() {
 
             <form className="space-y-4" onSubmit={handleLogin}>
               <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9FB7B2]" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9FB7B2]" />
                 <input
-                  type="tel"
+                  type="text"
                   required
-                  placeholder="Phone Number"
+                  value={loginUsername}
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  placeholder="Username"
                   className="w-full bg-[#0D2420] border border-[#1B3530] rounded-xl py-3 pl-11 pr-4 text-sm text-[#F4FFFD] outline-none focus:border-[#0FAF9A] transition-colors"
                 />
               </div>
@@ -71,10 +83,18 @@ export default function AuthPage() {
                 <input
                   type="password"
                   required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="Password"
                   className="w-full bg-[#0D2420] border border-[#1B3530] rounded-xl py-3 pl-11 pr-4 text-sm text-[#F4FFFD] outline-none focus:border-[#0FAF9A] transition-colors"
                 />
               </div>
+
+              {loginError && (
+                <div className="text-[#FF6B6B] text-xs font-semibold px-1">
+                  {loginError}
+                </div>
+              )}
 
               <div className="flex justify-between items-center text-xs px-1 pt-1">
                 <label className="text-[#9FB7B2] flex items-center gap-2 cursor-pointer">
@@ -172,7 +192,7 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* Overlay Container (Sliding Panel) */}
+        {/* Overlay Container */}
         <div
           className={`absolute bottom-0 md:top-0 right-0 w-full md:w-1/2 h-[40%] md:h-full bg-gradient-to-br from-[#0FAF9A] to-[#19F0C1] flex flex-col items-center justify-center text-center p-8 transition-transform duration-700 ease-in-out z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.3)] ${isSignUp ? "md:-translate-x-full" : "translate-x-0"}`}
         >
