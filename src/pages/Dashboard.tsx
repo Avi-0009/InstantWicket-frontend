@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import SplashScreen from "../components/SplashScreen";
+import { useAuthStore } from "../store/useAuthStore";
 import {
   Trophy,
   Home as HomeIcon,
@@ -17,14 +18,17 @@ import {
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
-  // Simulate loading the app
+  // 1. MOVE THIS UP: All hooks must be called before any early returns!
+  const { user, isAuthenticated, logout } = useAuthStore();
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2500); // Shows splash screen for 2.5 seconds
+    }, 2500);
     return () => clearTimeout(timer);
   }, []);
 
+  // 2. EARLY RETURN: This must happen after all hooks are declared.
   if (isLoading) {
     return <SplashScreen />;
   }
@@ -59,12 +63,30 @@ export default function Dashboard() {
         </div>
 
         {/* Guest Login Button */}
-        <Link
-          to="/auth"
-          className="bg-[#0FAF9A] hover:bg-[#19F0C1] text-[#061311] px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-[0_0_15px_rgba(15,175,154,0.2)]"
-        >
-          <UserCircle className="w-4 h-4" /> Login / Sign Up
-        </Link>
+        {/* Auth State Conditional Rendering */}
+        {isAuthenticated && user ? (
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-[#F4FFFD] hidden md:block">
+              {user.name}
+            </span>
+            <div className="w-8 h-8 rounded-full bg-[#0FAF9A]/20 text-[#0FAF9A] flex items-center justify-center text-xs font-bold border border-[#0FAF9A]/30">
+              {user.avatar}
+            </div>
+            <button
+              onClick={logout}
+              className="text-xs text-[#FF6B6B] hover:text-[#ff8f8f] font-semibold ml-2 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <Link
+            to="/auth"
+            className="bg-[#0FAF9A] hover:bg-[#19F0C1] text-[#061311] px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-[0_0_15px_rgba(15,175,154,0.2)]"
+          >
+            <UserCircle className="w-4 h-4" /> Login / Sign Up
+          </Link>
+        )}
       </nav>
 
       {/* Main Content */}

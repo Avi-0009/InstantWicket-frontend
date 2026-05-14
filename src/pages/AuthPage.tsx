@@ -1,22 +1,50 @@
 import { useState } from "react";
-import { Phone, Lock, User, Mail, ArrowRight, Eye, Trophy } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Phone, Lock, User, ArrowRight, Eye, Trophy } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "../store/useAuthStore";
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
+  const navigate = useNavigate();
+  const { login, continueAsGuest } = useAuthStore();
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    login({
+      id: "1",
+      name: "Shalu Gahlot",
+      phone: "+91 98765 43210",
+      avatar: "SG",
+    });
+    navigate("/");
+  };
+
+  const handleSignUp = (e: React.FormEvent) => {
+    e.preventDefault();
+    login({
+      id: "2",
+      name: "New Scorer",
+      phone: "+91 99999 00000",
+      avatar: "NS",
+    });
+    navigate("/");
+  };
+
+  const handleGuestAccess = () => {
+    continueAsGuest();
+    navigate("/");
+  };
 
   return (
     <div className="min-h-screen bg-[#061311] flex items-center justify-center p-4 overflow-hidden font-sans">
       <div className="relative w-full max-w-5xl min-h-[750px] md:min-h-[600px] bg-[#0B1F1B] border border-[#1B3530] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:block">
         {/* Form Container (Sliding Panel) */}
         <div
-          className={`absolute top-0 left-0 w-full md:w-1/2 h-[60%] md:h-full bg-[#0B1F1B] transition-transform duration-700 ease-in-out z-10 
-          ${isSignUp ? "md:translate-x-full" : "translate-x-0"}`}
+          className={`absolute top-0 left-0 w-full md:w-1/2 h-[60%] md:h-full bg-[#0B1F1B] transition-transform duration-700 ease-in-out z-10 ${isSignUp ? "md:translate-x-full" : "translate-x-0"}`}
         >
           {/* Sign In Form */}
           <div
-            className={`absolute top-0 left-0 w-full h-full flex flex-col justify-center p-8 md:p-12 transition-all duration-500 
-            ${isSignUp ? "opacity-0 invisible scale-95" : "opacity-100 visible scale-100 delay-200"}`}
+            className={`absolute top-0 left-0 w-full h-full flex flex-col justify-center p-8 md:p-12 transition-all duration-500 ${isSignUp ? "opacity-0 invisible scale-95" : "opacity-100 visible scale-100 delay-200"}`}
           >
             <div className="mb-8 text-center md:text-left">
               <h1 className="text-3xl font-bold text-[#F4FFFD] mb-2">
@@ -27,11 +55,12 @@ export default function AuthPage() {
               </p>
             </div>
 
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-4" onSubmit={handleLogin}>
               <div className="relative">
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9FB7B2]" />
                 <input
                   type="tel"
+                  required
                   placeholder="Phone Number"
                   className="w-full bg-[#0D2420] border border-[#1B3530] rounded-xl py-3 pl-11 pr-4 text-sm text-[#F4FFFD] outline-none focus:border-[#0FAF9A] transition-colors"
                 />
@@ -41,6 +70,7 @@ export default function AuthPage() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9FB7B2]" />
                 <input
                   type="password"
+                  required
                   placeholder="Password"
                   className="w-full bg-[#0D2420] border border-[#1B3530] rounded-xl py-3 pl-11 pr-4 text-sm text-[#F4FFFD] outline-none focus:border-[#0FAF9A] transition-colors"
                 />
@@ -51,7 +81,7 @@ export default function AuthPage() {
                   <input
                     type="checkbox"
                     className="rounded bg-[#0D2420] border-[#1B3530] text-[#0FAF9A] focus:ring-[#0FAF9A]"
-                  />
+                  />{" "}
                   Remember me
                 </label>
                 <span className="text-[#0FAF9A] cursor-pointer hover:text-[#19F0C1]">
@@ -59,12 +89,14 @@ export default function AuthPage() {
                 </span>
               </div>
 
-              <button className="w-full py-3 rounded-xl bg-[#0FAF9A] hover:bg-[#19F0C1] text-[#061311] transition-colors font-semibold flex items-center justify-center gap-2 mt-4">
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-[#0FAF9A] hover:bg-[#19F0C1] text-[#061311] transition-colors font-semibold flex items-center justify-center gap-2 mt-4"
+              >
                 Sign In <ArrowRight className="w-4 h-4" />
               </button>
             </form>
 
-            {/* Mobile Toggle Button (Visible only on small screens) */}
             <div className="mt-6 text-center text-xs text-[#9FB7B2] md:hidden">
               Don't have an account?{" "}
               <button
@@ -78,8 +110,7 @@ export default function AuthPage() {
 
           {/* Sign Up Form */}
           <div
-            className={`absolute top-0 left-0 w-full h-full flex flex-col justify-center p-8 md:p-12 transition-all duration-500 
-            ${!isSignUp ? "opacity-0 invisible scale-95" : "opacity-100 visible scale-100 delay-200"}`}
+            className={`absolute top-0 left-0 w-full h-full flex flex-col justify-center p-8 md:p-12 transition-all duration-500 ${!isSignUp ? "opacity-0 invisible scale-95" : "opacity-100 visible scale-100 delay-200"}`}
           >
             <div className="mb-6 text-center md:text-left">
               <h1 className="text-3xl font-bold text-[#F4FFFD] mb-2">
@@ -90,11 +121,12 @@ export default function AuthPage() {
               </p>
             </div>
 
-            <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-4" onSubmit={handleSignUp}>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9FB7B2]" />
                 <input
                   type="text"
+                  required
                   placeholder="Full Name"
                   className="w-full bg-[#0D2420] border border-[#1B3530] rounded-xl py-3 pl-11 pr-4 text-sm text-[#F4FFFD] outline-none focus:border-[#0FAF9A] transition-colors"
                 />
@@ -104,16 +136,8 @@ export default function AuthPage() {
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9FB7B2]" />
                 <input
                   type="tel"
+                  required
                   placeholder="Phone Number"
-                  className="w-full bg-[#0D2420] border border-[#1B3530] rounded-xl py-3 pl-11 pr-4 text-sm text-[#F4FFFD] outline-none focus:border-[#0FAF9A] transition-colors"
-                />
-              </div>
-
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9FB7B2]" />
-                <input
-                  type="email"
-                  placeholder="Email Address"
                   className="w-full bg-[#0D2420] border border-[#1B3530] rounded-xl py-3 pl-11 pr-4 text-sm text-[#F4FFFD] outline-none focus:border-[#0FAF9A] transition-colors"
                 />
               </div>
@@ -122,17 +146,20 @@ export default function AuthPage() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9FB7B2]" />
                 <input
                   type="password"
+                  required
                   placeholder="Password"
                   className="w-full bg-[#0D2420] border border-[#1B3530] rounded-xl py-3 pl-11 pr-4 text-sm text-[#F4FFFD] outline-none focus:border-[#0FAF9A] transition-colors"
                 />
               </div>
 
-              <button className="w-full py-3 mt-2 rounded-xl bg-[#0FAF9A] hover:bg-[#19F0C1] text-[#061311] transition-colors font-semibold flex items-center justify-center gap-2">
+              <button
+                type="submit"
+                className="w-full py-3 mt-2 rounded-xl bg-[#0FAF9A] hover:bg-[#19F0C1] text-[#061311] transition-colors font-semibold flex items-center justify-center gap-2"
+              >
                 Create Account <ArrowRight className="w-4 h-4" />
               </button>
             </form>
 
-            {/* Mobile Toggle Button (Visible only on small screens) */}
             <div className="mt-6 text-center text-xs text-[#9FB7B2] md:hidden">
               Already have an account?{" "}
               <button
@@ -147,8 +174,7 @@ export default function AuthPage() {
 
         {/* Overlay Container (Sliding Panel) */}
         <div
-          className={`absolute bottom-0 md:top-0 right-0 w-full md:w-1/2 h-[40%] md:h-full bg-gradient-to-br from-[#0FAF9A] to-[#19F0C1] flex flex-col items-center justify-center text-center p-8 transition-transform duration-700 ease-in-out z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.3)]
-          ${isSignUp ? "md:-translate-x-full" : "translate-x-0"}`}
+          className={`absolute bottom-0 md:top-0 right-0 w-full md:w-1/2 h-[40%] md:h-full bg-gradient-to-br from-[#0FAF9A] to-[#19F0C1] flex flex-col items-center justify-center text-center p-8 transition-transform duration-700 ease-in-out z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.3)] ${isSignUp ? "md:-translate-x-full" : "translate-x-0"}`}
         >
           <Trophy className="w-16 h-16 text-[#061311] mb-6 hidden md:block" />
 
@@ -163,7 +189,6 @@ export default function AuthPage() {
           </p>
 
           <div className="flex flex-col gap-4 w-full max-w-[240px]">
-            {/* Desktop Toggle Button */}
             <button
               onClick={() => setIsSignUp(!isSignUp)}
               className="hidden md:block w-full py-3 rounded-xl border-2 border-[#061311] text-[#061311] hover:bg-[#061311] hover:text-[#0FAF9A] transition-colors font-bold tracking-wide"
@@ -171,7 +196,6 @@ export default function AuthPage() {
               {isSignUp ? "SWITCH TO SIGN IN" : "SWITCH TO SIGN UP"}
             </button>
 
-            {/* Guest Access Button - Always visible in the overlay */}
             <div className="relative flex items-center py-2">
               <div className="flex-grow border-t border-[#061311]/20"></div>
               <span className="flex-shrink-0 mx-4 text-[#061311]/70 text-xs font-bold">
@@ -180,12 +204,12 @@ export default function AuthPage() {
               <div className="flex-grow border-t border-[#061311]/20"></div>
             </div>
 
-            <Link
-              to="/"
+            <button
+              onClick={handleGuestAccess}
               className="w-full py-3 rounded-xl bg-[#061311] text-[#0FAF9A] hover:bg-[#0B1F1B] transition-colors font-semibold flex items-center justify-center gap-2 shadow-lg"
             >
               <Eye className="w-4 h-4" /> View Live Scores
-            </Link>
+            </button>
           </div>
         </div>
       </div>
