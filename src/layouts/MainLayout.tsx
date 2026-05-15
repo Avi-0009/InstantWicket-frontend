@@ -9,9 +9,19 @@ import {
   Users,
   UserCircle,
 } from "lucide-react";
+import { Logout } from "../Api/Auth";
 
 export default function MainLayout() {
   const { user, isAuthenticated, logout } = useAuthStore();
+  const handleLogout = async () => {
+    try {
+      await Logout();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      logout();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#061311] text-[#F4FFFD] font-sans pb-20 md:pb-0">

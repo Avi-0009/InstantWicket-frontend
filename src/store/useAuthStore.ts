@@ -9,39 +9,37 @@ interface User {
 
 interface AuthState {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   isGuest: boolean;
-  login: (userData: User) => void;
+  login: (userData: User, token: string) => void;
   logout: () => void;
   continueAsGuest: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  isAuthenticated: false,
+  token: localStorage.getItem("auth-token") || null,
+  isAuthenticated: !!localStorage.getItem("auth-token"),
   isGuest: false,
 
-  // Called when a user successfully logs in or signs up
-  login: (userData) =>
-    set({
-      user: userData,
-      isAuthenticated: true,
-      isGuest: false,
-    }),
+  // Now requires a token, and saves it to the browser
+  login: (userData, token) => {
+    localStorage.setItem("auth-token", token);
+    set({ user: userData, token, isAuthenticated: true, isGuest: false });
+  },
 
-  // Called when a user clicks "View Live Scores" from the Auth Page
   continueAsGuest: () =>
     set({
       user: null,
+      token: null,
       isAuthenticated: false,
       isGuest: true,
     }),
 
-  // Clears the session
-  logout: () =>
-    set({
-      user: null,
-      isAuthenticated: false,
-      isGuest: false,
-    }),
+  // Clears the session completely
+  logout: () => {
+    localStorage.removeItem("auth-token");
+    set({ user: null, token: null, isAuthenticated: false, isGuest: false });
+  },
 }));
