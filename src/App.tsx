@@ -8,6 +8,7 @@ import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import LiveScoring from "./pages/LiveScoring";
+import SettingsPage from "./pages/SettingsPage";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
         // Inside App.tsx Routes block:
         <Route path="/match/live" element={<LiveScoring />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </Router>
   );

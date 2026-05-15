@@ -1,4 +1,5 @@
-import { Link, Outlet } from "react-router-dom";
+// src/layouts/MainLayout.tsx
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { getInitials } from "../utils/helpers";
 import {
@@ -9,19 +10,10 @@ import {
   Users,
   UserCircle,
 } from "lucide-react";
-import { Logout } from "../Api/Auth";
 
 export default function MainLayout() {
-  const { user, isAuthenticated, logout } = useAuthStore();
-  const handleLogout = async () => {
-    try {
-      await Logout();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      logout();
-    }
-  };
+  const { user, isAuthenticated } = useAuthStore();
+  const location = useLocation(); // To highlight active tab
 
   return (
     <div className="min-h-screen bg-[#061311] text-[#F4FFFD] font-sans pb-20 md:pb-0">
@@ -41,6 +33,7 @@ export default function MainLayout() {
           >
             <HomeIcon className="w-4 h-4" /> Dashboard
           </Link>
+          {/* Other nav items... */}
           <div className="px-3 py-2 rounded-lg text-sm text-[#9FB7B2] flex items-center gap-2 hover:bg-[#0FAF9A]/10 cursor-pointer">
             <Trophy className="w-4 h-4" /> New Match
           </div>
@@ -60,15 +53,13 @@ export default function MainLayout() {
             <span className="text-sm font-semibold text-[#F4FFFD] hidden md:block">
               {user.name}
             </span>
-            <div className="w-8 h-8 rounded-full bg-[#0FAF9A]/20 text-[#0FAF9A] flex items-center justify-center text-xs font-bold border border-[#0FAF9A]/30">
-              {getInitials(user.name)}
-            </div>
-            <button
-              onClick={logout}
-              className="text-xs text-[#FF6B6B] hover:text-[#ff8f8f] font-semibold ml-2 transition-colors"
+            {/* THIS IS UPDATED TO BE A LINK */}
+            <Link
+              to="/settings"
+              className="w-8 h-8 rounded-full bg-[#0FAF9A]/20 text-[#0FAF9A] flex items-center justify-center text-xs font-bold border border-[#0FAF9A]/30 hover:bg-[#0FAF9A]/40 transition-colors cursor-pointer"
             >
-              Logout
-            </button>
+              {getInitials(user.name)}
+            </Link>
           </div>
         ) : (
           <Link
@@ -87,23 +78,33 @@ export default function MainLayout() {
       <div className="fixed bottom-0 w-full bg-[#0b1f1b]/95 backdrop-blur-md border-t border-[#1B3530] py-2 flex justify-around md:hidden z-50">
         <Link
           to="/"
-          className="flex flex-col items-center gap-1 px-3 py-1 text-[#0FAF9A]"
+          className={`flex flex-col items-center gap-1 px-3 py-1 ${location.pathname === "/" ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
         >
-          <div className="w-6 h-[3px] bg-[#0FAF9A] rounded-full mb-0.5"></div>
+          {location.pathname === "/" && (
+            <div className="w-6 h-[3px] bg-[#0FAF9A] rounded-full mb-0.5"></div>
+          )}
           <HomeIcon className="w-5 h-5" />
           <span className="text-[10px]">Home</span>
         </Link>
+
         <div className="flex flex-col items-center gap-1 px-3 py-1 text-[#9FB7B2] pt-2">
           <Trophy className="w-5 h-5" />
           <span className="text-[10px]">Match</span>
         </div>
+
         {isAuthenticated && user ? (
-          <div className="flex flex-col items-center gap-1 px-3 py-1 text-[#0FAF9A] pt-2">
-            <div className="w-5 h-5 rounded-full bg-[#0FAF9A]/20 flex items-center justify-center text-[10px] font-bold border border-[#0FAF9A]/30">
+          /* THIS IS UPDATED TO BE A LINK */
+          <Link
+            to="/settings"
+            className={`flex flex-col items-center gap-1 px-3 py-1 pt-2 ${location.pathname === "/settings" ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
+          >
+            <div
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border ${location.pathname === "/settings" ? "bg-[#0FAF9A]/20 border-[#0FAF9A]/30 text-[#0FAF9A]" : "bg-transparent border-[#9FB7B2] text-[#9FB7B2]"}`}
+            >
               {getInitials(user.name)}
             </div>
             <span className="text-[10px] font-bold">Profile</span>
-          </div>
+          </Link>
         ) : (
           <Link
             to="/auth"
