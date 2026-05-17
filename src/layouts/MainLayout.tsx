@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { getInitials } from "../utils/helpers";
 import {
@@ -7,7 +7,6 @@ import {
   BarChart2,
   Users,
   UserCircle,
-  ChevronLeft,
   PlusCircle,
 } from "lucide-react";
 import { Logout } from "../Api/Auth";
@@ -15,7 +14,6 @@ import { Logout } from "../Api/Auth";
 const MainLayout = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const location = useLocation();
-  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
@@ -47,15 +45,9 @@ const MainLayout = () => {
           </Link>
           <Link
             to="/matches"
-            className="px-3 py-2 rounded-lg text-sm text-[#9FB7B2] flex items-center gap-2 hover:bg-[#0FAF9A]/10 cursor-pointer"
+            className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${location.pathname.includes("/match") ? "bg-[#0FAF9A]/20 text-[#0FAF9A]" : "text-[#9FB7B2] hover:bg-[#0FAF9A]/10"}`}
           >
             <Trophy className="w-4 h-4" /> Matches
-          </Link>
-          <Link
-            to="/stats"
-            className="px-3 py-2 rounded-lg text-sm text-[#9FB7B2] flex items-center gap-2 hover:bg-[#0FAF9A]/10 cursor-pointer"
-          >
-            <BarChart2 className="w-4 h-4" /> Stats
           </Link>
           <Link
             to="/players"
@@ -86,19 +78,10 @@ const MainLayout = () => {
           </Link>
         )}
       </nav>
-      {/* Dynamic Back Button for Desktop (Optional) */}
-      {location.pathname !== "/" && (
-        <div className="hidden md:flex px-4 md:px-6 pt-4 max-w-6xl mx-auto w-full">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 flex items-center justify-center bg-[#0B1F1B] border border-[#1B3530] rounded-full text-[#F4FFFD] hover:bg-[#122A25] hover:border-[#0FAF9A]/50 transition-all shadow-lg"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-        </div>
-      )}
+
       {/* Main Page Content */}
       <Outlet />
+
       {/* MOBILE BOTTOM NAVBAR - Hidden on Settings page */}
       {location.pathname !== "/settings" && (
         <div className="fixed bottom-0 w-full bg-[#0b1f1b]/95 backdrop-blur-md border-t border-[#1B3530] py-2 px-2 flex justify-between items-center md:hidden z-50">
@@ -114,7 +97,7 @@ const MainLayout = () => {
           {/* 2. Matches */}
           <Link
             to="/matches"
-            className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname === "/matches" ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
+            className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname.includes("/match") ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
           >
             <Trophy className="w-5 h-5" />
             <span className="text-[10px] font-medium">Matches</span>
@@ -142,7 +125,7 @@ const MainLayout = () => {
             <span className="text-[10px] font-medium">Players</span>
           </Link>
 
-          {/* 5. Profile / Login (Replaced Stats) */}
+          {/* 5. Profile / Login */}
           {isAuthenticated && user ? (
             <Link
               to="/settings"
@@ -163,7 +146,7 @@ const MainLayout = () => {
             </Link>
           )}
         </div>
-      )}{" "}
+      )}
     </div>
   );
 };
