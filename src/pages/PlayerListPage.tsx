@@ -23,7 +23,14 @@ const PlayersListPage = () => {
 
   return (
     <main className="p-4 md:p-6 max-w-4xl mx-auto w-full pb-24 bg-[#061311] min-h-screen">
-      <div className="flex items-center justify-between mb-6">
+      {/* HEADER WITH BACK BUTTON */}
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={() => navigate("/")}
+          className="p-2 bg-[#0B1F1B] border border-[#1B3530] rounded-full hover:bg-[#122A25] hover:border-[#0FAF9A]/50 transition-all shadow-lg text-[#F4FFFD]"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
         <h1 className="text-[28px] font-bold text-[#F4FFFD]">Players</h1>
       </div>
 

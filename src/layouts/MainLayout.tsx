@@ -86,7 +86,6 @@ const MainLayout = () => {
           </Link>
         )}
       </nav>
-
       {/* Dynamic Back Button for Desktop (Optional) */}
       {location.pathname !== "/" && (
         <div className="hidden md:flex px-4 md:px-6 pt-4 max-w-6xl mx-auto w-full">
@@ -98,10 +97,8 @@ const MainLayout = () => {
           </button>
         </div>
       )}
-
       {/* Main Page Content */}
       <Outlet />
-
       {/* MOBILE BOTTOM NAVBAR - Hidden on Settings page */}
       {location.pathname !== "/settings" && (
         <div className="fixed bottom-0 w-full bg-[#0b1f1b]/95 backdrop-blur-md border-t border-[#1B3530] py-2 px-2 flex justify-between items-center md:hidden z-50">
@@ -145,16 +142,28 @@ const MainLayout = () => {
             <span className="text-[10px] font-medium">Players</span>
           </Link>
 
-          {/* 5. Stats */}
-          <Link
-            to="/stats"
-            className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname === "/stats" ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
-          >
-            <BarChart2 className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Stats</span>
-          </Link>
+          {/* 5. Profile / Login (Replaced Stats) */}
+          {isAuthenticated && user ? (
+            <Link
+              to="/settings"
+              className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname === "/settings" ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
+            >
+              <div className="w-5 h-5 rounded-full bg-[#0FAF9A]/20 text-[#0FAF9A] flex items-center justify-center text-[10px] font-bold border border-[#0FAF9A]/30">
+                {getInitials(user.name)}
+              </div>
+              <span className="text-[10px] font-medium">Profile</span>
+            </Link>
+          ) : (
+            <Link
+              to="/auth"
+              className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname === "/auth" ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
+            >
+              <UserCircle className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Login</span>
+            </Link>
+          )}
         </div>
-      )}
+      )}{" "}
     </div>
   );
 };

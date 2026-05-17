@@ -99,7 +99,7 @@ const PlayerStatsPage = () => {
   return (
     <div className="min-h-screen bg-[#061311] font-sans pb-24">
       <div className="max-w-5xl mx-auto p-4 md:p-6">
-        <PageHeader title="Player Profile" />
+        <PageHeader title="Player Profile" backUrl="/players" />
 
         {/* PROFILE HEADER HERO */}
         <div className="bg-gradient-to-br from-[#0B1F1B] to-[#061311] border border-[#1B3530] rounded-2xl p-6 md:p-8 mb-8 shadow-2xl relative overflow-hidden">
