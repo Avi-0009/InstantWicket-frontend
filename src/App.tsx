@@ -11,6 +11,8 @@ import LiveScoring from "./pages/LiveScoring";
 import SettingsPage from "./pages/SettingsPage";
 import PlayerStatsPage from "./pages/PlayerStatsPage";
 import PlayersListPage from "./pages/PlayerListPage";
+import MatchesListPage from "./pages/MatchesListPage";
+import MatchDetailsPage from "./pages/MatchDetailsPage";
 
 const App = () => {
   return (
@@ -22,6 +24,8 @@ const App = () => {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/players" element={<PlayersListPage />} />
           <Route path="/player-stats" element={<PlayerStatsPage />} />
+          <Route path="/matches" element={<MatchesListPage />} />
+          <Route path="/match/:id" element={<MatchDetailsPage />} />
         </Route>
 
         {/* Routes WITHOUT the layout (Full screen pages) */}
