@@ -2,31 +2,44 @@ import { useState, useEffect } from "react";
 import SplashScreen from "../components/SplashScreen";
 import LiveMatchCard from "../components/matches/LiveMatchCard";
 import { Trophy, Activity, TrendingUp, Users, Zap } from "lucide-react";
+import { motion } from "framer-motion";
+
+let hasSeenSplashThisSession = false;
 
 export default function Dashboard() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!hasSeenSplashThisSession);
   const [activeTab, setActiveTab] = useState("All");
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 2500);
-    return () => clearTimeout(timer);
+    if (!hasSeenSplashThisSession) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+        hasSeenSplashThisSession = true;
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   if (isLoading) return <SplashScreen />;
 
   return (
-    <main className="p-4 md:p-6 max-w-6xl mx-auto">
+    <motion.main
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="p-4 md:p-6 max-w-6xl mx-auto pb-24"
+    >
       {/* Header Area */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-[28px] font-bold text-[#F4FFFD]">Dashboard</h1>
+          <h1 className="text-[28px] font-bold text-[#F4FFFD]">
+            InstantWicket
+          </h1>
           <p className="text-sm text-[#9FB7B2]">
             Welcome! Here's what's happening today.
           </p>
         </div>
-        <button className="bg-[#0FAF9A] text-[#061311] border-none rounded-lg px-6 py-3 text-sm font-bold flex items-center gap-2 w-full md:w-auto justify-center hover:bg-[#19F0C1] transition-colors">
+        <button className="bg-[#0FAF9A] text-[#061311] border-none rounded-lg px-6 py-3 text-sm font-bold flex items-center gap-2 w-full md:w-auto justify-center hover:bg-[#19F0C1] transition-colors shadow-[0_0_15px_rgba(15,175,154,0.2)]">
           <Trophy className="w-4 h-4" /> Start New Match
         </button>
       </div>
@@ -35,30 +48,26 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div
           onClick={() => setActiveTab("Recent")}
-          className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 cursor-pointer hover:border-[#0FAF9A]/50 transition-colors"
+          className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 cursor-pointer hover:border-[#0FAF9A]/50 transition-colors shadow-lg"
         >
           <Trophy className="w-5 h-5 text-[#F59E0B] mb-2" />
           <div className="text-3xl font-bold">148</div>
-          <div className="text-xs text-[#9FB7B2] mt-1">
-            Total Matches (Click for Previous)
-          </div>
+          <div className="text-xs text-[#9FB7B2] mt-1">Total Matches</div>
         </div>
         <div
           onClick={() => setActiveTab("Live")}
-          className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 cursor-pointer hover:border-[#0FAF9A]/50 transition-colors"
+          className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 cursor-pointer hover:border-[#0FAF9A]/50 transition-colors shadow-lg"
         >
           <Activity className="w-5 h-5 text-[#818CF8] mb-2" />
           <div className="text-3xl font-bold">3</div>
-          <div className="text-xs text-[#9FB7B2] mt-1">
-            Live Now (Click to view)
-          </div>
+          <div className="text-xs text-[#9FB7B2] mt-1">Live Now</div>
         </div>
-        <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4">
+        <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 shadow-lg">
           <TrendingUp className="w-5 h-5 text-[#FF6B6B] mb-2" />
           <div className="text-3xl font-bold">24,810</div>
           <div className="text-xs text-[#9FB7B2] mt-1">Total Runs</div>
         </div>
-        <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4">
+        <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 shadow-lg">
           <Users className="w-5 h-5 text-[#3B82F6] mb-2" />
           <div className="text-3xl font-bold">87</div>
           <div className="text-xs text-[#9FB7B2] mt-1">Active Players</div>
@@ -95,12 +104,11 @@ export default function Dashboard() {
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B6B] animate-pulse inline-block"></span>{" "}
               Live Matches
             </div>
-            {/* Now we just call the component! You can duplicate it to show 2 cards */}
             <LiveMatchCard />
             <LiveMatchCard />
           </>
         )}
       </div>
-    </main>
+    </motion.main>
   );
 }

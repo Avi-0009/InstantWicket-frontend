@@ -1,1 +1,78 @@
 @import "tailwindcss";
+
+/* FIRST COLOR */
+
+/* :root {
+  --color-dark-bg: #0B0C10;
+  --color-card-bg: #1F2833;
+  --color-text-muted: #C5C6C7;
+  --color-accent-neon: #66FCF1;
+  --color-accent-teal: #45A29E;
+}
+
+@theme {
+  --color-background: var(--color-dark-bg);
+  --color-card: var(--color-card-bg);
+  --color-muted: var(--color-text-muted);
+  --color-primary: var(--color-accent-neon);
+  --color-secondary: var(--color-accent-teal);
+}
+
+body {
+  background-color: var(--color-dark-bg);
+  color: var(--color-text-muted);
+} */
+
+/* SECOND COLOR */
+
+/* :root {
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-card: #18181b;
+  --color-border: #27272a;
+  --color-primary: #3b82f6;
+  --color-muted-foreground: #a1a1aa;
+  --color-destructive: #ef4444;
+}
+
+@theme {
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-card: var(--color-card);
+  --color-border: var(--color-border);
+  --color-primary: var(--color-primary);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-destructive: var(--color-destructive);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+} */
+
+/* THIRD COLOR */
+
+/* :root {
+  --color-background: #030712;
+  --color-foreground: #f9fafb;
+  --color-card: #111827;
+  --color-border: #1f2937;
+  --color-primary: #8b5cf6;
+  --color-muted-foreground: #9ca3af;
+  --color-destructive: #ef4444;
+}
+
+@theme {
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-card: var(--color-card);
+  --color-border: var(--color-border);
+  --color-primary: var(--color-primary);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-destructive: var(--color-destructive);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+} */

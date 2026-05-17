@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ScoreHeader from "../components/scoring/ScoreHeader";
 import PlayerStats from "../components/scoring/PlayerStats";
@@ -12,11 +12,12 @@ export default function LiveScoring() {
     <div className="min-h-screen bg-[#061311] font-sans pb-8">
       {/* Top Action Bar */}
       <div className="sticky top-0 z-50 bg-[#061311]/95 backdrop-blur-md px-4 py-4 flex items-center justify-between border-b border-[#1B3530]">
+        {/* UPDATED BACK BUTTON (Same as Settings Page) */}
         <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-xs font-medium text-[#9FB7B2] bg-[#0B1F1B] border border-[#1B3530] px-3 py-1.5 rounded-lg hover:text-[#F4FFFD] hover:bg-[#1B3530] transition-all"
+          onClick={() => navigate("/")} // Safely routes back to dashboard
+          className="p-2 bg-[#0B1F1B] border border-[#1B3530] rounded-full hover:bg-[#122A25] hover:border-[#0FAF9A]/50 transition-all shadow-lg text-[#F4FFFD]"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back
+          <ChevronLeft className="w-5 h-5" />
         </button>
 
         <div className="bg-[#FF6B6B]/15 text-[#FF6B6B] px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1.5 border border-[#FF6B6B]/20">
@@ -24,8 +25,8 @@ export default function LiveScoring() {
           LIVE
         </div>
 
-        {/* Empty div for flexbox centering balance */}
-        <div className="w-[70px]"></div>
+        {/* Adjusted empty div for flexbox centering balance to match circular button */}
+        <div className="w-10"></div>
       </div>
 
       {/* Main Content Area */}

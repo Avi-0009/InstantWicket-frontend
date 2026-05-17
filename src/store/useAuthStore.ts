@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface User {
   id: string;
@@ -17,29 +18,37 @@ interface AuthState {
   continueAsGuest: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: localStorage.getItem("auth-token") || null,
-  isAuthenticated: !!localStorage.getItem("auth-token"),
-  isGuest: false,
-
-  // Now requires a token, and saves it to the browser
-  login: (userData, token) => {
-    localStorage.setItem("auth-token", token);
-    set({ user: userData, token, isAuthenticated: true, isGuest: false });
-  },
-
-  continueAsGuest: () =>
-    set({
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
       user: null,
       token: null,
       isAuthenticated: false,
-      isGuest: true,
-    }),
+      isGuest: false,
 
-  // Clears the session completely
-  logout: () => {
-    localStorage.removeItem("auth-token");
-    set({ user: null, token: null, isAuthenticated: false, isGuest: false });
-  },
-}));
+      login: (userData, token) => {
+        set({ user: userData, token, isAuthenticated: true, isGuest: false });
+      },
+
+      continueAsGuest: () =>
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isGuest: true,
+        }),
+
+      logout: () => {
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isGuest: false,
+        });
+      },
+    }),
+    {
+      name: "instantwicket-auth", // Automatically saves your login state to localStorage
+    },
+  ),
+);

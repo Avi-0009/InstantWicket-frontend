@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
 import LiveScoring from "./pages/LiveScoring";
 import SettingsPage from "./pages/SettingsPage";
+import PlayerStatsPage from "./pages/PlayerStatsPage";
+import PlayersListPage from "./pages/PlayerListPage";
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
         // Inside App.tsx Routes block:
         <Route path="/match/live" element={<LiveScoring />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/players" element={<PlayersListPage />} />
+        <Route path="/player-stats" element={<PlayerStatsPage />} />
       </Routes>
     </Router>
   );
