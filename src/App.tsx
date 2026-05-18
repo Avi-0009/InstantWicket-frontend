@@ -13,24 +13,52 @@ import PlayerStatsPage from "./pages/PlayerStatsPage";
 import PlayersListPage from "./pages/PlayerListPage";
 import MatchesListPage from "./pages/MatchesListPage";
 import MatchDetailsPage from "./pages/MatchDetailsPage";
+import ProtectedRoute from "./components/common/ProtectedRoute"; // <-- Import it here
+import NewMatchPage from "./pages/NewMatchPage";
 
 const App = () => {
   return (
     <Router>
       <Routes>
-        {/* Routes WITH the layout (Contains Bottom Navbar) */}
+        {/* PUBLIC ROUTES WITH NAVBAR */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/players" element={<PlayersListPage />} />
-          <Route path="/player-stats" element={<PlayerStatsPage />} />
+          <Route path="/player-stats/:id" element={<PlayerStatsPage />} />
           <Route path="/matches" element={<MatchesListPage />} />
           <Route path="/match/:id" element={<MatchDetailsPage />} />
+
+          {/* PROTECTED ROUTE WITH NAVBAR (Settings) */}
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
 
-        {/* Routes WITHOUT the layout (Full screen pages) */}
+        {/* PUBLIC ROUTE (Auth/Login) */}
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/match/live" element={<LiveScoring />} />
+
+        {/* PROTECTED ROUTES WITHOUT NAVBAR (Full Screen Actions) */}
+        <Route
+          path="/new-match"
+          element={
+            <ProtectedRoute>
+              <NewMatchPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/match/live"
+          element={
+            <ProtectedRoute>
+              <LiveScoring />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Fallback for unknown routes */}
         <Route path="*" element={<Navigate to="/" replace />} />
