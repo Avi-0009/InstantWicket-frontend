@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { getInitials } from "../utils/helpers";
 import {
@@ -25,125 +25,105 @@ const MainLayout = () => {
     }
   };
 
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
+      isActive
+        ? "bg-primary/20 text-primary"
+        : "text-muted-foreground hover:bg-primary/10"
+    }`;
+
+  const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `flex flex-col items-center gap-1 w-[20%] py-1 ${
+      isActive ? "text-primary" : "text-muted-foreground"
+    }`;
+
   return (
-    <div className="min-h-screen bg-[#061311] text-[#F4FFFD] font-sans pb-20 md:pb-0">
-      {/* Desktop Top Navbar (Hidden on mobile) */}
-      <nav className="hidden md:flex sticky top-0 z-50 bg-[#0b1f1b]/85 backdrop-blur-md border-b border-[#1B3530] px-5 h-16 items-center justify-between">
+    <div className="min-h-screen bg-background text-foreground font-sans pb-20 md:pb-0">
+      {/* Desktop Top Navbar */}
+      <nav className="hidden md:flex sticky top-0 z-50 bg-card/85 backdrop-blur-md border-b border-border px-5 h-16 items-center justify-between">
         <div className="flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-[#0FAF9A]" />
-          <span className="text-base font-bold bg-gradient-to-br from-[#0FAF9A] to-[#19F0C1] text-transparent bg-clip-text">
+          <Trophy className="w-5 h-5 text-primary" />
+          <span className="text-base font-bold bg-gradient-to-br from-primary to-primary-hover text-transparent bg-clip-text">
             InstantWicket
           </span>
         </div>
 
         <div className="flex gap-2">
-          <Link
-            to="/"
-            className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${location.pathname === "/" ? "bg-[#0FAF9A]/20 text-[#0FAF9A]" : "text-[#9FB7B2] hover:bg-[#0FAF9A]/10"}`}
-          >
+          <NavLink to="/" className={navLinkClass}>
             <HomeIcon className="w-4 h-4" /> Dashboard
-          </Link>
-          <Link
-            to="/matches"
-            className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${location.pathname.includes("/match") ? "bg-[#0FAF9A]/20 text-[#0FAF9A]" : "text-[#9FB7B2] hover:bg-[#0FAF9A]/10"}`}
-          >
+          </NavLink>
+          <NavLink to="/matches" className={navLinkClass}>
             <Trophy className="w-4 h-4" /> Matches
-          </Link>
-          <Link
-            to="/players"
-            className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${location.pathname.includes("/players") ? "bg-[#0FAF9A]/20 text-[#0FAF9A]" : "text-[#9FB7B2] hover:bg-[#0FAF9A]/10"}`}
-          >
+          </NavLink>
+          <NavLink to="/players" className={navLinkClass}>
             <Users className="w-4 h-4" /> Players
-          </Link>
+          </NavLink>
         </div>
 
         {isAuthenticated && user ? (
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-[#F4FFFD] hidden md:block">
+            <span className="text-sm font-semibold text-foreground hidden md:block">
               {user.name}
             </span>
-            <Link
+            <NavLink
               to="/settings"
-              className="w-8 h-8 rounded-full bg-[#0FAF9A]/20 text-[#0FAF9A] flex items-center justify-center text-xs font-bold border border-[#0FAF9A]/30 hover:bg-[#0FAF9A]/40 transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold border border-primary/30 hover:bg-primary/40 transition-colors"
             >
               {getInitials(user.name)}
-            </Link>
+            </NavLink>
           </div>
         ) : (
-          <Link
+          <NavLink
             to="/auth"
-            className="bg-[#0FAF9A] hover:bg-[#19F0C1] text-[#061311] px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-[0_0_15px_rgba(15,175,154,0.2)]"
+            className="bg-primary hover:bg-primary-hover text-background px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
           >
-            <UserCircle className="w-4 h-4" /> Login / Sign Up
-          </Link>
+            <UserCircle className="w-4 h-4" /> Login
+          </NavLink>
         )}
       </nav>
 
       {/* Main Page Content */}
       <Outlet />
 
-      {/* MOBILE BOTTOM NAVBAR - Hidden on Settings page */}
+      {/* MOBILE BOTTOM NAVBAR */}
       {location.pathname !== "/settings" && (
-        <div className="fixed bottom-0 w-full bg-[#0b1f1b]/95 backdrop-blur-md border-t border-[#1B3530] py-2 px-2 flex justify-between items-center md:hidden z-50">
-          {/* 1. Home */}
-          <Link
-            to="/"
-            className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname === "/" ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
-          >
-            <HomeIcon className="w-5 h-5" />
+        <div className="fixed bottom-0 w-full bg-card/95 backdrop-blur-md border-t border-border py-2 px-2 flex justify-between items-center md:hidden z-50">
+          <NavLink to="/" className={mobileNavLinkClass}>
+            <HomeIcon className="w-5 h-5" />{" "}
             <span className="text-[10px] font-medium">Home</span>
-          </Link>
-
-          {/* 2. Matches */}
-          <Link
-            to="/matches"
-            className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname.includes("/match") ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
-          >
-            <Trophy className="w-5 h-5" />
+          </NavLink>
+          <NavLink to="/matches" className={mobileNavLinkClass}>
+            <Trophy className="w-5 h-5" />{" "}
             <span className="text-[10px] font-medium">Matches</span>
-          </Link>
-
-          {/* 3. New Match (Primary Action) */}
-          <Link
+          </NavLink>
+          <NavLink
             to="/new-match"
             className="flex flex-col items-center justify-center w-[20%] -mt-6"
           >
-            <div className="w-12 h-12 bg-[#0FAF9A] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(15,175,154,0.4)] border-4 border-[#061311] text-[#061311]">
+            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(15,175,154,0.4)] border-4 border-background text-background">
               <PlusCircle className="w-6 h-6" />
             </div>
-            <span className="text-[10px] font-bold text-[#0FAF9A] mt-1">
+            <span className="text-[10px] font-bold text-primary mt-1">
               Create
             </span>
-          </Link>
-
-          {/* 4. Players */}
-          <Link
-            to="/players"
-            className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname.includes("/players") ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
-          >
-            <Users className="w-5 h-5" />
+          </NavLink>
+          <NavLink to="/players" className={mobileNavLinkClass}>
+            <Users className="w-5 h-5" />{" "}
             <span className="text-[10px] font-medium">Players</span>
-          </Link>
+          </NavLink>
 
-          {/* 5. Profile / Login */}
           {isAuthenticated && user ? (
-            <Link
-              to="/settings"
-              className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname === "/settings" ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
-            >
-              <div className="w-5 h-5 rounded-full bg-[#0FAF9A]/20 text-[#0FAF9A] flex items-center justify-center text-[10px] font-bold border border-[#0FAF9A]/30">
+            <NavLink to="/settings" className={mobileNavLinkClass}>
+              <div className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold border border-primary/30">
                 {getInitials(user.name)}
               </div>
               <span className="text-[10px] font-medium">Profile</span>
-            </Link>
+            </NavLink>
           ) : (
-            <Link
-              to="/auth"
-              className={`flex flex-col items-center gap-1 w-[20%] py-1 ${location.pathname === "/auth" ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
-            >
-              <UserCircle className="w-5 h-5" />
+            <NavLink to="/auth" className={mobileNavLinkClass}>
+              <UserCircle className="w-5 h-5" />{" "}
               <span className="text-[10px] font-medium">Login</span>
-            </Link>
+            </NavLink>
           )}
         </div>
       )}

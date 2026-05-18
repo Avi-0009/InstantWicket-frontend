@@ -6,3 +6,9 @@ export const getInitials = (name: string) => {
   }
   return name.substring(0, 2).toUpperCase();
 };
+
+export const getOvers = (legalBalls: number): string => {
+  const overs = Math.floor(legalBalls / 6);
+  const balls = legalBalls % 6;
+  return `${overs}.${balls}`;
+};

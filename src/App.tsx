@@ -2,7 +2,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  Navigate,
+  NavLink, // <-- Replaced Navigate with NavLink
 } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
@@ -13,8 +13,24 @@ import PlayerStatsPage from "./pages/PlayerStatsPage";
 import PlayersListPage from "./pages/PlayerListPage";
 import MatchesListPage from "./pages/MatchesListPage";
 import MatchDetailsPage from "./pages/MatchDetailsPage";
-import ProtectedRoute from "./components/common/ProtectedRoute"; // <-- Import it here
+import ProtectedRoute from "./components/common/ProtectedRoute";
 import NewMatchPage from "./pages/NewMatchPage";
+
+// Extracted a small fallback component to utilize NavLink instead of Navigate redirect
+const NotFoundFallback = () => (
+  <div style={{ textAlign: "center", marginTop: "50px" }}>
+    <h2>404 - Page Not Found</h2>
+    <NavLink
+      to="/"
+      style={{
+        color: "var(--primary-color, blue)",
+        textDecoration: "underline",
+      }}
+    >
+      Go back to Dashboard
+    </NavLink>
+  </div>
+);
 
 const App = () => {
   return (
@@ -60,8 +76,8 @@ const App = () => {
           }
         />
 
-        {/* Fallback for unknown routes */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Fallback for unknown routes using NavLink */}
+        <Route path="*" element={<NotFoundFallback />} />
       </Routes>
     </Router>
   );

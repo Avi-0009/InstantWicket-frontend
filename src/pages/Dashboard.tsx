@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import SplashScreen from "../components/SplashScreen";
 import LiveMatchCard from "../components/matches/LiveMatchCard";
@@ -8,7 +8,6 @@ import { motion } from "framer-motion";
 let hasSeenSplashThisSession = false;
 
 const Dashboard = () => {
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(!hasSeenSplashThisSession);
   const [activeTab, setActiveTab] = useState("All");
 
@@ -41,12 +40,14 @@ const Dashboard = () => {
             Welcome! Here's what's happening today.
           </p>
         </div>
-        <button
-          onClick={() => navigate("/new-match")}
+
+        {/* REFACTORED: Replaced useNavigate button with NavLink */}
+        <NavLink
+          to="/new-match"
           className="bg-[#0FAF9A] text-[#061311] border-none rounded-lg px-6 py-3 text-sm font-bold flex items-center gap-2 w-full md:w-auto justify-center hover:bg-[#19F0C1] transition-colors shadow-[0_0_15px_rgba(15,175,154,0.2)]"
         >
           <Trophy className="w-4 h-4" /> Start New Match
-        </button>
+        </NavLink>
       </div>
 
       {/* Top Stats Grid */}
