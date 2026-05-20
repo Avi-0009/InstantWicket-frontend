@@ -4,6 +4,7 @@ import { api } from "../Api/Auth";
 export interface PlayerStats {
   id: string;
   user_id: string;
+  name: string;
   batting_style: string;
   bowling_style: string;
   career_matches: number;

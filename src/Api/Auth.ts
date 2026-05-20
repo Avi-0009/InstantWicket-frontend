@@ -34,3 +34,8 @@ export const Logout = async () => {
   const response = await api.post("/logout");
   return response.data;
 };
+
+export const ResetPassword = async (phone_no: string, new_password: string) => {
+  const response = await api.put("/reset-password", { phone_no, new_password });
+  return response.data;
+};

@@ -90,9 +90,8 @@ const PlayersListPage = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
           {currentPlayers.map((player: any, index: number) => {
-            // Normalize data because Go models differ between Search and GetAll
-            const displayName =
-              player.name || `Player User: ${player.user_id.substring(0, 6)}`;
+            // Using the real name from your updated Go backend!
+            const displayName = player.name || "Unknown Player";
             const runs = player.career_runs || 0;
             const uniqueKey = player.player_id || player.id || index;
 
@@ -104,6 +103,7 @@ const PlayersListPage = () => {
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-[#0FAF9A]/10 text-[#0FAF9A] flex items-center justify-center font-bold border border-[#0FAF9A]/20 group-hover:bg-[#0FAF9A] group-hover:text-[#061311] transition-colors">
+                    {/* Get Initials now works because we have the actual name */}
                     {player.name ? (
                       getInitials(player.name)
                     ) : (
