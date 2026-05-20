@@ -35,7 +35,11 @@ export const Logout = async () => {
   return response.data;
 };
 
-export const ResetPassword = async (phone_no: string, new_password: string) => {
-  const response = await api.put("/reset-password", { phone_no, new_password });
+export const ResetPassword = async (phone_no: string, password: string) => {
+  // Sending as a PUT request to the backend
+  const response = await api.put("/reset-password", {
+    phone_no,
+    password,
+  });
   return response.data;
 };
