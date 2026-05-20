@@ -26,25 +26,23 @@ export interface PlayerStats {
   career_total_points: number;
 }
 
-// 1. Fetch All Stats
+// 1. Fetch All Stats - Stripped prefix
 export const fetchAllPlayerStatsApi = async (): Promise<PlayerStats[]> => {
   const response = await api.get("/player_stats");
   return response.data.player_stats || [];
 };
 
-// 2. Search Stats
+// 2. Search Stats - Stripped prefix
 export const searchPlayerStatsApi = async (query: string) => {
   const response = await api.get(`/player_stats/search?q=${query}`);
   return response.data.players || [];
 };
 
-// 3. GET SINGLE PLAYER STATS (Matches your Postman!)
+// 3. Single Player Stats - Stripped prefix
 export const fetchPlayerStatsByIdApi = async (
   playerId: string,
 ): Promise<PlayerStats> => {
-  // Added the explicit /v1/ to perfectly match your backend route
   const response = await api.get(`/player_stats/${playerId}`);
-  // Your Go backend returns gin.H{"player_stats": playerStats}
   return response.data.player_stats;
 };
 
@@ -72,7 +70,7 @@ export const usePlayerStats = (playerId: string | undefined) => {
       if (!playerId) throw new Error("No Player ID provided");
       return await fetchPlayerStatsByIdApi(playerId);
     },
-    enabled: !!playerId, // Only run if ID exists
-    retry: false, // Prevents infinite loading loops if a player is missing stats
+    enabled: !!playerId,
+    retry: false,
   });
 };

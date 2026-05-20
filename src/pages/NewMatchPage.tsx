@@ -12,8 +12,81 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+import { useSearchPlayerStats } from "../hooks/usePlayerQueries";
+import { useDebounce } from "../hooks/useDebounce";
+import { useCreateMatch } from "../hooks/useMatchMutations";
+import { api } from "../Api/Auth";
+import { useAuthStore } from "../store/useAuthStore";
+
+// Invisible Search Wrapper for Step 3 Inputs (Preserves your exact UI)
+const PlayerSearchInput = ({
+  placeholder,
+  value,
+  onSelect,
+  excludeIds = [],
+}: any) => {
+  const [query, setQuery] = useState(value?.name || "");
+  const debounced = useDebounce(query, 300);
+  const { data, isPending } = useSearchPlayerStats(debounced);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        className="w-full bg-background border border-border text-foreground text-sm rounded-lg py-2 px-3 focus:border-primary outline-none"
+        placeholder={placeholder}
+      />
+      {open && query && (
+        <div className="absolute top-full left-0 w-full bg-card border border-border rounded-lg mt-1 shadow-xl z-50 overflow-hidden max-h-40 overflow-y-auto no-scrollbar">
+          {isPending ? (
+            <div className="p-3 text-xs font-bold text-primary animate-pulse">
+              Searching...
+            </div>
+          ) : data && data.length > 0 ? (
+            data.map((p: any) => (
+              <div
+                key={p.player_id}
+                onClick={() => {
+                  onSelect({ id: p.player_id, name: p.name });
+                  setQuery(p.name);
+                  setOpen(false);
+                }}
+                className={`p-2 text-sm border-b border-border/50 hover:bg-primary/10 cursor-pointer ${
+                  excludeIds.includes(p.player_id)
+                    ? "opacity-50 pointer-events-none"
+                    : ""
+                }`}
+              >
+                <div className="font-bold text-foreground">{p.name}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {p.phone_no}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-3 text-xs font-bold text-muted-foreground">
+              No players found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const NewMatchPage = () => {
   const navigate = useNavigate();
+  const hostId = useAuthStore((state) => state.user?.id);
+  const { mutateAsync: createMatch, isPending: isCreatingMatch } =
+    useCreateMatch();
 
   // Wizard State
   const [step, setStep] = useState(1);
@@ -26,10 +99,20 @@ const NewMatchPage = () => {
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
 
-  const [captainA, setCaptainA] = useState("");
-  const [captainB, setCaptainB] = useState("");
-  const [umpire1, setUmpire1] = useState("");
-  const [umpire2, setUmpire2] = useState("");
+  // Captains & Umpires (Now storing ID & Name objects)
+  const [captainA, setCaptainA] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const [captainB, setCaptainB] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const [umpire1, setUmpire1] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const [umpire2, setUmpire2] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+
   const [allowSolo, setAllowSolo] = useState(false);
   const [allowCommon, setAllowCommon] = useState(false);
 
@@ -42,11 +125,11 @@ const NewMatchPage = () => {
   >(null);
 
   // Ground / Player Selection States (Step 5)
-  const [searchId, setSearchId] = useState("");
-  const [searchedPlayer, setSearchedPlayer] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  const { data: searchResults, isPending: isSearching } =
+    useSearchPlayerStats(debouncedSearch);
+
   const [teamAPlayers, setTeamAPlayers] = useState<
     { id: string; name: string }[]
   >([]);
@@ -58,7 +141,6 @@ const NewMatchPage = () => {
   const handleNext = () => setStep((prev) => Math.min(prev + 1, totalSteps));
   const handleBack = () => setStep((prev) => Math.max(prev - 1, 1));
 
-  // Fix for the top header back button to respect wizard steps
   const handleHeaderBack = () => {
     if (step > 1) {
       handleBack();
@@ -83,26 +165,50 @@ const NewMatchPage = () => {
     }, 1500);
   };
 
-  const handleSearchPlayer = () => {
-    if (!searchId.trim()) return;
-    // Mock search logic without the "Player " prefix
-    setSearchedPlayer({ id: searchId, name: searchId });
-  };
-
-  const addPlayerToTeam = (team: "A" | "B") => {
-    if (!searchedPlayer) return;
+  const addPlayerToTeam = (player: any, team: "A" | "B") => {
+    const formattedPlayer = { id: player.player_id, name: player.name };
     if (team === "A" && teamAPlayers.length < 10) {
-      setTeamAPlayers([...teamAPlayers, searchedPlayer]);
+      setTeamAPlayers([...teamAPlayers, formattedPlayer]);
     } else if (team === "B" && teamBPlayers.length < 10) {
-      setTeamBPlayers([...teamBPlayers, searchedPlayer]);
+      setTeamBPlayers([...teamBPlayers, formattedPlayer]);
     }
-    setSearchedPlayer(null);
-    setSearchId("");
+    setSearchQuery("");
   };
 
-  const handleStartMatch = () => {
-    console.log("Match Data Ready to Ship!");
-    navigate("/match/live");
+  // Central Logic: Chains Team Creation -> Match Creation
+  const handleStartMatch = async () => {
+    try {
+      // 1. Create Teams
+      const resA = await api.post("/teams", { name: teamA });
+      const team_a_id = resA.data.teamID;
+
+      const resB = await api.post("/teams", { name: teamB });
+      const team_b_id = resB.data.teamID;
+
+      // 2. Resolve UUIDs
+      const toss_winner_team_id =
+        matchTossWinner === teamA ? team_a_id : team_b_id;
+      let overs = 20;
+      if (matchType === "T10") overs = 10;
+      if (matchType === "ODI") overs = 50;
+      if (matchType === "Custom") overs = parseInt(customOvers) || 20;
+
+      // 3. Create Match
+      await createMatch({
+        team_a_id,
+        team_b_id,
+        toss_winner_team_id,
+        toss_decision: matchTossDecision!,
+        allow_common_player: allowCommon,
+        allow_solo_batting: allowSolo,
+        overs_limit: overs,
+        umpire_id: umpire1?.id || undefined,
+      });
+
+      navigate("/match/live");
+    } catch (error) {
+      console.error("Failed to start match:", error);
+    }
   };
 
   // --- STEP RENDERERS ---
@@ -193,24 +299,20 @@ const NewMatchPage = () => {
             <label className="text-xs font-bold text-muted-foreground block mb-1">
               Captain ({teamA || "Team A"})
             </label>
-            <input
-              type="text"
-              value={captainA}
-              onChange={(e) => setCaptainA(e.target.value)}
-              className="w-full bg-background border border-border text-foreground text-sm rounded-lg py-2 px-3 focus:border-primary outline-none"
+            <PlayerSearchInput
               placeholder="Name"
+              value={captainA}
+              onSelect={setCaptainA}
             />
           </div>
           <div>
             <label className="text-xs font-bold text-muted-foreground block mb-1">
               Captain ({teamB || "Team B"})
             </label>
-            <input
-              type="text"
-              value={captainB}
-              onChange={(e) => setCaptainB(e.target.value)}
-              className="w-full bg-background border border-border text-foreground text-sm rounded-lg py-2 px-3 focus:border-primary outline-none"
+            <PlayerSearchInput
               placeholder="Name"
+              value={captainB}
+              onSelect={setCaptainB}
             />
           </div>
         </div>
@@ -222,30 +324,25 @@ const NewMatchPage = () => {
             <label className="text-xs font-bold text-muted-foreground block mb-1">
               Umpire 1
             </label>
-            <input
-              type="text"
-              value={umpire1}
-              onChange={(e) => setUmpire1(e.target.value)}
-              className="w-full bg-background border border-border text-foreground text-sm rounded-lg py-2 px-3 focus:border-primary outline-none"
+            <PlayerSearchInput
               placeholder="Optional"
+              value={umpire1}
+              onSelect={setUmpire1}
             />
           </div>
           <div>
             <label className="text-xs font-bold text-muted-foreground block mb-1">
               Umpire 2
             </label>
-            <input
-              type="text"
-              value={umpire2}
-              onChange={(e) => setUmpire2(e.target.value)}
-              className="w-full bg-background border border-border text-foreground text-sm rounded-lg py-2 px-3 focus:border-primary outline-none"
+            <PlayerSearchInput
               placeholder="Optional"
+              value={umpire2}
+              onSelect={setUmpire2}
             />
           </div>
         </div>
       </div>
 
-      {/* Custom Rules Toggles */}
       <div className="bg-card border border-border rounded-xl p-4 space-y-4 shadow-lg">
         <div className="flex items-center justify-between">
           <div>
@@ -331,6 +428,15 @@ const NewMatchPage = () => {
     </div>
   );
 
+  // Add this helper function right above renderStep5
+  const removePlayerFromTeam = (playerId: string, team: "A" | "B") => {
+    if (team === "A") {
+      setTeamAPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    } else {
+      setTeamBPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    }
+  };
+
   const renderStep5 = () => (
     <div className="animate-fade-in space-y-4">
       <h2 className="text-xl font-bold text-foreground text-center mb-6">
@@ -340,84 +446,115 @@ const NewMatchPage = () => {
         </span>
       </h2>
 
-      {/* Mock Search Bar */}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            value={searchId}
-            onChange={(e) => setSearchId(e.target.value)}
-            placeholder="Search Player ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search Player by Name or Phone..."
             className="w-full bg-card border border-border text-foreground rounded-lg py-2 pl-9 pr-4 focus:outline-none focus:border-primary text-sm"
           />
         </div>
-        <button
-          onClick={handleSearchPlayer}
-          className="bg-primary text-background px-4 rounded-lg font-bold hover:bg-primary/80 transition-colors text-sm"
-        >
+        <button className="bg-primary text-background px-4 rounded-lg font-bold hover:bg-primary/80 transition-colors text-sm">
           Search
         </button>
       </div>
 
-      {/* Search Result Action */}
-      {searchedPlayer && (
-        <div className="p-3 bg-card border border-primary rounded-lg flex items-center justify-between">
-          <span className="text-foreground text-sm font-bold truncate max-w-[120px]">
-            {searchedPlayer.name}
-          </span>
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={() => addPlayerToTeam("A")}
-              disabled={teamAPlayers.length >= 10}
-              className="text-xs bg-background border border-border px-3 py-1.5 rounded hover:border-primary text-foreground disabled:opacity-50 transition-colors"
-            >
-              Add to {teamA || "A"}
-            </button>
-            <button
-              onClick={() => addPlayerToTeam("B")}
-              disabled={teamBPlayers.length >= 10}
-              className="text-xs bg-background border border-border px-3 py-1.5 rounded hover:border-destructive text-foreground disabled:opacity-50 transition-colors"
-            >
-              Add to {teamB || "B"}
-            </button>
-          </div>
+      {isSearching && (
+        <div className="text-center py-2 animate-pulse text-xs text-primary font-semibold">
+          Searching database...
         </div>
       )}
 
-      {/* The Ground UI (Visual Grid) */}
+      {!isSearching && searchResults && searchResults.length > 0 && (
+        <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
+          {searchResults.slice(0, 4).map((player: any) => {
+            // Block Umpires & Host from playing
+            const isBlocked =
+              player.player_id === umpire1?.id ||
+              player.player_id === umpire2?.id ||
+              player.user_id === hostId;
+
+            // Check if player is already in a team OR is already a captain
+            const inA =
+              teamAPlayers.some((p) => p.id === player.player_id) ||
+              player.player_id === captainA?.id;
+            const inB =
+              teamBPlayers.some((p) => p.id === player.player_id) ||
+              player.player_id === captainB?.id;
+
+            return (
+              <div
+                key={player.player_id}
+                className="p-3 bg-card border border-primary/50 rounded-lg flex items-center justify-between shadow-sm"
+              >
+                <div>
+                  <span className="text-foreground text-sm font-bold block truncate max-w-[120px]">
+                    {player.name}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {player.phone_no}
+                  </span>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => addPlayerToTeam(player, "A")}
+                    disabled={
+                      teamAPlayers.length >= 10 || isBlocked || inA || inB
+                    }
+                    className="text-xs bg-background border border-border px-3 py-1.5 rounded hover:border-primary text-foreground disabled:opacity-30 transition-colors"
+                  >
+                    Add to {teamA || "A"}
+                  </button>
+                  <button
+                    onClick={() => addPlayerToTeam(player, "B")}
+                    disabled={
+                      teamBPlayers.length >= 10 || isBlocked || inA || inB
+                    }
+                    className="text-xs bg-background border border-border px-3 py-1.5 rounded hover:border-destructive text-foreground disabled:opacity-30 transition-colors"
+                  >
+                    Add to {teamB || "B"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* The Ground UI */}
       <div className="relative w-full bg-[#1b3530]/30 border-2 border-border rounded-3xl p-4 overflow-hidden mt-6 shadow-inner z-0">
-        {/* Decorative Pitch Line - Strictly behind everything */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/4 h-[90%] border-2 border-border/50 rounded-[100px] pointer-events-none z-0" />
 
-        {/* Main Flex Container - Placed in front of the pitch */}
         <div className="flex gap-4 relative z-10">
-          {/* Team A Roster */}
+          {/* TEAM A ROSTER */}
           <div className="flex-1 space-y-2 min-w-0">
             <h3 className="text-center font-bold text-primary text-sm mb-4 border-b border-border pb-2 truncate">
               {teamA || "Team A"}
             </h3>
 
-            {/* Captain Slot (Locked) */}
+            {/* Captain Slot (Locked - No Remove Button) */}
             <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md">
               <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-black shrink-0">
                 1
               </div>
               <span className="text-xs font-bold text-foreground truncate flex-1">
-                {captainA || "Captain A"}
+                {captainA?.name || "Captain A"}
               </span>
               <span className="absolute -top-2 -right-1 bg-warning text-background text-[9px] font-black px-1.5 py-0.5 rounded shadow z-20">
                 CAP
               </span>
             </div>
 
-            {/* Remaining 10 Slots */}
+            {/* Remaining 10 Slots (Removable) */}
             {Array.from({ length: 10 }).map((_, i) => {
               const player = teamAPlayers[i];
               return (
                 <div
                   key={`a-${i}`}
-                  className="flex items-center gap-2 p-2 bg-background/50 border border-border/50 rounded-lg"
+                  className="flex items-center gap-2 p-2 bg-background/50 border border-border/50 rounded-lg group"
                 >
                   <div className="w-6 h-6 rounded-full bg-border text-muted-foreground flex items-center justify-center text-xs font-bold shrink-0">
                     {i + 2}
@@ -427,37 +564,46 @@ const NewMatchPage = () => {
                   >
                     {player ? player.name : "Empty Slot"}
                   </span>
+                  {/* Remove Button */}
+                  {player && (
+                    <button
+                      onClick={() => removePlayerFromTeam(player.id, "A")}
+                      className="text-muted-foreground hover:text-destructive transition-colors px-1"
+                    >
+                      &times;
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
 
-          {/* Team B Roster */}
+          {/* TEAM B ROSTER */}
           <div className="flex-1 space-y-2 min-w-0">
             <h3 className="text-center font-bold text-destructive text-sm mb-4 border-b border-border pb-2 truncate">
               {teamB || "Team B"}
             </h3>
 
-            {/* Captain Slot (Locked) */}
+            {/* Captain Slot (Locked - No Remove Button) */}
             <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md flex-row-reverse">
               <div className="w-6 h-6 rounded-full bg-destructive/20 text-destructive flex items-center justify-center text-xs font-black shrink-0">
                 1
               </div>
               <span className="text-xs font-bold text-foreground truncate flex-1 text-right">
-                {captainB || "Captain B"}
+                {captainB?.name || "Captain B"}
               </span>
               <span className="absolute -top-2 -left-1 bg-warning text-background text-[9px] font-black px-1.5 py-0.5 rounded shadow z-20">
                 CAP
               </span>
             </div>
 
-            {/* Remaining 10 Slots */}
+            {/* Remaining 10 Slots (Removable) */}
             {Array.from({ length: 10 }).map((_, i) => {
               const player = teamBPlayers[i];
               return (
                 <div
                   key={`b-${i}`}
-                  className="flex items-center gap-2 p-2 bg-background/50 border border-border/50 rounded-lg flex-row-reverse"
+                  className="flex items-center gap-2 p-2 bg-background/50 border border-border/50 rounded-lg flex-row-reverse group"
                 >
                   <div className="w-6 h-6 rounded-full bg-border text-muted-foreground flex items-center justify-center text-xs font-bold shrink-0">
                     {i + 2}
@@ -467,6 +613,15 @@ const NewMatchPage = () => {
                   >
                     {player ? player.name : "Empty Slot"}
                   </span>
+                  {/* Remove Button */}
+                  {player && (
+                    <button
+                      onClick={() => removePlayerFromTeam(player.id, "B")}
+                      className="text-muted-foreground hover:text-destructive transition-colors px-1"
+                    >
+                      &times;
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -580,7 +735,7 @@ const NewMatchPage = () => {
         </p>
       </div>
 
-      {/* Main Content Area - Added pb-32 to fix the overlap issue! */}
+      {/* Main Content Area */}
       <main className="max-w-md mx-auto p-4 pb-32 min-h-[400px]">
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
@@ -605,7 +760,7 @@ const NewMatchPage = () => {
             onClick={handleNext}
             disabled={
               (step === 2 && (!teamA || !teamB)) ||
-              (step === 3 && (!captainA || !captainB)) // Enforce captains before the ground step
+              (step === 3 && (!captainA || !captainB))
             }
             className="flex-1 bg-primary text-background py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all shadow-[0_0_15px_rgba(15,175,154,0.2)] ml-auto"
           >
@@ -614,10 +769,11 @@ const NewMatchPage = () => {
         ) : (
           <button
             onClick={handleStartMatch}
-            disabled={!matchTossDecision}
+            disabled={!matchTossDecision || isCreatingMatch}
             className="flex-1 bg-destructive text-background py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(255,107,107,0.3)] ml-auto"
           >
-            Start Match <Play className="w-5 h-5 fill-current" />
+            {isCreatingMatch ? "Starting..." : "Start Match"}{" "}
+            <Play className="w-5 h-5 fill-current" />
           </button>
         )}
       </div>
