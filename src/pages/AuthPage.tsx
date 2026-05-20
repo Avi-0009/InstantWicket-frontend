@@ -3,7 +3,7 @@ import LoginForm from "../components/auth/LoginForm";
 import SignUpForm from "../components/auth/SignUpForm";
 import AuthOverlay from "../components/auth/AuthOverlay";
 
-export default function AuthPage() {
+const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
 
   return (
@@ -24,4 +24,5 @@ export default function AuthPage() {
       </div>
     </div>
   );
-}
+};
+export default AuthPage;

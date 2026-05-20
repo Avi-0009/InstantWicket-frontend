@@ -40,7 +40,8 @@ const App = () => {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/players" element={<PlayersListPage />} />
-          <Route path="/player-stats/:id" element={<PlayerStatsPage />} />
+          {/* <Route path="/player-stats/:id" element={<PlayerStatsPage />} /> */}
+          <Route path="/player-stats" element={<PlayerStatsPage />} />
           <Route path="/matches" element={<MatchesListPage />} />
           <Route path="/match/:id" element={<MatchDetailsPage />} />
 

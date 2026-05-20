@@ -1,6 +1,6 @@
 import { Trophy, Activity, Globe, Zap } from "lucide-react";
 
-export default function SplashScreen() {
+const SplashScreen = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 font-sans">
       <div className="bg-card border border-border rounded-3xl p-8 md:p-12 max-w-md w-full flex flex-col items-center justify-center shadow-2xl">
@@ -57,4 +57,5 @@ export default function SplashScreen() {
       `}</style>
     </div>
   );
-}
+};
+export default SplashScreen;

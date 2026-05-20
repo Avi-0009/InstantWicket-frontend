@@ -1,7 +1,7 @@
 import { Play } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
-export default function LiveMatchCard() {
+const LiveMatchCard = () => {
   return (
     <div className="bg-gradient-to-br from-card to-card-hover border border-border rounded-[14px] p-4 relative cursor-pointer hover:border-primary/40 transition-colors">
       {/* Live Badge */}
@@ -62,4 +62,6 @@ export default function LiveMatchCard() {
       </div>
     </div>
   );
-}
+};
+
+export default LiveMatchCard;

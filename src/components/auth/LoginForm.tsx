@@ -16,7 +16,7 @@ const getInitials = (name: string) => {
   return name.substring(0, 2).toUpperCase();
 };
 
-export default function LoginForm({ isSignUp, setIsSignUp }: LoginFormProps) {
+const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
   const navigate = useNavigate();
   const { login } = useAuthStore();
 
@@ -43,6 +43,8 @@ export default function LoginForm({ isSignUp, setIsSignUp }: LoginFormProps) {
         data.token,
       );
 
+      // We keep programmatic navigation here because we must wait
+      // for the API promise to resolve before routing.
       navigate("/");
     } catch (err: any) {
       setLoginError(err.response?.data?.error || "Invalid credentials.");
@@ -113,11 +115,13 @@ export default function LoginForm({ isSignUp, setIsSignUp }: LoginFormProps) {
         Don't have an account?{" "}
         <button
           onClick={() => setIsSignUp(true)}
-          className="text-primary font-semibold"
+          className="text-primary font-semibold hover:underline"
         >
           Sign Up
         </button>
       </div>
     </div>
   );
-}
+};
+
+export default LoginForm;

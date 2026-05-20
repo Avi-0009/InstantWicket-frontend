@@ -1,5 +1,5 @@
 import { Eye, Trophy } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../../store/useAuthStore";
 
 interface AuthOverlayProps {
@@ -7,17 +7,8 @@ interface AuthOverlayProps {
   setIsSignUp: (val: boolean) => void;
 }
 
-export default function AuthOverlay({
-  isSignUp,
-  setIsSignUp,
-}: AuthOverlayProps) {
-  const navigate = useNavigate();
+const AuthOverlay = ({ isSignUp, setIsSignUp }: AuthOverlayProps) => {
   const { continueAsGuest } = useAuthStore();
-
-  const handleGuestAccess = () => {
-    continueAsGuest();
-    navigate("/");
-  };
 
   return (
     <div
@@ -51,13 +42,16 @@ export default function AuthOverlay({
           <div className="flex-grow border-t border-background/20"></div>
         </div>
 
-        <button
-          onClick={handleGuestAccess}
+        {/* Replaced programmatic navigate with NavLink */}
+        <NavLink
+          to="/"
+          onClick={() => continueAsGuest()}
           className="w-full py-3 rounded-xl bg-background text-primary hover:bg-card transition-colors font-semibold flex items-center justify-center gap-2 shadow-lg"
         >
           <Eye className="w-4 h-4" /> View Live Scores
-        </button>
+        </NavLink>
       </div>
     </div>
   );
-}
+};
+export default AuthOverlay;

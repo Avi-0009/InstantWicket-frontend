@@ -8,11 +8,11 @@ interface InningsDetailsProps {
   setActiveInning: (inning: 1 | 2) => void;
 }
 
-export default function InningsDetails({
+const InningsDetails = ({
   matchInfo,
   activeInning,
   setActiveInning,
-}: InningsDetailsProps) {
+}: InningsDetailsProps) => {
   const currentInningData = matchInfo.innings.find(
     (i: any) => i.innings_no === activeInning,
   );
@@ -125,4 +125,6 @@ export default function InningsDetails({
       )}
     </>
   );
-}
+};
+
+export default InningsDetails;

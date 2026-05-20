@@ -5,7 +5,7 @@ import PlayerStats from "../components/scoring/PlayerStats";
 import OverTimeline from "../components/scoring/OverTimeline";
 import ScoringPad from "../components/scoring/ScoringPad";
 
-export default function LiveScoring() {
+const LiveScoring = () => {
   return (
     <div className="min-h-screen bg-[#061311] font-sans pb-8">
       {/* Top Action Bar */}
@@ -36,4 +36,5 @@ export default function LiveScoring() {
       </main>
     </div>
   );
-}
+};
+export default LiveScoring;

@@ -1,50 +1,41 @@
 import { useState } from "react";
 import { Phone, Lock, User, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useAuthStore } from "../../store/useAuthStore";
 import { Register } from "../../Api/Auth";
 
 interface SignUpFormProps {
   isSignUp: boolean;
   setIsSignUp: (val: boolean) => void;
 }
-
-const getInitials = (name: string) => {
-  if (!name) return "U";
-  const parts = name.trim().split(" ");
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return name.substring(0, 2).toUpperCase();
-};
-
-export default function SignUpForm({ isSignUp, setIsSignUp }: SignUpFormProps) {
-  const navigate = useNavigate();
-  const { login } = useAuthStore();
-
+const SignUpForm = ({ isSignUp, setIsSignUp }: SignUpFormProps) => {
   const [regName, setRegName] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regError, setRegError] = useState("");
+  const [regSuccess, setRegSuccess] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError("");
+    setRegSuccess("");
 
     try {
       setIsRegistering(true);
-      const data = await Register(regName, regPhone, regPassword);
+      await Register(regName, regPhone, regPassword);
 
-      login(
-        {
-          id: data.user?.id || "temp-id",
-          name: regName,
-          phone: regPhone,
-          avatar: getInitials(regName),
-        },
-        data.token || "",
-      );
+      // Show success message and transition to Login form
+      setRegSuccess("Account created successfully! Please sign in.");
 
-      navigate("/");
+      // Clear form
+      setRegName("");
+      setRegPhone("");
+      setRegPassword("");
+
+      // Switch to sign-in view after a short delay
+      setTimeout(() => {
+        setIsSignUp(false);
+        setRegSuccess("");
+      }, 2000);
     } catch (err: any) {
       setRegError(err.response?.data?.error || "Registration failed.");
     } finally {
@@ -106,9 +97,17 @@ export default function SignUpForm({ isSignUp, setIsSignUp }: SignUpFormProps) {
           />
         </div>
 
+        {/* Error Message */}
         {regError && (
           <div className="text-destructive text-xs font-semibold px-1">
             {regError}
+          </div>
+        )}
+
+        {/* Success Message */}
+        {regSuccess && (
+          <div className="text-primary text-xs font-semibold px-1">
+            {regSuccess}
           </div>
         )}
 
@@ -126,11 +125,13 @@ export default function SignUpForm({ isSignUp, setIsSignUp }: SignUpFormProps) {
         Already have an account?{" "}
         <button
           onClick={() => setIsSignUp(false)}
-          className="text-primary font-semibold"
+          className="text-primary font-semibold hover:underline"
         >
           Sign In
         </button>
       </div>
     </div>
   );
-}
+};
+
+export default SignUpForm;

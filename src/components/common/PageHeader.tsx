@@ -7,7 +7,7 @@ interface PageHeaderProps {
   backUrl?: string;
 }
 
-export default function PageHeader({ title, backUrl = "/" }: PageHeaderProps) {
+const PageHeader = ({ title, backUrl = "/" }: PageHeaderProps) => {
   const navigate = useNavigate();
 
   return (
@@ -21,4 +21,5 @@ export default function PageHeader({ title, backUrl = "/" }: PageHeaderProps) {
       <h1 className="text-[28px] font-bold text-[#F4FFFD]">{title}</h1>
     </div>
   );
-}
+};
+export default PageHeader;

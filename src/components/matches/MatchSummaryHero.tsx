@@ -17,11 +17,7 @@ interface MatchInfo {
   innings: Innings[];
 }
 
-export default function MatchSummaryHero({
-  matchInfo,
-}: {
-  matchInfo: MatchInfo;
-}) {
+const MatchSummaryHero = ({ matchInfo }: { matchInfo: MatchInfo }) => {
   return (
     <div className="bg-gradient-to-br from-card to-background border border-border rounded-2xl p-6 mb-6 shadow-2xl relative overflow-hidden">
       <div className="text-center mb-6">
@@ -76,4 +72,5 @@ export default function MatchSummaryHero({
       )}
     </div>
   );
-}
+};
+export default MatchSummaryHero;
