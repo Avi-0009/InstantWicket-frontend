@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy,
@@ -9,34 +10,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Swords,
+  Loader2, // Import a loader icon
 } from "lucide-react";
 import PageHeader from "../components/common/PageHeader";
+import { usePlayerStats } from "../hooks/usePlayerQueries";
 
-// --- MOCK DATA BASED ON YOUR EXACT SCHEMA ---
-const mockPlayerStats = {
-  name: "Prakhar Sahu",
-  batting_style: "Right-hand bat",
-  bowling_style: "Right-arm offbreak",
-  career_matches: 148,
-  career_runs: 4820,
-  career_wickets: 87,
-  career_catches: 42,
-  career_runouts: 12,
-  career_stumpings: 3,
-  career_fours: 412,
-  career_sixes: 184,
-  strike_rate: 142.5,
-  economy: 7.24,
-  career_highest_score: 118,
-  career_fifties: 28,
-  career_hundreds: 4,
-  career_best_bowling_wickets: 5,
-  career_best_bowling_runs: 24,
-  career_mvps: 18,
-  career_total_points: 2450,
-};
-
-// Mock Match Log for Pagination
+// Keep the mock Match Log for now since we don't have a specific endpoint for recent matches yet
 const mockMatchLog = Array.from({ length: 45 }, (_, i) => ({
   id: i,
   date: `2026-05-${String((i % 30) + 1).padStart(2, "0")}`,
@@ -45,8 +24,6 @@ const mockMatchLog = Array.from({ length: 45 }, (_, i) => ({
   wickets: Math.floor(Math.random() * 4),
   result: Math.random() > 0.5 ? "Won" : "Lost",
 }));
-
-// --- SHADCN-INSPIRED UI COMPONENTS ---
 
 const StatCard = ({
   title,
@@ -78,14 +55,16 @@ const StatCard = ({
   </motion.div>
 );
 
-// --- MAIN COMPONENT ---
-
 const PlayerStatsPage = () => {
+  const { id } = useParams<{ id: string }>(); // Get the ID from the URL
   const [activeTab, setActiveTab] = useState("overview");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Pagination Logic
+  // Use the TanStack hook
+  const { data: stats, isLoading, isError, error } = usePlayerStats(id);
+
+  // Pagination Logic (using mock data for now)
   const totalPages = Math.ceil(mockMatchLog.length / itemsPerPage);
   const currentMatches = mockMatchLog.slice(
     (currentPage - 1) * itemsPerPage,
@@ -95,6 +74,29 @@ const PlayerStatsPage = () => {
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#061311] flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#0FAF9A] animate-spin mb-4" />
+        <p className="text-[#F4FFFD] font-semibold animate-pulse">
+          Loading Player Stats...
+        </p>
+      </div>
+    );
+  }
+
+  if (isError || !stats) {
+    return (
+      <div className="min-h-screen bg-[#061311] p-4">
+        <PageHeader title="Player Profile" backUrl="/players" />
+        <div className="mt-20 text-center text-destructive font-bold">
+          Failed to load player stats.{" "}
+          {error instanceof Error ? error.message : ""}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#061311] font-sans pb-24">
@@ -106,22 +108,25 @@ const PlayerStatsPage = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-[#0FAF9A]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
+            {/* Note: We don't have the user's name in the PlayerStats model directly, 
+                 you might need to fetch the basic user profile separately or adjust your Go backend 
+                 to return the name alongside the stats. Using a placeholder for now. */}
             <div className="w-24 h-24 rounded-full bg-[#0FAF9A]/20 border-2 border-[#0FAF9A] flex items-center justify-center text-4xl font-bold text-[#0FAF9A] shadow-[0_0_20px_rgba(15,175,154,0.3)] shrink-0">
-              {mockPlayerStats.name.substring(0, 2).toUpperCase()}
+              P
             </div>
 
             <div className="text-center md:text-left flex-1">
               <h1 className="text-3xl md:text-4xl font-black text-[#F4FFFD] mb-2">
-                {mockPlayerStats.name}
+                Player Name
               </h1>
               <div className="flex flex-wrap justify-center md:justify-start gap-3">
                 <span className="px-3 py-1 bg-[#1B3530] text-[#9FB7B2] rounded-full text-xs font-bold flex items-center gap-1.5">
                   <Swords className="w-3.5 h-3.5 text-[#0FAF9A]" />{" "}
-                  {mockPlayerStats.batting_style}
+                  {stats.batting_style || "N/A"}
                 </span>
                 <span className="px-3 py-1 bg-[#1B3530] text-[#9FB7B2] rounded-full text-xs font-bold flex items-center gap-1.5">
                   <Target className="w-3.5 h-3.5 text-[#FF6B6B]" />{" "}
-                  {mockPlayerStats.bowling_style}
+                  {stats.bowling_style || "N/A"}
                 </span>
               </div>
             </div>
@@ -132,7 +137,7 @@ const PlayerStatsPage = () => {
                   Total Points
                 </p>
                 <p className="text-2xl font-black text-[#0FAF9A]">
-                  {mockPlayerStats.career_total_points}
+                  {stats.career_total_points}
                 </p>
               </div>
               <div className="text-center md:text-right">
@@ -140,7 +145,7 @@ const PlayerStatsPage = () => {
                   MVP Awards
                 </p>
                 <p className="text-2xl font-black text-[#F59E0B] flex items-center justify-center md:justify-end gap-1">
-                  {mockPlayerStats.career_mvps} <Award className="w-5 h-5" />
+                  {stats.career_mvps} <Award className="w-5 h-5" />
                 </p>
               </div>
             </div>
@@ -177,23 +182,23 @@ const PlayerStatsPage = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <StatCard
                   title="Matches"
-                  value={mockPlayerStats.career_matches}
+                  value={stats.career_matches}
                   icon={Trophy}
                   highlight
                 />
                 <StatCard
                   title="Total Runs"
-                  value={mockPlayerStats.career_runs}
+                  value={stats.career_runs}
                   icon={Swords}
                 />
                 <StatCard
                   title="Total Wickets"
-                  value={mockPlayerStats.career_wickets}
+                  value={stats.career_wickets}
                   icon={Target}
                 />
                 <StatCard
                   title="Highest Score"
-                  value={`${mockPlayerStats.career_highest_score}*`}
+                  value={`${stats.career_highest_score}*`}
                   icon={Activity}
                 />
               </div>
@@ -203,23 +208,23 @@ const PlayerStatsPage = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <StatCard
                   title="Total Runs"
-                  value={mockPlayerStats.career_runs}
+                  value={stats.career_runs}
                   icon={Swords}
                   highlight
                 />
                 <StatCard
                   title="Strike Rate"
-                  value={mockPlayerStats.strike_rate}
+                  value={stats.strike_rate}
                   icon={Activity}
                 />
                 <StatCard
                   title="100s / 50s"
-                  value={`${mockPlayerStats.career_hundreds} / ${mockPlayerStats.career_fifties}`}
+                  value={`${stats.career_hundreds} / ${stats.career_fifties}`}
                   icon={Award}
                 />
                 <StatCard
                   title="Boundaries (4s/6s)"
-                  value={`${mockPlayerStats.career_fours} / ${mockPlayerStats.career_sixes}`}
+                  value={`${stats.career_fours} / ${stats.career_sixes}`}
                   icon={Target}
                 />
               </div>
@@ -229,22 +234,22 @@ const PlayerStatsPage = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <StatCard
                   title="Wickets"
-                  value={mockPlayerStats.career_wickets}
+                  value={stats.career_wickets}
                   icon={Target}
                   highlight
                 />
                 <StatCard
                   title="Economy"
-                  value={mockPlayerStats.economy}
+                  value={stats.economy}
                   icon={Activity}
                 />
                 <StatCard
                   title="Best Bowling"
-                  value={`${mockPlayerStats.career_best_bowling_wickets}/${mockPlayerStats.career_best_bowling_runs}`}
+                  value={`${stats.career_best_bowling_wickets}/${stats.career_best_bowling_runs}`}
                   icon={Trophy}
                 />
-                <StatCard title="Maidens" value="14" icon={Shield} />{" "}
-                {/* Added a mock value for maidens */}
+                <StatCard title="Maidens" value="0" icon={Shield} />{" "}
+                {/* You might need to add maidens to your Go model later */}
               </div>
             )}
 
@@ -252,18 +257,18 @@ const PlayerStatsPage = () => {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <StatCard
                   title="Catches"
-                  value={mockPlayerStats.career_catches}
+                  value={stats.career_catches}
                   icon={Shield}
                   highlight
                 />
                 <StatCard
                   title="Run Outs"
-                  value={mockPlayerStats.career_runouts}
+                  value={stats.career_runouts}
                   icon={Target}
                 />
                 <StatCard
                   title="Stumpings"
-                  value={mockPlayerStats.career_stumpings}
+                  value={stats.career_stumpings}
                   icon={Activity}
                 />
               </div>
@@ -271,7 +276,8 @@ const PlayerStatsPage = () => {
           </motion.div>
         </AnimatePresence>
 
-        {/* RECENT INNINGS TABLE WITH NOWTED/SHADCN-STYLE PAGINATION */}
+        {/* RECENT INNINGS TABLE (Still Mocked) */}
+        {/* ... (Keep the rest of your table UI exactly the same) ... */}
         <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl shadow-lg overflow-hidden flex flex-col">
           <div className="p-5 border-b border-[#1B3530]">
             <h3 className="text-lg font-bold text-[#F4FFFD]">Recent Matches</h3>

@@ -1,20 +1,21 @@
 import axios from "axios";
+import { useAuthStore } from "../store/useAuthStore";
 
-// Using your Vite environment variable
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_Api,
+  baseURL: import.meta.env.VITE_Api, // Ensure your .env has VITE_Api defined
   headers: { "Content-Type": "application/json" },
 });
 
-// Single, individual exports
+// Intercept requests to attach the token from Zustand
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("auth-token");
+  const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
+// Restored exact original names: Login, Register, Logout
 export const Login = async (phone_no: string, password: string) => {
   const response = await api.post("/login", { phone_no, password });
   return response.data;

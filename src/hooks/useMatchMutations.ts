@@ -1,8 +1,8 @@
+// src/hooks/useMatchMutations.ts
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { api } from "../Api/Auth"; // Assuming your axios instance is exported from here
+import { api } from "../Api/Auth";
 
-// 1. Zod schema matching your Go backend models.CreateMatch exactly
 export const createMatchSchema = z.object({
   team_a_id: z.string().uuid("Invalid Team A ID"),
   team_b_id: z.string().uuid("Invalid Team B ID"),
@@ -16,14 +16,23 @@ export const createMatchSchema = z.object({
 
 export type CreateMatchPayload = z.infer<typeof createMatchSchema>;
 
-// 2. TanStack Query Mutation Hook
+// Separate the API call logic using an arrow function
+export const createMatchApi = async (payload: CreateMatchPayload) => {
+  const validData = createMatchSchema.parse(payload);
+  const response = await api.post("/matches", validData);
+  return response.data;
+};
+
+// The TanStack Hook using an arrow function
 export const useCreateMatch = () => {
   return useMutation({
-    mutationFn: async (payload: CreateMatchPayload) => {
-      // Zod validation before sending to backend
-      const validData = createMatchSchema.parse(payload);
-      const response = await api.post("/matches", validData);
-      return response.data;
+    mutationFn: createMatchApi,
+    onSuccess: (data) => {
+      // We will handle invalidating queries here later
+      console.log("Match created successfully", data);
+    },
+    onError: (error) => {
+      console.error("Match creation failed", error);
     },
   });
 };
