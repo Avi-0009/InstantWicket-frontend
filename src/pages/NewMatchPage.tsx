@@ -112,6 +112,10 @@ const NewMatchPage = () => {
   const [umpire2, setUmpire2] = useState<{ id: string; name: string } | null>(
     null,
   );
+  const [commonPlayer, setCommonPlayer] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const [allowSolo, setAllowSolo] = useState(false);
   const [allowCommon, setAllowCommon] = useState(false);
@@ -165,14 +169,37 @@ const NewMatchPage = () => {
     }, 1500);
   };
 
+  // Master list of every ID currently used anywhere in the match
+  const allSelectedIds = [
+    hostId,
+    umpire1?.id,
+    umpire2?.id,
+    captainA?.id,
+    captainB?.id,
+    commonPlayer?.id,
+    ...teamAPlayers.map((p) => p.id),
+    ...teamBPlayers.map((p) => p.id),
+  ].filter(Boolean);
+
+  // If a common player is used, regular slots drop to 9 (1 Capt + 1 Common + 9 Regulars = 11)
+  const maxRegularPlayers = commonPlayer ? 9 : 10;
+
   const addPlayerToTeam = (player: any, team: "A" | "B") => {
     const formattedPlayer = { id: player.player_id, name: player.name };
-    if (team === "A" && teamAPlayers.length < 10) {
+    if (team === "A" && teamAPlayers.length < maxRegularPlayers) {
       setTeamAPlayers([...teamAPlayers, formattedPlayer]);
-    } else if (team === "B" && teamBPlayers.length < 10) {
+    } else if (team === "B" && teamBPlayers.length < maxRegularPlayers) {
       setTeamBPlayers([...teamBPlayers, formattedPlayer]);
     }
     setSearchQuery("");
+  };
+
+  const removePlayerFromTeam = (playerId: string, team: "A" | "B") => {
+    if (team === "A") {
+      setTeamAPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    } else {
+      setTeamBPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    }
   };
 
   // Central Logic: Chains Team Creation -> Match Creation
@@ -240,8 +267,26 @@ const NewMatchPage = () => {
           </label>
           <input
             type="number"
+            min="1"
+            max="50"
             value={customOvers}
-            onChange={(e) => setCustomOvers(e.target.value)}
+            onChange={(e) => {
+              // Strip out any non-digit characters (including negative signs)
+              const val = e.target.value.replace(/\D/g, "");
+
+              if (val === "") {
+                setCustomOvers("");
+                return;
+              }
+
+              const num = parseInt(val, 10);
+
+              if (num > 50) {
+                setCustomOvers("50");
+              } else if (num > 0) {
+                setCustomOvers(num.toString());
+              }
+            }}
             placeholder="e.g. 15"
             className="w-full bg-card border border-border text-foreground rounded-xl py-3 px-4 focus:outline-none focus:border-primary transition-colors"
           />
@@ -303,6 +348,7 @@ const NewMatchPage = () => {
               placeholder="Name"
               value={captainA}
               onSelect={setCaptainA}
+              excludeIds={allSelectedIds}
             />
           </div>
           <div>
@@ -313,6 +359,7 @@ const NewMatchPage = () => {
               placeholder="Name"
               value={captainB}
               onSelect={setCaptainB}
+              excludeIds={allSelectedIds}
             />
           </div>
         </div>
@@ -322,22 +369,24 @@ const NewMatchPage = () => {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-xs font-bold text-muted-foreground block mb-1">
-              Umpire 1
+              Umpire 1 (Optional)
             </label>
             <PlayerSearchInput
-              placeholder="Optional"
+              placeholder="Name"
               value={umpire1}
               onSelect={setUmpire1}
+              excludeIds={allSelectedIds}
             />
           </div>
           <div>
             <label className="text-xs font-bold text-muted-foreground block mb-1">
-              Umpire 2
+              Umpire 2 (Optional)
             </label>
             <PlayerSearchInput
-              placeholder="Optional"
+              placeholder="Name"
               value={umpire2}
               onSelect={setUmpire2}
+              excludeIds={allSelectedIds}
             />
           </div>
         </div>
@@ -347,14 +396,17 @@ const NewMatchPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-foreground">
-              Allow Common Players
+              Allow Common Player
             </p>
             <p className="text-xs text-muted-foreground">
-              Players can field/bat for both teams
+              A designated player fields/bats for both teams
             </p>
           </div>
           <button
-            onClick={() => setAllowCommon(!allowCommon)}
+            onClick={() => {
+              setAllowCommon(!allowCommon);
+              if (allowCommon) setCommonPlayer(null); // Clear player if toggled off
+            }}
             className={`w-12 h-6 rounded-full p-1 transition-colors ${allowCommon ? "bg-primary" : "bg-border"}`}
           >
             <div
@@ -362,6 +414,21 @@ const NewMatchPage = () => {
             />
           </button>
         </div>
+
+        {allowCommon && (
+          <div className="pt-2 animate-fade-in">
+            <label className="text-xs font-bold text-muted-foreground block mb-1">
+              Select Common Player
+            </label>
+            <PlayerSearchInput
+              placeholder="Search by Name or Phone..."
+              value={commonPlayer}
+              onSelect={setCommonPlayer}
+              excludeIds={allSelectedIds} // Block captains, umpires, host
+            />
+          </div>
+        )}
+
         <div className="flex items-center justify-between pt-4 border-t border-border">
           <div>
             <p className="text-sm font-bold text-foreground">
@@ -428,15 +495,6 @@ const NewMatchPage = () => {
     </div>
   );
 
-  // Add this helper function right above renderStep5
-  const removePlayerFromTeam = (playerId: string, team: "A" | "B") => {
-    if (team === "A") {
-      setTeamAPlayers((prev) => prev.filter((p) => p.id !== playerId));
-    } else {
-      setTeamBPlayers((prev) => prev.filter((p) => p.id !== playerId));
-    }
-  };
-
   const renderStep5 = () => (
     <div className="animate-fade-in space-y-4">
       <h2 className="text-xl font-bold text-foreground text-center mb-6">
@@ -471,24 +529,13 @@ const NewMatchPage = () => {
       {!isSearching && searchResults && searchResults.length > 0 && (
         <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
           {searchResults.slice(0, 4).map((player: any) => {
-            // Block Umpires & Host from playing
-            const isBlocked =
-              player.player_id === umpire1?.id ||
-              player.player_id === umpire2?.id ||
-              player.user_id === hostId;
-
-            // Check if player is already in a team OR is already a captain
-            const inA =
-              teamAPlayers.some((p) => p.id === player.player_id) ||
-              player.player_id === captainA?.id;
-            const inB =
-              teamBPlayers.some((p) => p.id === player.player_id) ||
-              player.player_id === captainB?.id;
+            // Master Block Check: Is this ID used ANYWHERE?
+            const isBlocked = allSelectedIds.includes(player.player_id);
 
             return (
               <div
                 key={player.player_id}
-                className="p-3 bg-card border border-primary/50 rounded-lg flex items-center justify-between shadow-sm"
+                className={`p-3 bg-card border ${isBlocked ? "border-border/30 opacity-50" : "border-primary/50"} rounded-lg flex items-center justify-between shadow-sm`}
               >
                 <div>
                   <span className="text-foreground text-sm font-bold block truncate max-w-[120px]">
@@ -497,25 +544,30 @@ const NewMatchPage = () => {
                   <span className="text-[10px] text-muted-foreground">
                     {player.phone_no}
                   </span>
+                  {isBlocked && (
+                    <span className="text-[9px] text-destructive font-bold ml-1 uppercase">
+                      Already assigned
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => addPlayerToTeam(player, "A")}
                     disabled={
-                      teamAPlayers.length >= 10 || isBlocked || inA || inB
+                      teamAPlayers.length >= maxRegularPlayers || isBlocked
                     }
                     className="text-xs bg-background border border-border px-3 py-1.5 rounded hover:border-primary text-foreground disabled:opacity-30 transition-colors"
                   >
-                    Add to {teamA || "A"}
+                    Add to A
                   </button>
                   <button
                     onClick={() => addPlayerToTeam(player, "B")}
                     disabled={
-                      teamBPlayers.length >= 10 || isBlocked || inA || inB
+                      teamBPlayers.length >= maxRegularPlayers || isBlocked
                     }
                     className="text-xs bg-background border border-border px-3 py-1.5 rounded hover:border-destructive text-foreground disabled:opacity-30 transition-colors"
                   >
-                    Add to {teamB || "B"}
+                    Add to B
                   </button>
                 </div>
               </div>
@@ -524,7 +576,6 @@ const NewMatchPage = () => {
         </div>
       )}
 
-      {/* The Ground UI */}
       <div className="relative w-full bg-[#1b3530]/30 border-2 border-border rounded-3xl p-4 overflow-hidden mt-6 shadow-inner z-0">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/4 h-[90%] border-2 border-border/50 rounded-[100px] pointer-events-none z-0" />
 
@@ -535,7 +586,7 @@ const NewMatchPage = () => {
               {teamA || "Team A"}
             </h3>
 
-            {/* Captain Slot (Locked - No Remove Button) */}
+            {/* Captain Slot (Locked) */}
             <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md">
               <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-black shrink-0">
                 1
@@ -548,23 +599,38 @@ const NewMatchPage = () => {
               </span>
             </div>
 
-            {/* Remaining 10 Slots (Removable) */}
-            {Array.from({ length: 10 }).map((_, i) => {
+            {/* Common Player Slot (If active) */}
+            {commonPlayer && (
+              <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md opacity-80">
+                <div className="w-6 h-6 rounded-full bg-warning/20 text-warning flex items-center justify-center text-xs font-black shrink-0">
+                  C
+                </div>
+                <span className="text-xs font-bold text-foreground truncate flex-1">
+                  {commonPlayer.name}
+                </span>
+                <span className="absolute -top-2 -right-1 bg-warning text-background text-[9px] font-black px-1.5 py-0.5 rounded shadow z-20">
+                  COM
+                </span>
+              </div>
+            )}
+
+            {/* Remaining Slots */}
+            {Array.from({ length: maxRegularPlayers }).map((_, i) => {
               const player = teamAPlayers[i];
+              const slotNumber = commonPlayer ? i + 3 : i + 2;
               return (
                 <div
                   key={`a-${i}`}
                   className="flex items-center gap-2 p-2 bg-background/50 border border-border/50 rounded-lg group"
                 >
                   <div className="w-6 h-6 rounded-full bg-border text-muted-foreground flex items-center justify-center text-xs font-bold shrink-0">
-                    {i + 2}
+                    {slotNumber}
                   </div>
                   <span
                     className={`text-xs truncate flex-1 ${player ? "text-foreground font-semibold" : "text-muted-foreground italic"}`}
                   >
                     {player ? player.name : "Empty Slot"}
                   </span>
-                  {/* Remove Button */}
                   {player && (
                     <button
                       onClick={() => removePlayerFromTeam(player.id, "A")}
@@ -584,7 +650,7 @@ const NewMatchPage = () => {
               {teamB || "Team B"}
             </h3>
 
-            {/* Captain Slot (Locked - No Remove Button) */}
+            {/* Captain Slot (Locked) */}
             <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md flex-row-reverse">
               <div className="w-6 h-6 rounded-full bg-destructive/20 text-destructive flex items-center justify-center text-xs font-black shrink-0">
                 1
@@ -597,23 +663,38 @@ const NewMatchPage = () => {
               </span>
             </div>
 
-            {/* Remaining 10 Slots (Removable) */}
-            {Array.from({ length: 10 }).map((_, i) => {
+            {/* Common Player Slot (If active) */}
+            {commonPlayer && (
+              <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md opacity-80 flex-row-reverse">
+                <div className="w-6 h-6 rounded-full bg-warning/20 text-warning flex items-center justify-center text-xs font-black shrink-0">
+                  C
+                </div>
+                <span className="text-xs font-bold text-foreground truncate flex-1 text-right">
+                  {commonPlayer.name}
+                </span>
+                <span className="absolute -top-2 -left-1 bg-warning text-background text-[9px] font-black px-1.5 py-0.5 rounded shadow z-20">
+                  COM
+                </span>
+              </div>
+            )}
+
+            {/* Remaining Slots */}
+            {Array.from({ length: maxRegularPlayers }).map((_, i) => {
               const player = teamBPlayers[i];
+              const slotNumber = commonPlayer ? i + 3 : i + 2;
               return (
                 <div
                   key={`b-${i}`}
                   className="flex items-center gap-2 p-2 bg-background/50 border border-border/50 rounded-lg flex-row-reverse group"
                 >
                   <div className="w-6 h-6 rounded-full bg-border text-muted-foreground flex items-center justify-center text-xs font-bold shrink-0">
-                    {i + 2}
+                    {slotNumber}
                   </div>
                   <span
                     className={`text-xs truncate flex-1 text-right ${player ? "text-foreground font-semibold" : "text-muted-foreground italic"}`}
                   >
                     {player ? player.name : "Empty Slot"}
                   </span>
-                  {/* Remove Button */}
                   {player && (
                     <button
                       onClick={() => removePlayerFromTeam(player.id, "B")}
