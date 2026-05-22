@@ -12,7 +12,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-import { useSearchPlayerStats } from "../hooks/usePlayerQueries";
+// Added useAddGuest import
+import { useSearchPlayerStats, useAddGuest } from "../hooks/usePlayerQueries";
 import { useDebounce } from "../hooks/useDebounce";
 import { useCreateMatch } from "../hooks/useMatchMutations";
 import { api } from "../Api/Auth";
@@ -54,7 +55,7 @@ const PlayerSearchInput = ({
             data.map((p: any) => (
               <div
                 key={p.player_id}
-                onClick={() => {
+                onMouseDown={() => {
                   onSelect({ id: p.player_id, name: p.name });
                   setQuery(p.name);
                   setOpen(false);
@@ -99,7 +100,7 @@ const NewMatchPage = () => {
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
 
-  // Captains & Umpires (Now storing ID & Name objects)
+  // Captains & Umpires
   const [captainA, setCaptainA] = useState<{ id: string; name: string } | null>(
     null,
   );
@@ -140,6 +141,12 @@ const NewMatchPage = () => {
   const [teamBPlayers, setTeamBPlayers] = useState<
     { id: string; name: string }[]
   >([]);
+
+  // --- NEW GUEST ADD STATES ---
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [newPlayerPhone, setNewPlayerPhone] = useState("");
+  const { mutateAsync: addGuest, isPending: isAddingGuest } = useAddGuest();
 
   // Handlers
   const handleNext = () => setStep((prev) => Math.min(prev + 1, totalSteps));
@@ -271,7 +278,6 @@ const NewMatchPage = () => {
             max="50"
             value={customOvers}
             onChange={(e) => {
-              // Strip out any non-digit characters (including negative signs)
               const val = e.target.value.replace(/\D/g, "");
 
               if (val === "") {
@@ -512,13 +518,66 @@ const NewMatchPage = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search Player by Name or Phone..."
-            className="w-full bg-card border border-border text-foreground rounded-lg py-2 pl-9 pr-4 focus:outline-none focus:border-primary text-sm"
+            className="w-full bg-card border border-border text-foreground rounded-lg py-2 pl-9 pr-4 focus:outline-none focus:border-primary text-sm transition-colors"
           />
         </div>
-        <button className="bg-primary text-background px-4 rounded-lg font-bold hover:bg-primary/80 transition-colors text-sm">
-          Search
+        <button
+          onClick={() => setIsAddingNew(!isAddingNew)}
+          className={`px-4 rounded-lg font-bold transition-colors text-sm border ${isAddingNew ? "bg-card text-muted-foreground border-border" : "bg-border text-foreground hover:bg-border/80 border-transparent"}`}
+        >
+          {isAddingNew ? "Cancel" : "+ Add"}
         </button>
       </div>
+
+      {isAddingNew && (
+        <div className="bg-card border border-primary/30 p-3 rounded-lg flex flex-col gap-2 animate-fade-in shadow-inner">
+          <input
+            type="text"
+            placeholder="Player Full Name"
+            value={newPlayerName}
+            onChange={(e) => setNewPlayerName(e.target.value)}
+            className="w-full bg-background border border-border text-foreground rounded-md py-1.5 px-3 text-sm focus:border-primary outline-none"
+          />
+          <div className="flex gap-2">
+            <input
+              type="tel"
+              placeholder="10-digit Phone No."
+              value={newPlayerPhone}
+              onChange={(e) =>
+                setNewPlayerPhone(
+                  e.target.value.replace(/\D/g, "").slice(0, 10),
+                )
+              }
+              className="w-full bg-background border border-border text-foreground rounded-md py-1.5 px-3 text-sm focus:border-primary outline-none"
+            />
+            <button
+              disabled={
+                isAddingGuest ||
+                newPlayerName.length < 3 ||
+                newPlayerPhone.length < 10
+              }
+              onClick={async () => {
+                try {
+                  const newPlayer = await addGuest({
+                    name: newPlayerName,
+                    phone_no: newPlayerPhone,
+                  });
+                  // Send them straight into the search query so they can be added to team
+                  setSearchQuery(newPlayerPhone);
+                  setIsAddingNew(false);
+                  setNewPlayerName("");
+                  setNewPlayerPhone("");
+                } catch (err) {
+                  alert("Failed to add guest player.");
+                }
+              }}
+              className="bg-primary text-background px-4 rounded-md font-bold text-sm disabled:opacity-50 whitespace-nowrap"
+            >
+              {isAddingGuest ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {isSearching && (
         <div className="text-center py-2 animate-pulse text-xs text-primary font-semibold">

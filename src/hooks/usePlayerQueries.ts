@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "../Api/Auth";
 
 export interface PlayerStats {
@@ -46,6 +46,13 @@ export const fetchPlayerStatsByIdApi = async (
   return response.data.player_stats;
 };
 
+export const addGuestApi = async (payload: {
+  name: string;
+  phone_no: string;
+}) => {
+  const response = await api.post("/player_stats/guest", payload);
+  return response.data;
+};
 // --- TANSTACK HOOKS ---
 
 export const useAllPlayerStats = () => {
@@ -72,5 +79,11 @@ export const usePlayerStats = (playerId: string | undefined) => {
     },
     enabled: !!playerId,
     retry: false,
+  });
+};
+
+export const useAddGuest = () => {
+  return useMutation({
+    mutationFn: addGuestApi,
   });
 };
