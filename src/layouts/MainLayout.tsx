@@ -1,19 +1,34 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { getInitials } from "../utils/helpers";
 import {
   Trophy,
   Home as HomeIcon,
-  BarChart2,
   Users,
   UserCircle,
   PlusCircle,
 } from "lucide-react";
 import { Logout } from "../Api/Auth";
+import SplashScreen from "../components/SplashScreen"; // Ensure path is correct
 
 const MainLayout = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const location = useLocation();
+  const [showSplash, setShowSplash] = useState(false);
+
+  // Splash Screen Logic: Only show once per session
+  useEffect(() => {
+    const hasShownSplash = sessionStorage.getItem("hasShownSplash");
+
+    if (!hasShownSplash) {
+      setShowSplash(true);
+      sessionStorage.setItem("hasShownSplash", "true");
+      setTimeout(() => {
+        setShowSplash(false);
+      }, 2000); // Matches the duration in SplashScreen.tsx
+    }
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -36,6 +51,10 @@ const MainLayout = () => {
     `flex flex-col items-center gap-1 w-[20%] py-1 ${
       isActive ? "text-primary" : "text-muted-foreground"
     }`;
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans pb-20 md:pb-0">
@@ -83,7 +102,9 @@ const MainLayout = () => {
       </nav>
 
       {/* Main Page Content */}
-      <Outlet />
+      <main>
+        <Outlet />
+      </main>
 
       {/* MOBILE BOTTOM NAVBAR */}
       {location.pathname !== "/settings" && (
