@@ -21,7 +21,7 @@ const MatchesListPage = () => {
       : matches.filter((m: any) => m.status === activeTab);
 
   return (
-    <main className="p-4 md:p-6 max-w-4xl mx-auto w-full pb-24 bg-[#061311] min-h-screen">
+    <main className="p-4 md:p-6 max-w-4xl mx-auto w-full pb-24 bg-background min-h-screen">
       <PageHeader title="Matches" backUrl="/" />
 
       {/* Filter Tabs */}
@@ -79,7 +79,7 @@ const MatchesListPage = () => {
               onClick={() =>
                 navigate("/new-match")
               } /* Make sure this points to your create match route */
-              className="bg-[#0FAF9A] text-[#061311] px-6 py-2.5 rounded-lg font-bold hover:bg-[#0dd3b9] transition-all shadow-[0_0_15px_rgba(15,175,154,0.3)]"
+              className="bg-[#0FAF9A] text-background px-6 py-2.5 rounded-lg font-bold hover:bg-[#0dd3b9] transition-all shadow-[0_0_15px_rgba(15,175,154,0.3)]"
             >
               Start a New Match
             </button>

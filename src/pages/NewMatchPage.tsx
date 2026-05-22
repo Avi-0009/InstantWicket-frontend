@@ -209,33 +209,23 @@ const NewMatchPage = () => {
     }
   };
 
-  // Central Logic: Sends exactly what the backend needs in ONE single API call
   const handleStartMatch = async () => {
     try {
-      let overs = 20;
-      if (matchType === "T10") overs = 10;
-      if (matchType === "ODI") overs = 50;
-      if (matchType === "Custom") overs = parseInt(customOvers) || 20;
-
-      // Determine who won the toss based on the team name
-      const tossWinner = matchTossWinner === teamA ? "A" : "B";
-
-      await createMatch({
+      const payload = {
         team_a_name: teamA,
         team_b_name: teamB,
-        toss_winner_team_id: tossWinner, // Sends "A" or "B"
+        toss_winner_team_id: matchTossWinner === teamA ? "A" : "B",
         toss_decision: matchTossDecision!,
         allow_common_player: allowCommon,
         allow_solo_batting: allowSolo,
-        overs_limit: overs,
-        umpire_id: umpire1?.id || "", // Ensure it sends an empty string if undefined
-      });
+        overs_limit: parseInt(customOvers) || 20,
+        umpire_id: umpire1?.id || "",
+      };
 
-      // Navigate to the live scoring screen
-      navigate("/match/live");
+      await createMatch(payload);
+      navigate("/matches"); // Navigate to list after creation
     } catch (error) {
-      console.error("Failed to start match:", error);
-      alert("Failed to start match. Please check console for details.");
+      console.error("Failed to create match:", error);
     }
   };
 
