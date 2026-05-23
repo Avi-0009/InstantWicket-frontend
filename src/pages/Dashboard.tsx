@@ -4,12 +4,16 @@ import SplashScreen from "../components/SplashScreen";
 import LiveMatchCard from "../components/matches/LiveMatchCard";
 import { Trophy, Activity, TrendingUp, Users, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import { api } from "../Api/Auth";
 
 let hasSeenSplashThisSession = false;
 
 const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(!hasSeenSplashThisSession);
   const [activeTab, setActiveTab] = useState("All");
+
+  // REAL DATA STATE
+  const [matches, setMatches] = useState<any[]>([]);
 
   useEffect(() => {
     if (!hasSeenSplashThisSession) {
@@ -21,7 +25,24 @@ const Dashboard = () => {
     }
   }, []);
 
+  // FETCH REAL MATCHES
+  useEffect(() => {
+    const fetchMatches = async () => {
+      try {
+        const res = await api.get("/matches");
+        // Adjust "res.data.matches" based on what your Go backend actually returns
+        setMatches(res.data.matches || res.data || []);
+      } catch (error) {
+        console.error("Failed to fetch matches:", error);
+      }
+    };
+    fetchMatches();
+  }, []);
+
   if (isLoading) return <SplashScreen />;
+
+  // Calculate real stats
+  const liveMatchesCount = matches.filter((m) => m.status === "ongoing").length;
 
   return (
     <motion.main
@@ -41,7 +62,6 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* REFACTORED: Replaced useNavigate button with NavLink */}
         <NavLink
           to="/new-match"
           className="bg-[#0FAF9A] text-[#061311] border-none rounded-lg px-6 py-3 text-sm font-bold flex items-center gap-2 w-full md:w-auto justify-center hover:bg-[#19F0C1] transition-colors shadow-[0_0_15px_rgba(15,175,154,0.2)]"
@@ -50,14 +70,14 @@ const Dashboard = () => {
         </NavLink>
       </div>
 
-      {/* Top Stats Grid */}
+      {/* Top Stats Grid (NOW USING REAL COUNTS) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div
           onClick={() => setActiveTab("Recent")}
           className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 cursor-pointer hover:border-[#0FAF9A]/50 transition-colors shadow-lg"
         >
           <Trophy className="w-5 h-5 text-[#F59E0B] mb-2" />
-          <div className="text-3xl font-bold">148</div>
+          <div className="text-3xl font-bold">{matches.length}</div>
           <div className="text-xs text-[#9FB7B2] mt-1">Total Matches</div>
         </div>
         <div
@@ -65,17 +85,17 @@ const Dashboard = () => {
           className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 cursor-pointer hover:border-[#0FAF9A]/50 transition-colors shadow-lg"
         >
           <Activity className="w-5 h-5 text-[#818CF8] mb-2" />
-          <div className="text-3xl font-bold">3</div>
+          <div className="text-3xl font-bold">{liveMatchesCount}</div>
           <div className="text-xs text-[#9FB7B2] mt-1">Live Now</div>
         </div>
         <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 shadow-lg">
           <TrendingUp className="w-5 h-5 text-[#FF6B6B] mb-2" />
-          <div className="text-3xl font-bold">24,810</div>
+          <div className="text-3xl font-bold">0</div>
           <div className="text-xs text-[#9FB7B2] mt-1">Total Runs</div>
         </div>
         <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-4 shadow-lg">
           <Users className="w-5 h-5 text-[#3B82F6] mb-2" />
-          <div className="text-3xl font-bold">87</div>
+          <div className="text-3xl font-bold">0</div>
           <div className="text-xs text-[#9FB7B2] mt-1">Active Players</div>
         </div>
       </div>
@@ -102,7 +122,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Matches Grid */}
+      {/* REAL Matches Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {(activeTab === "All" || activeTab === "Live") && (
           <>
@@ -110,8 +130,17 @@ const Dashboard = () => {
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B6B] animate-pulse inline-block"></span>{" "}
               Live Matches
             </div>
-            <LiveMatchCard />
-            <LiveMatchCard />
+
+            {/* MAP REAL MATCHES */}
+            {matches.length === 0 ? (
+              <div className="text-muted-foreground text-sm col-span-2 py-4">
+                No matches found. Create one!
+              </div>
+            ) : (
+              matches.map((match) => (
+                <LiveMatchCard key={match.id} match={match} />
+              ))
+            )}
           </>
         )}
       </div>

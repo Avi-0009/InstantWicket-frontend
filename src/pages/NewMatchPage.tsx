@@ -227,7 +227,7 @@ const NewMatchPage = () => {
         return;
       }
 
-      // ✅ FIX: Completely restored payload! Includes player arrays and umpire's user_id
+      // YES! Here is the payload variable fully declared
       const payload = {
         team_a_name: teamA,
         team_b_name: teamB,
@@ -241,8 +241,10 @@ const NewMatchPage = () => {
         umpire_id: umpire1?.user_id || "",
       };
 
-      await createMatch(payload);
-      navigate("/matches");
+      const response = await createMatch(payload);
+
+      // ✅ Now it redirects straight to our new LiveScoring page!
+      navigate(`/matches/${response.match_id}/score`);
     } catch (error: any) {
       console.error("Failed to create match:", error);
       if (error.response) {

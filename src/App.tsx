@@ -78,6 +78,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route path="/matches/:matchId/score" element={<LiveScoring />} />
 
         {/* Fallback for unknown routes using NavLink */}
         <Route path="*" element={<NotFoundFallback />} />
