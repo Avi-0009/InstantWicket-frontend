@@ -12,14 +12,11 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-// Added useAddGuest import
 import { useSearchPlayerStats, useAddGuest } from "../hooks/usePlayerQueries";
 import { useDebounce } from "../hooks/useDebounce";
 import { useCreateMatch } from "../hooks/useMatchMutations";
-import { api } from "../Api/Auth";
 import { useAuthStore } from "../store/useAuthStore";
 
-// Invisible Search Wrapper for Step 3 Inputs (Preserves your exact UI)
 const PlayerSearchInput = ({
   placeholder,
   value,
@@ -56,7 +53,12 @@ const PlayerSearchInput = ({
               <div
                 key={p.player_id}
                 onMouseDown={() => {
-                  onSelect({ id: p.player_id, name: p.name });
+                  // ✅ FIX: Added user_id here so the state receives it
+                  onSelect({
+                    id: p.player_id,
+                    name: p.name,
+                    user_id: p.user_id,
+                  });
                   setQuery(p.name);
                   setOpen(false);
                 }}
@@ -89,39 +91,45 @@ const NewMatchPage = () => {
   const { mutateAsync: createMatch, isPending: isCreatingMatch } =
     useCreateMatch();
 
-  // Wizard State
   const [step, setStep] = useState(1);
   const totalSteps = 6;
 
-  // Form State
   const [matchType, setMatchType] = useState("T20");
-  const [customOvers, setCustomOvers] = useState("");
+  const [customOvers, setCustomOvers] = useState("5"); // Defaulted to 5 for safety
 
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
 
-  // Captains & Umpires
-  const [captainA, setCaptainA] = useState<{ id: string; name: string } | null>(
-    null,
-  );
-  const [captainB, setCaptainB] = useState<{ id: string; name: string } | null>(
-    null,
-  );
-  const [umpire1, setUmpire1] = useState<{ id: string; name: string } | null>(
-    null,
-  );
-  const [umpire2, setUmpire2] = useState<{ id: string; name: string } | null>(
-    null,
-  );
+  // ✅ FIX: Added user_id?: string to every single inline state definition
+  const [captainA, setCaptainA] = useState<{
+    id: string;
+    name: string;
+    user_id?: string;
+  } | null>(null);
+  const [captainB, setCaptainB] = useState<{
+    id: string;
+    name: string;
+    user_id?: string;
+  } | null>(null);
+  const [umpire1, setUmpire1] = useState<{
+    id: string;
+    name: string;
+    user_id?: string;
+  } | null>(null);
+  const [umpire2, setUmpire2] = useState<{
+    id: string;
+    name: string;
+    user_id?: string;
+  } | null>(null);
   const [commonPlayer, setCommonPlayer] = useState<{
     id: string;
     name: string;
+    user_id?: string;
   } | null>(null);
 
   const [allowSolo, setAllowSolo] = useState(false);
   const [allowCommon, setAllowCommon] = useState(false);
 
-  // Toss States
   const [isFlipping, setIsFlipping] = useState(false);
   const [draftTossWinner, setDraftTossWinner] = useState<string | null>(null);
   const [matchTossWinner, setMatchTossWinner] = useState<string | null>(null);
@@ -129,26 +137,24 @@ const NewMatchPage = () => {
     "bat" | "bowl" | null
   >(null);
 
-  // Ground / Player Selection States (Step 5)
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
   const { data: searchResults, isPending: isSearching } =
     useSearchPlayerStats(debouncedSearch);
 
+  // ✅ FIX: Added user_id?: string here too
   const [teamAPlayers, setTeamAPlayers] = useState<
-    { id: string; name: string }[]
+    { id: string; name: string; user_id?: string }[]
   >([]);
   const [teamBPlayers, setTeamBPlayers] = useState<
-    { id: string; name: string }[]
+    { id: string; name: string; user_id?: string }[]
   >([]);
 
-  // --- NEW GUEST ADD STATES ---
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [newPlayerPhone, setNewPlayerPhone] = useState("");
   const { mutateAsync: addGuest, isPending: isAddingGuest } = useAddGuest();
 
-  // Handlers
   const handleNext = () => setStep((prev) => Math.min(prev + 1, totalSteps));
   const handleBack = () => setStep((prev) => Math.max(prev - 1, 1));
 
@@ -176,7 +182,6 @@ const NewMatchPage = () => {
     }, 1500);
   };
 
-  // Master list of every ID currently used anywhere in the match
   const allSelectedIds = [
     hostId,
     umpire1?.id,
@@ -188,11 +193,15 @@ const NewMatchPage = () => {
     ...teamBPlayers.map((p) => p.id),
   ].filter(Boolean);
 
-  // If a common player is used, regular slots drop to 9 (1 Capt + 1 Common + 9 Regulars = 11)
   const maxRegularPlayers = commonPlayer ? 9 : 10;
 
   const addPlayerToTeam = (player: any, team: "A" | "B") => {
-    const formattedPlayer = { id: player.player_id, name: player.name };
+    // ✅ FIX: Map the user_id into the array
+    const formattedPlayer = {
+      id: player.player_id,
+      name: player.name,
+      user_id: player.user_id,
+    };
     if (team === "A" && teamAPlayers.length < maxRegularPlayers) {
       setTeamAPlayers([...teamAPlayers, formattedPlayer]);
     } else if (team === "B" && teamBPlayers.length < maxRegularPlayers) {
@@ -211,25 +220,38 @@ const NewMatchPage = () => {
 
   const handleStartMatch = async () => {
     try {
+      const parsedOvers = parseInt(customOvers);
+
+      if (isNaN(parsedOvers) || parsedOvers < 1 || parsedOvers > 50) {
+        alert("Overs must be a number between 1 and 50.");
+        return;
+      }
+
+      // ✅ FIX: Completely restored payload! Includes player arrays and umpire's user_id
       const payload = {
         team_a_name: teamA,
         team_b_name: teamB,
+        team_a_player_ids: teamAPlayers.map((player) => player.id),
+        team_b_player_ids: teamBPlayers.map((player) => player.id),
         toss_winner_team_id: matchTossWinner === teamA ? "A" : "B",
         toss_decision: matchTossDecision!,
         allow_common_player: allowCommon,
         allow_solo_batting: allowSolo,
-        overs_limit: parseInt(customOvers) || 20,
-        umpire_id: umpire1?.id || "",
+        overs_limit: parsedOvers,
+        umpire_id: umpire1?.user_id || "",
       };
 
       await createMatch(payload);
-      navigate("/matches"); // Navigate to list after creation
-    } catch (error) {
+      navigate("/matches");
+    } catch (error: any) {
       console.error("Failed to create match:", error);
+      if (error.response) {
+        alert(
+          `Server Error: ${error.response.data.error || JSON.stringify(error.response.data)}`,
+        );
+      }
     }
   };
-
-  // --- STEP RENDERERS ---
 
   const renderStep1 = () => (
     <div className="animate-fade-in space-y-6">
@@ -263,14 +285,11 @@ const NewMatchPage = () => {
             value={customOvers}
             onChange={(e) => {
               const val = e.target.value.replace(/\D/g, "");
-
               if (val === "") {
                 setCustomOvers("");
                 return;
               }
-
               const num = parseInt(val, 10);
-
               if (num > 50) {
                 setCustomOvers("50");
               } else if (num > 0) {
@@ -395,7 +414,7 @@ const NewMatchPage = () => {
           <button
             onClick={() => {
               setAllowCommon(!allowCommon);
-              if (allowCommon) setCommonPlayer(null); // Clear player if toggled off
+              if (allowCommon) setCommonPlayer(null);
             }}
             className={`w-12 h-6 rounded-full p-1 transition-colors ${allowCommon ? "bg-primary" : "bg-border"}`}
           >
@@ -414,7 +433,7 @@ const NewMatchPage = () => {
               placeholder="Search by Name or Phone..."
               value={commonPlayer}
               onSelect={setCommonPlayer}
-              excludeIds={allSelectedIds} // Block captains, umpires, host
+              excludeIds={allSelectedIds}
             />
           </div>
         )}
@@ -546,7 +565,6 @@ const NewMatchPage = () => {
                     name: newPlayerName,
                     phone_no: newPlayerPhone,
                   });
-                  // Send them straight into the search query so they can be added to team
                   setSearchQuery(newPlayerPhone);
                   setIsAddingNew(false);
                   setNewPlayerName("");
@@ -572,7 +590,6 @@ const NewMatchPage = () => {
       {!isSearching && searchResults && searchResults.length > 0 && (
         <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
           {searchResults.slice(0, 4).map((player: any) => {
-            // Master Block Check: Is this ID used ANYWHERE?
             const isBlocked = allSelectedIds.includes(player.player_id);
 
             return (
@@ -623,13 +640,11 @@ const NewMatchPage = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/4 h-[90%] border-2 border-border/50 rounded-[100px] pointer-events-none z-0" />
 
         <div className="flex gap-4 relative z-10">
-          {/* TEAM A ROSTER */}
           <div className="flex-1 space-y-2 min-w-0">
             <h3 className="text-center font-bold text-primary text-sm mb-4 border-b border-border pb-2 truncate">
               {teamA || "Team A"}
             </h3>
 
-            {/* Captain Slot (Locked) */}
             <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md">
               <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-black shrink-0">
                 1
@@ -642,7 +657,6 @@ const NewMatchPage = () => {
               </span>
             </div>
 
-            {/* Common Player Slot (If active) */}
             {commonPlayer && (
               <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md opacity-80">
                 <div className="w-6 h-6 rounded-full bg-warning/20 text-warning flex items-center justify-center text-xs font-black shrink-0">
@@ -657,7 +671,6 @@ const NewMatchPage = () => {
               </div>
             )}
 
-            {/* Remaining Slots */}
             {Array.from({ length: maxRegularPlayers }).map((_, i) => {
               const player = teamAPlayers[i];
               const slotNumber = commonPlayer ? i + 3 : i + 2;
@@ -687,13 +700,11 @@ const NewMatchPage = () => {
             })}
           </div>
 
-          {/* TEAM B ROSTER */}
           <div className="flex-1 space-y-2 min-w-0">
             <h3 className="text-center font-bold text-destructive text-sm mb-4 border-b border-border pb-2 truncate">
               {teamB || "Team B"}
             </h3>
 
-            {/* Captain Slot (Locked) */}
             <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md flex-row-reverse">
               <div className="w-6 h-6 rounded-full bg-destructive/20 text-destructive flex items-center justify-center text-xs font-black shrink-0">
                 1
@@ -706,7 +717,6 @@ const NewMatchPage = () => {
               </span>
             </div>
 
-            {/* Common Player Slot (If active) */}
             {commonPlayer && (
               <div className="flex items-center gap-2 p-2 bg-card border border-border rounded-lg relative shadow-md opacity-80 flex-row-reverse">
                 <div className="w-6 h-6 rounded-full bg-warning/20 text-warning flex items-center justify-center text-xs font-black shrink-0">
@@ -721,7 +731,6 @@ const NewMatchPage = () => {
               </div>
             )}
 
-            {/* Remaining Slots */}
             {Array.from({ length: maxRegularPlayers }).map((_, i) => {
               const player = teamBPlayers[i];
               const slotNumber = commonPlayer ? i + 3 : i + 2;
@@ -826,7 +835,6 @@ const NewMatchPage = () => {
 
   return (
     <div className="min-h-screen bg-background font-sans pb-8">
-      {/* Top Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md px-4 py-4 flex items-center gap-3 border-b border-border">
         <button
           onClick={handleHeaderBack}
@@ -839,7 +847,6 @@ const NewMatchPage = () => {
         </div>
       </div>
 
-      {/* Progress Bar */}
       <div className="px-4 pt-6 pb-2 max-w-md mx-auto w-full">
         <div className="flex gap-1.5">
           {Array.from({ length: totalSteps }).map((_, idx) => (
@@ -859,7 +866,6 @@ const NewMatchPage = () => {
         </p>
       </div>
 
-      {/* Main Content Area */}
       <main className="max-w-md mx-auto p-4 pb-32 min-h-[400px]">
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
@@ -869,7 +875,6 @@ const NewMatchPage = () => {
         {step === 6 && renderStep6()}
       </main>
 
-      {/* Bottom Navigation Actions */}
       <div className="fixed bottom-0 w-full bg-card/95 backdrop-blur-md border-t border-border p-4 flex justify-between gap-4 max-w-md left-1/2 -translate-x-1/2">
         <button
           onClick={handleBack}

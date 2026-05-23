@@ -9,6 +9,7 @@ export const api = axios.create({
 // Intercept requests to attach the token from Zustand
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
+  console.log("Interceptor is sending token:", token);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
