@@ -1,9 +1,5 @@
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  NavLink, // <-- Replaced Navigate with NavLink
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import AuthPage from "./pages/AuthPage";
@@ -34,7 +30,26 @@ const NotFoundFallback = () => (
 
 const App = () => {
   return (
-    <Router>
+    <BrowserRouter>
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          // Optional: You can style it to match your dark theme perfectly!
+          style: {
+            background: "#0B1F1B",
+            color: "#F4FFFD",
+            border: "1px solid #1B3530",
+          },
+          success: {
+            iconTheme: {
+              primary: "#0FAF9A",
+              secondary: "#061311",
+            },
+          },
+        }}
+      />
+
       <Routes>
         {/* PUBLIC ROUTES WITH NAVBAR */}
         <Route element={<MainLayout />}>
@@ -83,7 +98,7 @@ const App = () => {
         {/* Fallback for unknown routes using NavLink */}
         <Route path="*" element={<NotFoundFallback />} />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 };
 

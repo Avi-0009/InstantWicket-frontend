@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Phone, Lock, User, ArrowRight } from "lucide-react";
 import { Register } from "../../Api/Auth";
+import toast from "react-hot-toast";
 
 interface SignUpFormProps {
   isSignUp: boolean;
@@ -25,6 +26,7 @@ const SignUpForm = ({ isSignUp, setIsSignUp }: SignUpFormProps) => {
 
       // Show success message and transition to Login form
       setRegSuccess("Account created successfully! Please sign in.");
+      toast.success("Account created successfully!");
 
       // Clear form
       setRegName("");
@@ -38,6 +40,7 @@ const SignUpForm = ({ isSignUp, setIsSignUp }: SignUpFormProps) => {
       }, 2000);
     } catch (err: any) {
       setRegError(err.response?.data?.error || "Registration failed.");
+      toast.error("Unable to create account, Registration failed!");
     } finally {
       setIsRegistering(false);
     }

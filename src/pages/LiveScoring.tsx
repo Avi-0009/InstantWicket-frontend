@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Lock } from "lucide-react";
+import { ChevronLeft, Lock, AlertOctagon } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { api } from "../Api/Auth";
 
@@ -8,29 +8,50 @@ import ScoreHeader from "../components/scoring/ScoreHeader";
 import PlayerStats from "../components/scoring/PlayerStats";
 import OverTimeline from "../components/scoring/OverTimeline";
 import ScoringPad from "../components/scoring/ScoringPad";
+import {
+  PlayerSelectModal,
+  type Player,
+} from "../components/scoring/PlayerSelectModal";
+import { FullScreenEvent } from "../components/scoring/FullScreenEvent";
 
 const LiveScoring = () => {
   const { matchId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  // --- Metadata State (From Backend) ---
   const [matchData, setMatchData] = useState<any>(null);
-  const [battingTeam, setBattingTeam] = useState("");
-  const [striker, setStriker] = useState("");
-  const [nonStriker, setNonStriker] = useState("");
-  const [bowler, setBowler] = useState("");
+  const [liveStats, setLiveStats] = useState<any>(null);
 
-  // --- Scoring State (From LocalStorage) ---
-  const [score, setScore] = useState(0);
-  const [wickets, setWickets] = useState(0);
-  const [totalBalls, setTotalBalls] = useState(0);
-  const [thisOver, setThisOver] = useState<string[]>([]);
+  const [battingSquad, setBattingSquad] = useState<Player[]>([]);
+  const [bowlingSquad, setBowlingSquad] = useState<Player[]>([]);
 
   const [modifier, setModifier] = useState<"WD" | "NB" | null>(null);
   const [isFreeHit, setIsFreeHit] = useState(false);
 
-  // 1. Fetch Real Match Metadata (Teams, Auth)
+  // NEW: State for Full Screen Animations
+  const [currentEvent, setCurrentEvent] = useState<
+    "4" | "6" | "FREE_HIT" | "WICKET" | null
+  >(null);
+
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    role: "Striker" | "Non-Striker" | "Bowler" | null;
+  }>({ isOpen: false, role: null });
+
+  const [activeStriker, setActiveStriker] = useState<Player | null>(null);
+  const [activeNonStriker, setActiveNonStriker] = useState<Player | null>(null);
+  const [activeBowler, setActiveBowler] = useState<Player | null>(null);
+
+  const fetchLiveScoreboard = useCallback(async () => {
+    if (!matchId) return;
+    try {
+      const res = await api.get(`/scoring/live/${matchId}`);
+      setLiveStats(res.data);
+    } catch (error) {
+      console.error("Failed to load live stats:", error);
+    }
+  }, [matchId]);
+
   useEffect(() => {
     const fetchMatchInfo = async () => {
       try {
@@ -38,75 +59,139 @@ const LiveScoring = () => {
         const match = res.data.match || res.data;
         setMatchData(match);
 
-        setBattingTeam(match.team_a_name || "");
-        setStriker("Player 1"); // Wire to players later
-        setNonStriker("Player 2");
-        setBowler("Current Bowler");
+        const teamARes = await api.get(`/teams/${match.team_a_id}`);
+        const teamBRes = await api.get(`/teams/${match.team_b_id}`);
+
+        setBattingSquad(teamARes.data.players || []);
+        setBowlingSquad(teamBRes.data.players || []);
       } catch (error) {
         console.error("Failed to load match metadata:", error);
       }
     };
-    if (matchId) fetchMatchInfo();
-  }, [matchId]);
-
-  // 2. Load Score from LocalStorage on mount
-  useEffect(() => {
-    if (!matchId) return;
-    const saved = localStorage.getItem(`match_score_${matchId}`);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setScore(parsed.score || 0);
-      setWickets(parsed.wickets || 0);
-      setTotalBalls(parsed.totalBalls || 0);
-      setThisOver(parsed.thisOver || []);
-      setIsFreeHit(parsed.isFreeHit || false);
+    if (matchId) {
+      fetchMatchInfo();
+      fetchLiveScoreboard();
     }
-  }, [matchId]);
+  }, [matchId, fetchLiveScoreboard]);
 
-  // 3. Save Score to LocalStorage on every change
+  const overs = liveStats ? Math.floor(liveStats.legal_balls / 6) : 0;
+  const ballsInOver = liveStats ? liveStats.legal_balls % 6 : 0;
+  const oversDisplay = Number(`${overs}.${ballsInOver}`);
+
+  const teamSize = battingSquad.length || 11;
+  const maxWickets = matchData?.allow_solo_batting ? teamSize : teamSize - 1;
+
+  const isOverComplete = ballsInOver === 0 && liveStats?.legal_balls > 0;
+  const isInningsComplete =
+    (matchData && overs >= matchData.overs_limit) ||
+    (liveStats && liveStats.wickets >= maxWickets);
+
   useEffect(() => {
-    if (!matchId || !matchData) return; // Wait for initial load
-    const dataToSave = { score, wickets, totalBalls, thisOver, isFreeHit };
-    localStorage.setItem(`match_score_${matchId}`, JSON.stringify(dataToSave));
-  }, [score, wickets, totalBalls, thisOver, isFreeHit, matchId, matchData]);
+    if (!liveStats || isInningsComplete) return;
+    if (isOverComplete) {
+      setModalConfig({ isOpen: true, role: "Bowler" });
+      const temp = activeStriker;
+      setActiveStriker(activeNonStriker);
+      setActiveNonStriker(temp);
+    }
+  }, [liveStats, isOverComplete, isInningsComplete]);
 
-  // 4. Core Scoring Engine
-  const handleBall = (runs: number, isWicket: boolean = false) => {
-    let isLegal = true;
-    let ballLabel = isWicket ? "W" : runs.toString();
-    let runsToAdd = runs;
+  const handleBall = async (runs: number, isWicket: boolean = false) => {
+    if (!liveStats?.innings_id)
+      return alert("Innings has not been started yet!");
+
+    let isLegal = true,
+      runsFromBat = runs,
+      extras = 0,
+      extraType: string | null = null;
 
     if (modifier === "WD") {
       isLegal = false;
-      runsToAdd += 1;
-      ballLabel = runs > 0 ? `${runs}Wd` : "Wd";
-    }
-    if (modifier === "NB") {
+      runsFromBat = 0;
+      extras = runs + 1;
+      extraType = "wide";
+    } else if (modifier === "NB") {
       isLegal = false;
-      runsToAdd += 1;
-      ballLabel = runs > 0 ? `${runs}Nb` : "Nb";
+      runsFromBat = runs;
+      extras = 1;
+      extraType = "no_ball";
+      setCurrentEvent("FREE_HIT"); // Trigger Free Hit Animation
       setIsFreeHit(true);
-    }
-    if (isWicket && modifier) ballLabel = `${modifier}+W`;
-
-    setScore((prev) => prev + runsToAdd);
-    if (isWicket) setWickets((prev) => prev + 1);
-
-    const newOver = [...thisOver, ballLabel];
-    setThisOver(newOver);
-
-    if (isLegal) {
-      setTotalBalls((prev) => prev + 1);
+    } else {
       if (isFreeHit) setIsFreeHit(false);
+    }
 
-      const legalBallsThisOver = newOver.filter(
-        (b) => !b.includes("Wd") && !b.includes("Nb"),
-      ).length;
-      if (legalBallsThisOver === 6) {
-        setTimeout(() => setThisOver([]), 1500);
+    // Trigger Animations for normal boundaries or wickets
+    if (!modifier && runsFromBat === 4) setCurrentEvent("4");
+    if (!modifier && runsFromBat === 6) setCurrentEvent("6");
+    if (isWicket) setCurrentEvent("WICKET");
+
+    let wicketType = null,
+      outPlayerId = null,
+      fielderId = null;
+    if (isWicket) {
+      const type = window.prompt(
+        "Wicket Type? (bowled, caught, run_out, stumped)",
+        "bowled",
+      );
+      if (!type) {
+        setCurrentEvent(null);
+        return;
+      }
+      wicketType = type;
+      outPlayerId = activeStriker?.id || liveStats.striker_id;
+    }
+
+    const payload = {
+      innings_id: liveStats.innings_id,
+      over_number: overs,
+      ball_number: ballsInOver + 1,
+      striker_id: activeStriker?.id || liveStats.striker_id,
+      non_striker_id: activeNonStriker?.id || liveStats.non_striker_id,
+      bowler_id: activeBowler?.id || liveStats.bowler_id,
+      is_legal_ball: isLegal,
+      runs_from_bat: runsFromBat,
+      extras: extras,
+      extra_type: extraType,
+      is_wicket: isWicket,
+      wicket_type: wicketType,
+      out_player_id: outPlayerId,
+      fielder_id: fielderId,
+    };
+
+    try {
+      await api.post("/scoring/ball", payload);
+      setModifier(null);
+      fetchLiveScoreboard();
+    } catch (error) {
+      console.error("Failed to record ball", error);
+    }
+  };
+
+  // NEW: Manual Early Completion
+  const handleForceComplete = async () => {
+    const confirmStr = `Are you sure you want to end this innings? \n\nFinal Score: ${liveStats?.current_score}/${liveStats?.wickets} \nActual Overs Played: ${oversDisplay}`;
+
+    if (window.confirm(confirmStr)) {
+      try {
+        // Assume you have an API route to forcefully complete the innings and save exact overs played
+        await api.post(`/scoring/innings/${liveStats.innings_id}/complete`, {
+          final_overs: oversDisplay,
+        });
+        alert("Innings Successfully Completed.");
+        fetchLiveScoreboard(); // Refresh will naturally lock the UI because backend will return status='completed'
+        // navigate('/match-summary') or wherever you want them to go next
+      } catch (error) {
+        console.error("Failed to complete innings", error);
       }
     }
-    setModifier(null);
+  };
+
+  const handlePlayerSelect = (player: Player) => {
+    if (modalConfig.role === "Striker") setActiveStriker(player);
+    if (modalConfig.role === "Non-Striker") setActiveNonStriker(player);
+    if (modalConfig.role === "Bowler") setActiveBowler(player);
+    setModalConfig({ isOpen: false, role: null });
   };
 
   if (!matchData)
@@ -116,65 +201,105 @@ const LiveScoring = () => {
       </div>
     );
 
-  const isHost = user?.id && user.id === matchData.created_by;
-  const isUmpire = user?.id && user.id === matchData.umpire_id;
-  const canUpdateScore = isHost || isUmpire;
-  const oversDisplay = Math.floor(totalBalls / 6) + (totalBalls % 6) / 10;
+  const canUpdateScore =
+    user?.id &&
+    (user.id === matchData.created_by || user.id === matchData.umpire_id);
 
   return (
-    <div className="min-h-screen bg-background pb-8">
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md px-4 py-4 flex items-center gap-3 border-b border-border">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 bg-card border border-border rounded-full text-foreground hover:bg-border transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <div className="flex-1">
+    <div className="min-h-screen bg-background pb-8 relative">
+      {/* Renders the Massive Animation Popup if currentEvent is active */}
+      <FullScreenEvent
+        eventType={currentEvent}
+        onComplete={() => setCurrentEvent(null)}
+      />
+
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md px-4 py-4 flex items-center justify-between border-b border-border">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 bg-card border border-border rounded-full text-foreground hover:bg-border transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
           <h1 className="text-xl font-bold text-foreground">Live Match</h1>
         </div>
+
+        {/* Manual Complete Button in Header */}
+        {canUpdateScore && !isInningsComplete && (
+          <button
+            onClick={handleForceComplete}
+            className="flex items-center gap-2 text-xs font-bold bg-red-900/40 text-red-400 border border-red-900/50 px-3 py-1.5 rounded-lg hover:bg-red-900/60"
+          >
+            <AlertOctagon className="w-4 h-4" /> Declare / Complete
+          </button>
+        )}
       </div>
 
       <ScoreHeader
-        battingTeam={battingTeam}
-        score={score}
-        wickets={wickets}
+        battingTeam={matchData.team_a_name}
+        score={liveStats?.current_score || 0}
+        wickets={liveStats?.wickets || 0}
         overs={oversDisplay}
       />
 
       <div className="px-4 mt-4 space-y-4">
-        <PlayerStats
-          striker={striker}
-          nonStriker={nonStriker}
-          bowler={bowler}
-        />
-        <OverTimeline thisOver={thisOver} />
+        <div
+          onClick={() =>
+            canUpdateScore && setModalConfig({ isOpen: true, role: "Striker" })
+          }
+        >
+          <PlayerStats
+            striker={
+              activeStriker?.name || liveStats?.striker_name || "Select Striker"
+            }
+            nonStriker={
+              activeNonStriker?.name ||
+              liveStats?.non_striker_name ||
+              "Select Non-Striker"
+            }
+            bowler={
+              activeBowler?.name || liveStats?.bowler_name || "Select Bowler"
+            }
+          />
+        </div>
+
+        <OverTimeline thisOver={[]} />
 
         {canUpdateScore ? (
-          <div className="mt-6 animate-fade-in">
-            <h3 className="text-[10px] text-[#9FB7B2] font-semibold uppercase tracking-wider mb-2 px-1">
-              Update Score (Admin)
-            </h3>
-            <ScoringPad
-              onScore={handleBall}
-              modifier={modifier}
-              setModifier={setModifier}
-              isFreeHit={isFreeHit}
-            />
-          </div>
-        ) : (
-          <div className="mt-8 p-6 bg-card border border-border rounded-2xl flex flex-col items-center justify-center text-center shadow-lg animate-fade-in">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-              <Lock className="w-6 h-6 text-primary" />
+          isInningsComplete ? (
+            <button className="w-full mt-6 bg-green-600 text-white font-bold text-xl py-6 rounded-xl shadow-lg animate-pulse">
+              INNINGS COMPLETED
+            </button>
+          ) : (
+            <div className="mt-6 animate-fade-in">
+              <ScoringPad
+                onScore={handleBall}
+                modifier={modifier}
+                setModifier={setModifier}
+                isFreeHit={isFreeHit}
+              />
             </div>
+          )
+        ) : (
+          <div className="mt-8 p-6 bg-card border border-border rounded-2xl flex flex-col items-center justify-center text-center shadow-lg">
+            <Lock className="w-6 h-6 text-primary mb-3" />
             <h3 className="text-foreground font-bold mb-1">Read-Only View</h3>
-            <p className="text-sm text-muted-foreground">
-              You are viewing this match as a spectator. Only the host and
-              umpire can update the score.
-            </p>
           </div>
         )}
       </div>
+
+      <PlayerSelectModal
+        isOpen={modalConfig.isOpen}
+        role={modalConfig.role}
+        squad={modalConfig.role === "Bowler" ? bowlingSquad : battingSquad}
+        currentlyPlayingIds={[
+          activeStriker?.id || liveStats?.striker_id,
+          activeNonStriker?.id || liveStats?.non_striker_id,
+          activeBowler?.id || liveStats?.bowler_id,
+        ].filter(Boolean)}
+        onSelect={handlePlayerSelect}
+        onClose={() => setModalConfig({ isOpen: false, role: null })}
+      />
     </div>
   );
 };

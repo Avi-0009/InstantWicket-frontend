@@ -10,6 +10,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Login, ResetPassword } from "../../Api/Auth";
+import toast from "react-hot-toast";
 
 interface LoginFormProps {
   isSignUp: boolean;
@@ -58,9 +59,11 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
         },
         data.token,
       );
+      toast.success("Logged in successfully!");
       navigate("/");
     } catch (err: any) {
       setLoginError(err.response?.data?.error || "Invalid credentials.");
+      toast.error("Failed to login, Please try again!");
     } finally {
       setIsLoggingIn(false);
     }
@@ -79,12 +82,14 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
     } else if (forgotStep === 2) {
       if (otp !== "8080") {
         setForgotError("Invalid OTP. Try 8080.");
+        toast.error("OTP is incorrect, Please try again!");
         return;
       }
       setForgotStep(3); // Move to New Password
     } else if (forgotStep === 3) {
       if (!newPassword || newPassword.length < 6) {
         setForgotError("Password must be at least 6 characters.");
+        toast.success("Password must have at least 6 characters!");
         return;
       }
 
@@ -92,6 +97,7 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
         setIsResetting(true);
         await ResetPassword(loginPhone, newPassword);
         setForgotSuccess("Password updated successfully!");
+        toast.success("Password updated successfully!");
 
         // Reset states and go back to login after 2 seconds
         setTimeout(() => {
@@ -102,10 +108,12 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
           setLoginPassword("");
           setForgotSuccess("");
         }, 2000);
+        // toast.success("Please login!");
       } catch (err: any) {
         setForgotError(
           err.response?.data?.error || "Failed to reset password.",
         );
+        toast.error("Try again!");
       } finally {
         setIsResetting(false);
       }

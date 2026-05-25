@@ -5,6 +5,7 @@ import LiveMatchCard from "../components/matches/LiveMatchCard";
 import { Trophy, Activity, TrendingUp, Users, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { api } from "../Api/Auth";
+import toast from "react-hot-toast";
 
 let hasSeenSplashThisSession = false;
 
@@ -32,8 +33,10 @@ const Dashboard = () => {
         const res = await api.get("/matches");
         // Adjust "res.data.matches" based on what your Go backend actually returns
         setMatches(res.data.matches || res.data || []);
+        // toast.success("Match created successfully!");
       } catch (error) {
         console.error("Failed to fetch matches:", error);
+        toast.error("Failed to fetch match list!");
       }
     };
     fetchMatches();

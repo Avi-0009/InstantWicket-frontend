@@ -13,6 +13,7 @@ import {
   Info,
   ChevronLeft,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 const SettingsSection = ({
   title,
@@ -58,8 +59,10 @@ const SettingsPage = () => {
   const handleLogout = async () => {
     try {
       await Logout();
+      toast.success("User logged out successfully!");
     } catch (err) {
       console.error("Logout failed on server", err);
+      toast.success("Failed to logout user!");
     } finally {
       logout();
       navigate("/auth");
