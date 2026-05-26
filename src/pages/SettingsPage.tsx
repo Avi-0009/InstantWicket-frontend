@@ -72,7 +72,7 @@ const SettingsPage = () => {
   if (!user) return null;
 
   return (
-    <main className="p-4 md:p-6 max-w-2xl mx-auto w-full animate-fade-in pb-24 bg-[#061311]">
+    <main className="p-4 md:p-6 max-w-2xl mx-auto w-full animate-fade-in pb-24 bg-background">
       <div className="flex items-center gap-3 mb-8">
         <button
           onClick={() => navigate("/")}

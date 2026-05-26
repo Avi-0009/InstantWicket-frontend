@@ -1,18 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { CustomDropdown } from "./CustomDropdown";
 
-// You can update this interface later if your actual Player model has more fields
 export interface Player {
   id: string;
   name: string;
-  batting_style?: string;
-  bowling_style?: string;
+  is_common_player?: boolean;
+  is_captain?: boolean;
+  is_wicket_keeper?: boolean;
+  is_retired?: boolean;
 }
 
 interface PlayerSelectModalProps {
   isOpen: boolean;
   role: "Striker" | "Non-Striker" | "Bowler" | null;
-  squad: Player[]; // Pass the Batting squad for batters, Bowling squad for bowlers
-  currentlyPlayingIds: string[]; // Pass IDs of players already on the field or out
+  squad: Player[];
+  currentlyPlayingIds: string[];
   onSelect: (player: Player) => void;
   onClose: () => void;
 }
@@ -25,67 +27,74 @@ export const PlayerSelectModal: React.FC<PlayerSelectModalProps> = ({
   onSelect,
   onClose,
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
+
+  useEffect(() => {
+    if (isOpen) setSelectedPlayerId("");
+  }, [isOpen]);
 
   if (!isOpen || !role) return null;
 
-  // Filter out players who are already batting/bowling or out, and apply search
+  // Filter out players who are already assigned to the pitch
   const availablePlayers =
-    squad?.filter(
-      (p) =>
-        !currentlyPlayingIds.includes(p.id) &&
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()),
-    ) || [];
+    squad?.filter((p) => !currentlyPlayingIds.includes(p.id)) || [];
+
+  const handleConfirm = () => {
+    const player = availablePlayers.find((p) => p.id === selectedPlayerId);
+    if (player) {
+      onSelect(player);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
-        {/* MODAL HEADER */}
-        <div className="p-4 bg-gray-800 text-white flex justify-between items-center">
-          <h2 className="text-xl font-bold">Select New {role}</h2>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-card border border-border rounded-xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="bg-card-hover px-5 py-4 border-b border-border flex justify-between items-center">
+          <h2 className="text-lg font-bold text-foreground">Assign {role}</h2>
           <button
             onClick={onClose}
-            className="text-gray-300 hover:text-white font-bold text-xl"
+            className="text-muted-foreground hover:text-white text-xl transition-colors"
           >
             ✕
           </button>
         </div>
 
-        {/* SEARCH BAR */}
-        <div className="p-4 border-b">
-          <input
-            type="text"
-            placeholder={`Search ${role}...`}
-            className="w-full border p-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        {/* Body */}
+        <div className="p-6">
+          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Select from Squad
+          </label>
 
-        {/* PLAYER LIST */}
-        <div className="flex-1 overflow-y-auto px-4 py-2">
-          {availablePlayers.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
-              No available players found.
-            </p>
-          ) : (
-            availablePlayers.map((player) => (
-              <button
-                key={player.id}
-                onClick={() => onSelect(player)}
-                className="w-full text-left p-3 my-1 border rounded hover:bg-blue-50 focus:bg-blue-100 flex justify-between items-center transition-colors"
-              >
-                <span className="font-semibold text-gray-800">
-                  {player.name}
-                </span>
-                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  {role === "Bowler"
-                    ? player.bowling_style || "Bowler"
-                    : player.batting_style || "Batter"}
-                </span>
-              </button>
-            ))
-          )}
+          {/* CUSTOM DROPDOWN REPLACEMENT */}
+          <CustomDropdown
+            options={availablePlayers}
+            value={selectedPlayerId}
+            onChange={setSelectedPlayerId}
+            placeholder={`-- Choose ${role} --`}
+          />
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 mt-8">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 rounded-lg text-sm font-semibold border border-border text-muted-foreground hover:bg-card-hover hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                const p = availablePlayers.find(
+                  (x) => x.id === selectedPlayerId,
+                );
+                if (p) onSelect(p);
+              }}
+              disabled={!selectedPlayerId}
+              className="flex-1 py-3 rounded-lg text-sm font-bold bg-primary text-background disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-hover transition-colors shadow-[0_0_15px_rgba(15,175,154,0.2)]"
+            >
+              Confirm
+            </button>
+          </div>
         </div>
       </div>
     </div>

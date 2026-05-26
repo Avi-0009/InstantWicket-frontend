@@ -12,7 +12,7 @@ const AuthOverlay = ({ isSignUp, setIsSignUp }: AuthOverlayProps) => {
 
   return (
     <div
-      className={`absolute bottom-0 md:top-0 right-0 w-full md:w-1/2 h-[40%] md:h-full bg-gradient-to-br from-primary to-primary-hover flex flex-col items-center justify-center text-center p-8 transition-transform duration-700 ease-in-out z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.3)] ${
+      className={`absolute bottom-0 md:top-0 right-0 w-full md:w-1/2 h-[40%] md:h-full bg-linear-to-br from-primary to-primary-hover flex flex-col items-center justify-center text-center p-8 transition-transform duration-700 ease-in-out z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.3)] ${
         isSignUp ? "md:-translate-x-full" : "translate-x-0"
       }`}
     >
@@ -26,7 +26,7 @@ const AuthOverlay = ({ isSignUp, setIsSignUp }: AuthOverlayProps) => {
           : "Register with your personal details to start scoring live matches instantly."}
       </p>
 
-      <div className="flex flex-col gap-4 w-full max-w-[240px]">
+      <div className="flex flex-col gap-4 w-full `max-w-60`">
         <button
           onClick={() => setIsSignUp(!isSignUp)}
           className="hidden md:block w-full py-3 rounded-xl border-2 border-background text-background hover:bg-background hover:text-primary transition-colors font-bold tracking-wide"
@@ -35,11 +35,11 @@ const AuthOverlay = ({ isSignUp, setIsSignUp }: AuthOverlayProps) => {
         </button>
 
         <div className="relative flex items-center py-2">
-          <div className="flex-grow border-t border-background/20"></div>
-          <span className="flex-shrink-0 mx-4 text-background/70 text-xs font-bold">
+          <div className="grow border-t border-background/20"></div>
+          <span className="shrink-0 mx-4 text-background/70 text-xs font-bold">
             OR
           </span>
-          <div className="flex-grow border-t border-background/20"></div>
+          <div className="grow border-t border-background/20"></div>
         </div>
 
         {/* Replaced programmatic navigate with NavLink */}

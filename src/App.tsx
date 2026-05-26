@@ -35,6 +35,7 @@ const App = () => {
         position="top-center"
         reverseOrder={false}
         toastOptions={{
+          duration: 1000,
           // Optional: You can style it to match your dark theme perfectly!
           style: {
             background: "#0B1F1B",
