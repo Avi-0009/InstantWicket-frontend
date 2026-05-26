@@ -68,7 +68,7 @@ const LiveScoring = () => {
         const match = matchRes.data.match || matchRes.data;
         setMatchData(match);
 
-        // 🔴 THE FIX: Grab players instantly from the match object! No secondary API call needed!
+        // 🔴 NO MORE SECONDARY API CALL! Grab players straight from the match payload
         const playersA = match.team_a_players || [];
         const playersB = match.team_b_players || [];
 
@@ -80,7 +80,7 @@ const LiveScoring = () => {
           });
         }
 
-        // Determine who bats first
+        // Determine who bats first based on toss
         let isTeamABatting = true;
         if (match.toss_decision === "bat") {
           isTeamABatting = match.toss_winner_team_id === match.team_a_id;
@@ -100,7 +100,79 @@ const LiveScoring = () => {
         console.error("Match Info Error:", error);
       }
     };
+    // --- Start Innings Logic ---
+    const handleStartInnings = async () => {
+      if (!activeStriker || !activeNonStriker || !activeBowler) {
+        toast.error("Please assign a Striker, Non-Striker, and Bowler first!", {
+          duration: 2000,
+        });
+        return;
+      }
 
+      // 🔴 SMART INNINGS DETECTION
+      // If liveStats already has an innings_id, it means the 1st innings finished. We are starting the 2nd.
+      const isSecondInnings = liveStats && liveStats.innings_id;
+      const currentInningsNo = isSecondInnings ? 2 : 1;
+
+      // Set target runs for 2nd innings
+      const targetRuns = isSecondInnings ? liveStats.current_score + 1 : null;
+
+      // Determine who bats first based on toss
+      const tossWinnerBatting =
+        matchData.toss_decision === "bat"
+          ? matchData.toss_winner_team_id === matchData.team_a_id
+          : matchData.toss_winner_team_id === matchData.team_b_id;
+
+      // If it's the 2nd innings, flip the teams!
+      const isTeamABatting = isSecondInnings
+        ? !tossWinnerBatting
+        : tossWinnerBatting;
+
+      const payload = {
+        match_id: matchId,
+        batting_team_id: isTeamABatting
+          ? matchData.team_a_id
+          : matchData.team_b_id,
+        bowling_team_id: isTeamABatting
+          ? matchData.team_b_id
+          : matchData.team_a_id,
+        striker_id: activeStriker.id,
+        non_striker_id: activeNonStriker.id,
+        bowler_id: activeBowler.id,
+        innings_no: currentInningsNo,
+        target_runs: targetRuns,
+      };
+
+      const loadingToast = toast.loading(
+        `Starting Innings ${currentInningsNo}...`,
+      );
+      try {
+        await api.post("/scoring/start", payload);
+        toast.success(`Innings ${currentInningsNo} Started!`, {
+          id: loadingToast,
+          duration: 1500,
+        });
+
+        // If it's the 2nd innings, flip the squads in the UI for the dropdowns
+        if (isSecondInnings) {
+          setBattingSquad(
+            isTeamABatting
+              ? matchData.team_a_players
+              : matchData.team_b_players,
+          );
+          setBowlingSquad(
+            isTeamABatting
+              ? matchData.team_b_players
+              : matchData.team_a_players,
+          );
+        }
+
+        fetchLiveScoreboard();
+      } catch (error: any) {
+        const msg = error.response?.data?.error || "Failed to start innings";
+        toast.error(msg, { id: loadingToast, duration: 2500 });
+      }
+    };
     if (matchId) {
       fetchMatchInfo();
       fetchLiveScoreboard();
@@ -143,10 +215,24 @@ const LiveScoring = () => {
       return;
     }
 
-    const isTeamABatting =
+    // 🔴 SMART INNINGS DETECTION
+    // If liveStats already has an innings_id, it means the 1st innings finished. We are starting the 2nd.
+    const isSecondInnings = liveStats && liveStats.innings_id;
+    const currentInningsNo = isSecondInnings ? 2 : 1;
+
+    // Set target runs for 2nd innings
+    const targetRuns = isSecondInnings ? liveStats.current_score + 1 : null;
+
+    // Determine who bats first based on toss
+    const tossWinnerBatting =
       matchData.toss_decision === "bat"
         ? matchData.toss_winner_team_id === matchData.team_a_id
         : matchData.toss_winner_team_id === matchData.team_b_id;
+
+    // If it's the 2nd innings, flip the teams!
+    const isTeamABatting = isSecondInnings
+      ? !tossWinnerBatting
+      : tossWinnerBatting;
 
     const payload = {
       match_id: matchId,
@@ -159,20 +245,34 @@ const LiveScoring = () => {
       striker_id: activeStriker.id,
       non_striker_id: activeNonStriker.id,
       bowler_id: activeBowler.id,
-      innings_no: 1,
-      target_runs: null,
+      innings_no: currentInningsNo,
+      target_runs: targetRuns,
     };
 
-    const loadingToast = toast.loading("Starting Innings...");
+    const loadingToast = toast.loading(
+      `Starting Innings ${currentInningsNo}...`,
+    );
     try {
       await api.post("/scoring/start", payload);
-      toast.success("Innings Started!", { id: loadingToast, duration: 1500 });
-      fetchLiveScoreboard();
-    } catch (error) {
-      toast.error("Failed to start innings", {
+      toast.success(`Innings ${currentInningsNo} Started!`, {
         id: loadingToast,
         duration: 1500,
       });
+
+      // If it's the 2nd innings, flip the squads in the UI for the dropdowns
+      if (isSecondInnings) {
+        setBattingSquad(
+          isTeamABatting ? matchData.team_a_players : matchData.team_b_players,
+        );
+        setBowlingSquad(
+          isTeamABatting ? matchData.team_b_players : matchData.team_a_players,
+        );
+      }
+
+      fetchLiveScoreboard();
+    } catch (error: any) {
+      const msg = error.response?.data?.error || "Failed to start innings";
+      toast.error(msg, { id: loadingToast, duration: 2500 });
     }
   };
 
@@ -431,12 +531,13 @@ const LiveScoring = () => {
 
         {canUpdateScore ? (
           <div className="mt-6 animate-fade-in">
-            {!liveStats?.innings_id ? (
+            {/* Show start button if no innings started OR if 1st innings is completed but we need 2nd */}
+            {!liveStats?.innings_id || liveStats?.wickets === 10 ? ( // You can also add custom state to track if "Declare" was clicked
               <button
                 onClick={handleStartInnings}
                 className="w-full bg-primary hover:bg-primary-hover text-background transition-colors font-bold text-xl py-6 rounded-xl shadow-[0_0_15px_rgba(15,175,154,0.2)]"
               >
-                START 1ST INNINGS
+                START {liveStats?.innings_id ? "2ND" : "1ST"} INNINGS
               </button>
             ) : showWicketForm ? (
               <WicketForm
