@@ -47,7 +47,7 @@ export default function ScoreHeader({
           <span className="text-[#19F0C1]">In Progress</span>
         </div>
         <div className="h-1.5 bg-[#1B3530] rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-[#0FAF9A] to-[#19F0C1] rounded-full w-[0%]"></div>
+          <div className="h-full bg-linear-to-r from-[#0FAF9A] to-[#19F0C1] rounded-full w-[0%]"></div>
         </div>
       </div>
     </div>

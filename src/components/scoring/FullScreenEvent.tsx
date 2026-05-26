@@ -34,7 +34,7 @@ export const FullScreenEvent: React.FC<FullScreenEventProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center ${data.bg} backdrop-blur-sm transition-all duration-300 animate-in fade-in`}
+      className={`fixed inset-0 z-100 flex items-center justify-center ${data.bg} backdrop-blur-sm transition-all duration-300 animate-in fade-in`}
     >
       <h1
         className={`text-7xl md:text-9xl font-black italic ${data.textColor} tracking-tighter drop-shadow-2xl scale-up-center animate-bounce`}

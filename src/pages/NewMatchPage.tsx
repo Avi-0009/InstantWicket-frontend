@@ -227,12 +227,80 @@ const NewMatchPage = () => {
         return;
       }
 
-      // YES! Here is the payload variable fully declared
+      // 1. Map the regular players
+      const formattedTeamA = teamAPlayers.map((p) => ({
+        id: p.id,
+        name: p.name,
+        phone_no: "",
+        is_common_player: false,
+        is_captain: false, // Captain is added below
+        is_wicket_keeper: false,
+      }));
+
+      // 🔴 2. Explicitly push the Captain into Team A
+      if (captainA) {
+        formattedTeamA.push({
+          id: captainA.id,
+          name: captainA.name,
+          phone_no: "",
+          is_common_player: false,
+          is_captain: true,
+          is_wicket_keeper: false,
+        });
+      }
+
+      // 3. Explicitly push the Common Player into Team A
+      if (commonPlayer) {
+        formattedTeamA.push({
+          id: commonPlayer.id,
+          name: commonPlayer.name,
+          phone_no: "",
+          is_common_player: true,
+          is_captain: false,
+          is_wicket_keeper: false,
+        });
+      }
+
+      // 4. Map the regular players for Team B
+      const formattedTeamB = teamBPlayers.map((p) => ({
+        id: p.id,
+        name: p.name,
+        phone_no: "",
+        is_common_player: false,
+        is_captain: false,
+        is_wicket_keeper: false,
+      }));
+
+      // 🔴 5. Explicitly push the Captain into Team B
+      if (captainB) {
+        formattedTeamB.push({
+          id: captainB.id,
+          name: captainB.name,
+          phone_no: "",
+          is_common_player: false,
+          is_captain: true,
+          is_wicket_keeper: false,
+        });
+      }
+
+      // 6. Explicitly push the Common Player into Team B
+      if (commonPlayer) {
+        formattedTeamB.push({
+          id: commonPlayer.id,
+          name: commonPlayer.name,
+          phone_no: "",
+          is_common_player: true,
+          is_captain: false,
+          is_wicket_keeper: false,
+        });
+      }
+
+      // 7. Send the finalized payload
       const payload = {
         team_a_name: teamA,
         team_b_name: teamB,
-        team_a_player_ids: teamAPlayers.map((player) => player.id),
-        team_b_player_ids: teamBPlayers.map((player) => player.id),
+        team_a_players: formattedTeamA,
+        team_b_players: formattedTeamB,
         toss_winner_team_id: matchTossWinner === teamA ? "A" : "B",
         toss_decision: matchTossDecision!,
         allow_common_player: allowCommon,
@@ -243,8 +311,8 @@ const NewMatchPage = () => {
 
       const response = await createMatch(payload);
 
-      // ✅ Now it redirects straight to our new LiveScoring page!
-      navigate(`/matches/${response.match_id}/score`);
+      const finalMatchId = response.match?.id || response.match_id;
+      navigate(`/matches/${finalMatchId}/score`);
     } catch (error: any) {
       console.error("Failed to create match:", error);
       if (error.response) {

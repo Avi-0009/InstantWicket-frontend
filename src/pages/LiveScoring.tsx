@@ -44,6 +44,7 @@ const LiveScoring = () => {
   const [activeStriker, setActiveStriker] = useState<Player | null>(null);
   const [activeNonStriker, setActiveNonStriker] = useState<Player | null>(null);
   const [activeBowler, setActiveBowler] = useState<Player | null>(null);
+  const [previousBowlerId, setPreviousBowlerId] = useState<string | null>(null);
 
   const [isDeclareModalOpen, setIsDeclareModalOpen] = useState(false);
   const [showWicketForm, setShowWicketForm] = useState(false);
@@ -67,44 +68,33 @@ const LiveScoring = () => {
         const match = matchRes.data.match || matchRes.data;
         setMatchData(match);
 
-        // 🔴 FETCHING PLAYERS
-        try {
-          const playersRes = await api.get(`/matches/${matchId}/players`);
-          const allPlayers = playersRes.data.players || [];
+        // 🔴 THE FIX: Grab players instantly from the match object! No secondary API call needed!
+        const playersA = match.team_a_players || [];
+        const playersB = match.team_b_players || [];
 
-          // Set debug log so you can physically see the JSON
-          setDebugLog(JSON.stringify(allPlayers, null, 2));
+        setDebugLog(JSON.stringify({ playersA, playersB }, null, 2));
 
-          if (allPlayers.length === 0) {
-            toast.error("Backend sent 0 players! Check CreateMatch function.", {
-              duration: 4000,
-            });
-          }
+        if (playersA.length === 0 || playersB.length === 0) {
+          toast.error("Match loaded, but players are missing!", {
+            duration: 4000,
+          });
+        }
 
-          const playersA = allPlayers.filter(
-            (p: any) => p.team_id === match.team_a_id,
-          );
-          const playersB = allPlayers.filter(
-            (p: any) => p.team_id === match.team_b_id,
-          );
+        // Determine who bats first
+        let isTeamABatting = true;
+        if (match.toss_decision === "bat") {
+          isTeamABatting = match.toss_winner_team_id === match.team_a_id;
+        } else if (match.toss_decision === "bowl") {
+          isTeamABatting = match.toss_winner_team_id !== match.team_a_id;
+        }
 
-          let isTeamABatting = true;
-          if (match.toss_decision === "bat") {
-            isTeamABatting = match.toss_winner_team_id === match.team_a_id;
-          } else if (match.toss_decision === "bowl") {
-            isTeamABatting = match.toss_winner_team_id !== match.team_a_id;
-          }
-
-          if (isTeamABatting) {
-            setBattingSquad(playersA);
-            setBowlingSquad(playersB);
-          } else {
-            setBattingSquad(playersB);
-            setBowlingSquad(playersA);
-          }
-        } catch (playerErr: any) {
-          setDebugLog(`API FAILED: ${playerErr.message}`);
-          toast.error("Failed to fetch players. Is the route added in Go?");
+        // Assign squads
+        if (isTeamABatting) {
+          setBattingSquad(playersA);
+          setBowlingSquad(playersB);
+        } else {
+          setBattingSquad(playersB);
+          setBowlingSquad(playersA);
         }
       } catch (error) {
         console.error("Match Info Error:", error);
@@ -187,11 +177,27 @@ const LiveScoring = () => {
   };
 
   // --- Core Scoring Logic ---
+  // --- Core Scoring Logic ---
   const handleBall = (runs: number, isWicket: boolean = false) => {
-    if (!liveStats?.innings_id)
+    if (!liveStats?.innings_id) {
       return toast.error("Innings has not been started yet!", {
         duration: 1500,
       });
+    }
+
+    // 🔴 SAFETY LOCK: Force bowler selection at the start of a new over
+    if (
+      liveStats.legal_balls > 0 &&
+      liveStats.legal_balls % 6 === 0 &&
+      !activeBowler
+    ) {
+      toast.error("Over complete! Please select a new bowler.", {
+        duration: 2000,
+      });
+      setModalConfig({ isOpen: true, role: "Bowler" });
+      return;
+    }
+
     if (isWicket) {
       setPendingRuns(runs);
       setShowWicketForm(true);
@@ -236,22 +242,26 @@ const LiveScoring = () => {
     if (!modifier && runsFromBat === 6) setCurrentEvent("6");
     if (isWicket) setCurrentEvent("WICKET");
 
+    // Grab current IDs directly from state or liveStats fallback
+    const currentStrikerId = activeStriker?.id || liveStats.striker_id;
+    const currentNonStrikerId =
+      activeNonStriker?.id || liveStats.non_striker_id;
+    const currentBowlerId = activeBowler?.id || liveStats.bowler_id;
+
     const payload = {
       innings_id: liveStats.innings_id,
       over_number: overs,
       ball_number: ballsInOver + 1,
-      striker_id: activeStriker?.id || liveStats.striker_id,
-      non_striker_id: activeNonStriker?.id || liveStats.non_striker_id,
-      bowler_id: activeBowler?.id || liveStats.bowler_id,
+      striker_id: currentStrikerId,
+      non_striker_id: currentNonStrikerId,
+      bowler_id: currentBowlerId,
       is_legal_ball: isLegal,
       runs_from_bat: runsFromBat,
       extras: extras,
       extra_type: extraType,
       is_wicket: isWicket,
       wicket_type: wicketType,
-      out_player_id: isWicket
-        ? activeStriker?.id || liveStats.striker_id
-        : null,
+      out_player_id: isWicket ? currentStrikerId : null,
       fielder_id: fielderId,
     };
 
@@ -263,7 +273,43 @@ const LiveScoring = () => {
         duration: 1000,
       });
       setModifier(null);
-      fetchLiveScoreboard();
+
+      // 🔴 RE-FETCH STATS AFTER SUCCESSFUL BALL
+      await fetchLiveScoreboard();
+
+      // 🔴 STRIKE ROTATION & OVER COMPLETION LOGIC
+      let shouldSwapStrikers = false;
+
+      // Swap on odd runs (1, 3)
+      if (runsFromBat % 2 !== 0) shouldSwapStrikers = !shouldSwapStrikers;
+
+      // End of over logic
+      if (isLegal && ballsInOver === 5) {
+        shouldSwapStrikers = !shouldSwapStrikers; // Swap at end of over
+
+        // 🔴 ADD THIS LINE: Remember who just finished bowling
+        setPreviousBowlerId(currentBowlerId);
+
+        setActiveBowler(null); // Clear the active bowler completely
+
+        setTimeout(() => {
+          toast("Over Complete! Select new bowler.", {
+            icon: "🏏",
+            duration: 3000,
+          });
+          setModalConfig({ isOpen: true, role: "Bowler" }); // Auto-open modal
+        }, 1000);
+      }
+
+      // Execute Strike Swap in State
+      if (shouldSwapStrikers) {
+        const nextStriker =
+          battingSquad.find((p) => p.id === currentNonStrikerId) || null;
+        const nextNonStriker =
+          battingSquad.find((p) => p.id === currentStrikerId) || null;
+        setActiveStriker(nextStriker);
+        setActiveNonStriker(nextNonStriker);
+      }
     } catch (error) {
       toast.error("Failed to record ball", {
         id: loadingToast,
@@ -424,6 +470,8 @@ const LiveScoring = () => {
             activeStriker?.id || liveStats?.striker_id,
             activeNonStriker?.id || liveStats?.non_striker_id,
             activeBowler?.id || liveStats?.bowler_id,
+            // 🔴 ADD THIS LINE: Block the previous bowler from consecutive overs
+            modalConfig.role === "Bowler" ? previousBowlerId : null,
           ].filter(Boolean) as string[]
         }
         onSelect={handlePlayerSelect}

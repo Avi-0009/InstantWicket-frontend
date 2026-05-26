@@ -8,7 +8,7 @@ export default function OverTimeline({ thisOver }: OverTimelineProps) {
       <div className="text-[10px] text-[#9FB7B2] font-semibold uppercase tracking-wider mb-3">
         This Over
       </div>
-      <div className="flex gap-2 items-center overflow-x-auto no-scrollbar min-h-[36px]">
+      <div className="flex gap-2 items-center overflow-x-auto no-scrollbar min-h-9">
         {thisOver.length === 0 ? (
           <span className="text-xs text-[#9FB7B2] italic">0 balls (Empty)</span>
         ) : (
@@ -20,7 +20,7 @@ export default function OverTimeline({ thisOver }: OverTimelineProps) {
               <div
                 key={idx}
                 className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm shrink-0
-                  ${isBoundary ? "bg-[#0FAF9A] text-[#061311]" : ""}
+                  ${isBoundary ? "bg-[#0FAF9A] text-background" : ""}
                   ${isWicket ? "bg-[#FF6B6B] text-[#F4FFFD]" : ""}
                   ${!isBoundary && !isWicket ? "bg-[#0D2420] text-[#F4FFFD] border border-[#1B3530]" : ""}
                 `}

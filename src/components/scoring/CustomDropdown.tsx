@@ -71,7 +71,7 @@ export const CustomDropdown: React.FC<Props> = ({
 
       {/* Dropdown Menu (Scrollable) */}
       {isOpen && (
-        <div className="absolute z-[100] w-full mt-2 bg-card border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto">
+        <div className="absolute z-100 w-full mt-2 bg-card border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto">
           {options.length === 0 ? (
             <div className="px-4 py-3 text-muted-foreground text-sm italic">
               No players available

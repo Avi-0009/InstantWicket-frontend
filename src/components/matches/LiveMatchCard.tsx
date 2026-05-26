@@ -8,7 +8,7 @@ interface LiveMatchCardProps {
 
 const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
   return (
-    <div className="bg-gradient-to-br from-card to-card-hover border border-border rounded-[14px] p-4 relative cursor-pointer hover:border-primary/40 transition-colors">
+    <div className="bg-linear-to-br from-card to-card-hover border border-border rounded-[14px] p-4 relative cursor-pointer hover:border-primary/40 transition-colors">
       {/* Live Badge */}
       {match.status === "ongoing" && (
         <div className="absolute top-3 right-3 bg-destructive/15 text-destructive px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1">
@@ -58,7 +58,7 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
         {/* Progress Bar */}
         <div className="h-1.5 bg-muted rounded-full overflow-hidden my-1.5">
           <div
-            className="h-full bg-gradient-to-r from-primary to-primary-hover rounded-full"
+            className="h-full bg-linear-to-r from-primary to-primary-hover rounded-full"
             style={{
               width: match.target
                 ? `${((match.score || 0) / match.target) * 100}%`

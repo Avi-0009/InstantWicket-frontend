@@ -21,7 +21,7 @@ export const DeclareModal: React.FC<DeclareModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4 backdrop-blur-sm animate-in fade-in">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-70 p-4 backdrop-blur-sm animate-in fade-in">
       <div className="bg-[#0B1F1B] border border-red-900/50 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl zoom-in-95">
         <div className="p-6 text-center">
           <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-900/50">

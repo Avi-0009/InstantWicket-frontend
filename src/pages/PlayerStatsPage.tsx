@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -77,7 +77,7 @@ const PlayerStatsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#061311] flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
         <Loader2 className="w-8 h-8 text-[#0FAF9A] animate-spin mb-4" />
         <p className="text-[#F4FFFD] font-semibold animate-pulse">
           Loading Player Stats...
@@ -88,7 +88,7 @@ const PlayerStatsPage = () => {
 
   if (isError || !stats) {
     return (
-      <div className="min-h-screen bg-[#061311] p-4">
+      <div className="min-h-screen bg-background p-4">
         <PageHeader title="Player Profile" backUrl="/players" />
         <div className="mt-20 text-center text-destructive font-bold">
           Failed to load player stats.{" "}
@@ -99,12 +99,12 @@ const PlayerStatsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#061311] font-sans pb-24">
+    <div className="min-h-screen bg-background font-sans pb-24">
       <div className="max-w-5xl mx-auto p-4 md:p-6">
         <PageHeader title="Player Profile" backUrl="/players" />
 
         {/* PROFILE HEADER HERO */}
-        <div className="bg-gradient-to-br from-[#0B1F1B] to-[#061311] border border-[#1B3530] rounded-2xl p-6 md:p-8 mb-8 shadow-2xl relative overflow-hidden">
+        <div className="bg-linear-to-br from-[#0B1F1B] to-background border border-[#1B3530] rounded-2xl p-6 md:p-8 mb-8 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-[#0FAF9A]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
@@ -286,7 +286,7 @@ const PlayerStatsPage = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#061311]/50 border-b border-[#1B3530] text-[#9FB7B2] text-xs uppercase tracking-wider">
+                <tr className="bg-background/50 border-b border-[#1B3530] text-[#9FB7B2] text-xs uppercase tracking-wider">
                   <th className="p-4 font-semibold">Date</th>
                   <th className="p-4 font-semibold">Opponent</th>
                   <th className="p-4 font-semibold text-right">Runs</th>
@@ -328,7 +328,7 @@ const PlayerStatsPage = () => {
           </div>
 
           {/* PAGINATION FOOTER */}
-          <div className="p-4 border-t border-[#1B3530] flex items-center justify-between bg-[#061311]/30">
+          <div className="p-4 border-t border-[#1B3530] flex items-center justify-between bg-background/30">
             <p className="text-xs text-[#9FB7B2]">
               Showing{" "}
               <span className="font-bold text-[#F4FFFD]">
@@ -366,7 +366,7 @@ const PlayerStatsPage = () => {
                     onClick={() => handlePageChange(pageNum)}
                     className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-semibold transition-colors ${
                       currentPage === pageNum
-                        ? "bg-[#0FAF9A] text-[#061311] border border-[#0FAF9A]"
+                        ? "bg-[#0FAF9A] text-background border border-[#0FAF9A]"
                         : "border border-transparent text-[#9FB7B2] hover:border-[#1B3530] hover:bg-[#1B3530]"
                     }`}
                   >
