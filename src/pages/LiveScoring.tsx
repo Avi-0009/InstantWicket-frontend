@@ -238,7 +238,7 @@ const LiveScoring = () => {
   const handleStartInnings = async () => {
     if (!activeStriker || !activeNonStriker || !activeBowler) {
       toast.error("Please assign a Striker, Non-Striker, and Bowler first!", {
-        duration: 2000,
+        duration: 1200,
       });
       return;
     }
@@ -277,8 +277,8 @@ const LiveScoring = () => {
       setIsInningsDeclared(false);
 
       // INSTANT UI SWITCH
-      setLiveStats({
-        ...liveStats,
+      setLiveStats((prev: any) => ({
+        ...prev,
         innings_id:
           res.data?.innings_id || res.data?.id || "active-innings-bypass",
         innings_no: currentInningsNo,
@@ -288,15 +288,15 @@ const LiveScoring = () => {
         striker_id: activeStriker.id,
         non_striker_id: activeNonStriker.id,
         bowler_id: activeBowler.id,
-      });
+      }));
 
-      fetchLiveScoreboard();
+      // 🚨 REMOVED fetchLiveScoreboard() FROM HERE!
+      // This is what was causing the screen to glitch back to the start button.
     } catch (error: any) {
       const msg = error.response?.data?.error || "Failed to start innings";
       toast.error(msg, { id: loadingToast, duration: 2500 });
     }
   };
-
   const handleBall = (runs: number, isWicket: boolean = false) => {
     if (!liveStats?.innings_id) {
       return toast.error("Innings has not been started yet!", {
@@ -321,11 +321,28 @@ const LiveScoring = () => {
       setShowWicketForm(true);
       return;
     }
-    executeBallApi(runs, false, null, null);
+
+    // 🔴 FIX: Added the 5th argument (null for outPlayerId, null for fielderId)
+    executeBallApi(runs, false, null, null, null);
   };
 
-  const handleWicketSubmit = (wicketType: string, fielderId: string | null) => {
-    executeBallApi(pendingRuns, true, wicketType, fielderId);
+  const handleWicketSubmit = (
+    wicketType: string,
+    outBatterRole: "striker" | "non_striker",
+    fielderId: string | null,
+  ) => {
+    // Figure out the exact ID of the player who got out based on the selection
+    const exactOutPlayerId =
+      outBatterRole === "striker" ? activeStriker?.id : activeNonStriker?.id;
+
+    // Pass it to the API
+    executeBallApi(
+      pendingRuns,
+      true,
+      wicketType,
+      exactOutPlayerId || null,
+      fielderId,
+    );
     setShowWicketForm(false);
   };
 
@@ -333,6 +350,7 @@ const LiveScoring = () => {
     runs: number,
     isWicket: boolean,
     wicketType: string | null,
+    outPlayerId: string | null,
     fielderId: string | null,
   ) => {
     let isLegal = true,
@@ -365,7 +383,9 @@ const LiveScoring = () => {
       activeNonStriker?.id || liveStats.non_striker_id;
     const currentBowlerId = activeBowler?.id || liveStats.bowler_id;
 
-    const payload = {
+    // GUARANTEED FIELDS ONLY - This stops Go from panicking on nulls
+    const payload: any = {
+      match_id: matchId,
       innings_id: liveStats.innings_id,
       over_number: overs,
       ball_number: ballsInOver + 1,
@@ -375,12 +395,14 @@ const LiveScoring = () => {
       is_legal_ball: isLegal,
       runs_from_bat: runsFromBat,
       extras: extras,
-      extra_type: extraType,
       is_wicket: isWicket,
-      wicket_type: wicketType,
-      out_player_id: isWicket ? currentStrikerId : null,
-      fielder_id: fielderId,
     };
+
+    // OPTIONAL FIELDS - Only attach them if they actually have data
+    if (extraType) payload.extra_type = extraType;
+    if (wicketType) payload.wicket_type = wicketType;
+    if (isWicket && outPlayerId) payload.out_player_id = outPlayerId;
+    if (fielderId) payload.fielder_id = fielderId;
 
     const loadingToast = toast.loading("Recording ball...");
     try {
@@ -418,8 +440,8 @@ const LiveScoring = () => {
         setActiveStriker(nextStriker);
         setActiveNonStriker(nextNonStriker);
       }
-    } catch (error) {
-      toast.error("Failed to record ball", {
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to record ball", {
         id: loadingToast,
         duration: 1500,
       });
