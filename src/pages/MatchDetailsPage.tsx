@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { api } from "../Api/Auth";
 
 export default function MatchDetailsPage() {
-  const { matchId } = useParams();
+  const { id: matchId } = useParams();
   const navigate = useNavigate();
   const [matchData, setMatchData] = useState<any>(null);
   const [liveStats, setLiveStats] = useState<any>(null);

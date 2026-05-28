@@ -24,16 +24,15 @@ const LiveScoring = () => {
 
   const [matchData, setMatchData] = useState<any>(null);
   const [liveStats, setLiveStats] = useState<any>(null);
-
-  // 🔴 VITAL: Protects local player swaps from the 3-second polling
   const [hasSynced, setHasSynced] = useState(false);
 
   const [modifier, setModifier] = useState<"WD" | "NB" | null>(null);
   const [isFreeHit, setIsFreeHit] = useState(false);
-  const [currentEvent, setCurrentEvent] = useState<{
-    type: "4" | "6" | "WICKET" | null;
-    isFreeHit: boolean;
-  } | null>(null);
+
+  // 🔴 FIXED: Safely typed as a string so the UI doesn't crash
+  const [currentEvent, setCurrentEvent] = useState<
+    "4" | "6" | "FREE_HIT" | "WICKET" | null
+  >(null);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -48,6 +47,7 @@ const LiveScoring = () => {
   const [isDeclareModalOpen, setIsDeclareModalOpen] = useState(false);
   const [isInningsDeclared, setIsInningsDeclared] = useState(false);
   const [thisOverTimeline, setThisOverTimeline] = useState<string[]>([]);
+
   const [showWicketForm, setShowWicketForm] = useState(false);
   const [pendingRuns, setPendingRuns] = useState(0);
 
@@ -74,11 +74,10 @@ const LiveScoring = () => {
         setLiveStats(res.data);
       }
     } catch (error: any) {
-      console.error("Live Scoreboard Error:", error);
+      // Silently catch polling errors if the innings hasn't started yet
     }
   }, [matchId]);
 
-  // 🔴 POLLING IS SAFE NOW: It updates the scores but won't ruin player positions
   useEffect(() => {
     if (!matchId) return;
     const interval = setInterval(fetchLiveScoreboard, 3000);
@@ -94,7 +93,6 @@ const LiveScoring = () => {
 
         const playersA = match.team_a_players || [];
         const playersB = match.team_b_players || [];
-
         if (playersA.length === 0 || playersB.length === 0) {
           toast.error("Match loaded, but players are missing!", {
             duration: 4000,
@@ -119,8 +117,23 @@ const LiveScoring = () => {
       ? matchData?.toss_winner_team_id === matchData?.team_a_id
       : matchData?.toss_winner_team_id === matchData?.team_b_id;
 
+  // 🔴 THE 2ND INNINGS FIX: Infers the innings by checking if the batting team swapped!
+  const teamAId = matchData?.team_a_id;
+  const teamBId = matchData?.team_b_id;
+  const expectedFirstInningsTeamId =
+    matchData?.toss_decision === "bat"
+      ? matchData?.toss_winner_team_id
+      : matchData?.toss_winner_team_id === teamAId
+        ? teamBId
+        : teamAId;
+
   const targetRuns = liveStats?.target_runs || liveStats?.required_runs || 0;
-  const isSecondInnings = liveStats?.innings_no === 2 || targetRuns > 0;
+
+  const isSecondInnings =
+    targetRuns > 0 ||
+    (liveStats?.batting_team_id &&
+      expectedFirstInningsTeamId &&
+      liveStats.batting_team_id !== expectedFirstInningsTeamId);
 
   const activeBattersCount = isSecondInnings
     ? tossWinnerBatting
@@ -135,16 +148,21 @@ const LiveScoring = () => {
     : Math.max(1, activeBattersCount - 1);
   const maxBalls = (matchData?.overs_limit || 0) * 6;
 
-  const isAllOut = liveStats?.wickets >= maxWickets && maxWickets > 0;
-  const isOversDone = maxBalls > 0 && liveStats?.legal_balls >= maxBalls;
-  const isTargetReached =
-    isSecondInnings && liveStats?.current_score >= targetRuns && targetRuns > 0;
+  const currentWickets = liveStats?.wickets || 0;
+  const currentLegalBalls = liveStats?.legal_balls || 0;
+  const currentTotalScore = liveStats?.current_score || 0;
 
+  const isAllOut = currentWickets >= maxWickets && maxWickets > 0;
+  const isOversDone = maxBalls > 0 && currentLegalBalls >= maxBalls;
+  const isTargetReached =
+    isSecondInnings && currentTotalScore >= targetRuns && targetRuns > 0;
+
+  const hasInningsStarted = !!liveStats?.innings_id;
   const isCurrentInningsOver =
-    !!liveStats?.innings_id &&
+    hasInningsStarted &&
     (isAllOut || isOversDone || isTargetReached || isInningsDeclared);
   const isPreparingSecondInnings =
-    !!liveStats?.innings_id && isCurrentInningsOver && !isSecondInnings;
+    hasInningsStarted && isCurrentInningsOver && !isSecondInnings;
 
   const shouldFlipTeams = isSecondInnings || isPreparingSecondInnings;
   const isTeamABatting = shouldFlipTeams
@@ -154,8 +172,6 @@ const LiveScoring = () => {
   const battingSquad: Player[] = isTeamABatting ? teamAPlayers : teamBPlayers;
   const bowlingSquad: Player[] = isTeamABatting ? teamBPlayers : teamAPlayers;
 
-  // 🔴 PROTECTED SYNC: Only runs if hasSynced is false!
-  // Prevents the 3-second poll from resurrecting out players or reverting run swaps.
   useEffect(() => {
     if (liveStats && matchData && !isPreparingSecondInnings && !hasSynced) {
       if (liveStats.striker_id)
@@ -170,8 +186,7 @@ const LiveScoring = () => {
         setActiveBowler(
           bowlingSquad.find((p) => p.id === liveStats.bowler_id) || null,
         );
-
-      setHasSynced(true); // Lock the sync!
+      setHasSynced(true);
     }
   }, [
     liveStats,
@@ -188,26 +203,24 @@ const LiveScoring = () => {
       setActiveNonStriker(null);
       setActiveBowler(null);
       setPreviousBowlerId(null);
-      setHasSynced(false); // Reset lock for 2nd innings
+      setHasSynced(false);
     }
   }, [isPreparingSecondInnings]);
 
-  const overs = liveStats ? Math.floor((liveStats.legal_balls || 0) / 6) : 0;
-  const ballsInOver = liveStats ? (liveStats.legal_balls || 0) % 6 : 0;
+  const overs = Math.floor(currentLegalBalls / 6);
+  const ballsInOver = currentLegalBalls % 6;
   const oversDisplay = Number(`${overs}.${ballsInOver}`);
 
   const handleStartInnings = async () => {
     if (!activeStriker || !activeNonStriker || !activeBowler) {
-      toast.error("Please assign a Striker, Non-Striker, and Bowler first!", {
-        duration: 1200,
-      });
-      return;
+      return toast.error(
+        "Please assign a Striker, Non-Striker, and Bowler first!",
+        { duration: 1200 },
+      );
     }
 
     const currentInningsNo = isPreparingSecondInnings ? 2 : 1;
-    const targetToSet = isPreparingSecondInnings
-      ? (liveStats?.current_score || 0) + 1
-      : null;
+    const targetToSet = isPreparingSecondInnings ? currentTotalScore + 1 : null;
 
     const payload = {
       match_id: matchId,
@@ -235,10 +248,18 @@ const LiveScoring = () => {
       });
       setIsInningsDeclared(false);
 
+      const newInningsId =
+        res.data?.data ||
+        res.data?.innings_id ||
+        res.data?.id ||
+        "active-innings";
+
       setLiveStats((prev: any) => ({
         ...prev,
-        innings_id: res.data?.data || prev?.innings_id,
+        innings_id: newInningsId,
         innings_no: currentInningsNo,
+        batting_team_id: payload.batting_team_id,
+        bowling_team_id: payload.bowling_team_id,
         legal_balls: 0,
         current_score: 0,
         wickets: 0,
@@ -255,8 +276,7 @@ const LiveScoring = () => {
   };
 
   const handleBall = (runs: number, isWicket: boolean = false) => {
-    if (!liveStats?.innings_id)
-      return toast.error("Innings has not started yet!");
+    if (!hasInningsStarted) return toast.error("Innings has not started yet!");
     if (!activeStriker || !activeNonStriker || !activeBowler) {
       return toast.error("Please assign missing players before scoring!", {
         duration: 1500,
@@ -268,6 +288,7 @@ const LiveScoring = () => {
       setShowWicketForm(true);
       return;
     }
+
     executeBallApi(runs, false, null, null, null);
   };
 
@@ -310,35 +331,24 @@ const LiveScoring = () => {
       runsFromBat = runs;
       extras = 1;
       extraType = "no_ball";
-      setCurrentEvent({ type: null, isFreeHit: true });
+      setCurrentEvent("FREE_HIT");
       setIsFreeHit(true);
     } else {
       if (isFreeHit) setIsFreeHit(false);
     }
 
-    let eventType: "4" | "6" | "WICKET" | null = null;
-    let isFreeHitLabel = modifier === "NB";
-
-    if (!modifier && runsFromBat === 4) eventType = "4";
-    if (!modifier && runsFromBat === 6) eventType = "6";
-    if (isWicket) eventType = "WICKET";
-
-    if (eventType || isFreeHitLabel) {
-      setCurrentEvent({ type: eventType, isFreeHit: isFreeHitLabel });
-    }
-
-    const currentStrikerId = activeStriker?.id;
-    const currentNonStrikerId = activeNonStriker?.id;
-    const currentBowlerId = activeBowler?.id;
+    if (!modifier && runsFromBat === 4) setCurrentEvent("4");
+    if (!modifier && runsFromBat === 6) setCurrentEvent("6");
+    if (isWicket) setCurrentEvent("WICKET");
 
     const payload: any = {
       match_id: matchId,
       innings_id: liveStats.innings_id,
       over_number: overs,
       ball_number: ballsInOver + 1,
-      striker_id: currentStrikerId,
-      non_striker_id: currentNonStrikerId,
-      bowler_id: currentBowlerId,
+      striker_id: activeStriker?.id,
+      non_striker_id: activeNonStriker?.id,
+      bowler_id: activeBowler?.id,
       is_legal_ball: isLegal,
       runs_from_bat: runsFromBat,
       extras: extras,
@@ -358,7 +368,6 @@ const LiveScoring = () => {
         duration: 1000,
       });
 
-      // 🔴 TIMELINE FIX: Use extraType to calculate string BEFORE modifier dies
       let ballOutcome = "";
       if (isWicket) ballOutcome = "W";
       else if (extraType === "wide") ballOutcome = `${extras}wd`;
@@ -368,20 +377,19 @@ const LiveScoring = () => {
 
       setThisOverTimeline((prev) => [...prev, ballOutcome]);
 
-      // Now it's safe to kill the modifier
       setModifier(null);
-      await fetchLiveScoreboard(); // Update UI header stats
+      await fetchLiveScoreboard();
 
       let shouldSwapStrikers = runsFromBat % 2 !== 0;
       if (isLegal && ballsInOver === 5)
         shouldSwapStrikers = !shouldSwapStrikers;
 
-      let finalStrikerId = currentStrikerId;
-      let finalNonStrikerId = currentNonStrikerId;
+      let finalStrikerId = activeStriker?.id;
+      let finalNonStrikerId = activeNonStriker?.id;
 
       if (shouldSwapStrikers) {
-        finalStrikerId = currentNonStrikerId;
-        finalNonStrikerId = currentStrikerId;
+        finalStrikerId = activeNonStriker?.id;
+        finalNonStrikerId = activeStriker?.id;
       }
 
       if (isWicket && outPlayerId) {
@@ -408,7 +416,7 @@ const LiveScoring = () => {
       }
 
       if (isLegal && ballsInOver === 5) {
-        setPreviousBowlerId(currentBowlerId!);
+        setPreviousBowlerId(activeBowler!.id);
         setActiveBowler(null);
 
         setTimeout(() => {
@@ -417,7 +425,9 @@ const LiveScoring = () => {
         }, 1500);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Error", { id: toastId });
+      toast.error(error.response?.data?.error || "Failed to record ball", {
+        id: toastId,
+      });
     }
   };
 
@@ -443,19 +453,16 @@ const LiveScoring = () => {
 
   if (!matchData)
     return (
-      <div className="p-8 text-center animate-pulse">Loading match...</div>
+      <div className="p-8 text-center animate-pulse text-foreground">
+        Loading match...
+      </div>
     );
 
   const canUpdateScore =
     user?.id &&
     (user.id === matchData.created_by || user.id === matchData.umpire_id);
-  const needsPlayerAssignment =
-    !activeStriker || !activeNonStriker || !activeBowler;
   const showPlayerSelection =
-    canUpdateScore &&
-    (!liveStats?.innings_id ||
-      isPreparingSecondInnings ||
-      needsPlayerAssignment);
+    canUpdateScore && (!isCurrentInningsOver || isPreparingSecondInnings);
 
   return (
     <div className="min-h-screen bg-background pb-8 relative">
@@ -466,8 +473,8 @@ const LiveScoring = () => {
 
       <DeclareModal
         isOpen={isDeclareModalOpen}
-        score={liveStats?.current_score || 0}
-        wickets={liveStats?.wickets || 0}
+        score={currentTotalScore}
+        wickets={currentWickets}
         overs={oversDisplay}
         onConfirm={confirmDeclare}
         onCancel={() => setIsDeclareModalOpen(false)}
@@ -483,7 +490,7 @@ const LiveScoring = () => {
           </button>
           <h1 className="text-xl font-bold text-foreground">Live Match</h1>
         </div>
-        {canUpdateScore && (
+        {canUpdateScore && hasInningsStarted && !isCurrentInningsOver && (
           <button
             onClick={() => setIsDeclareModalOpen(true)}
             className="flex items-center gap-2 text-xs font-bold bg-red-900/40 text-red-400 border border-red-900/50 px-3 py-1.5 rounded-lg hover:bg-red-900/60 transition-colors"
@@ -495,8 +502,8 @@ const LiveScoring = () => {
 
       <ScoreHeader
         battingTeam={matchData.team_a_name}
-        score={liveStats?.current_score || 0}
-        wickets={liveStats?.wickets || 0}
+        score={currentTotalScore}
+        wickets={currentWickets}
         overs={oversDisplay}
       />
 
@@ -561,7 +568,7 @@ const LiveScoring = () => {
 
         {canUpdateScore ? (
           <div className="mt-6 animate-fade-in">
-            {!liveStats?.innings_id ? (
+            {!hasInningsStarted ? (
               <button
                 onClick={handleStartInnings}
                 className="w-full bg-primary hover:bg-primary-hover text-background font-bold text-xl py-6 rounded-xl"
@@ -614,7 +621,7 @@ const LiveScoring = () => {
         ) : (
           <div className="mt-8 p-6 bg-card border border-border rounded-2xl text-center">
             <Lock className="w-6 h-6 text-primary mx-auto mb-3" />
-            <h3>Read-Only View</h3>
+            <h3 className="text-foreground">Read-Only View</h3>
           </div>
         )}
       </div>
