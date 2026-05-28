@@ -1,93 +1,78 @@
-import { useEffect, useState } from "react";
-import { Trophy, Flame, ShieldAlert, Target } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 
 interface FullScreenEventProps {
-  eventType: "4" | "6" | "FREE_HIT" | "WICKET" | null;
+  eventType: { type: "4" | "6" | "WICKET" | null; isFreeHit: boolean } | null;
   onComplete: () => void;
 }
 
-export function FullScreenEvent({
+export const FullScreenEvent = ({
   eventType,
   onComplete,
-}: FullScreenEventProps) {
+}: FullScreenEventProps) => {
   const [isVisible, setIsVisible] = useState(false);
 
+  // Ref prevents the parent component's API polling from resetting the timer
+  const onCompleteRef = useRef(onComplete);
   useEffect(() => {
-    if (eventType) {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    if (eventType && (eventType.type || eventType.isFreeHit)) {
       setIsVisible(true);
-      // Auto-hide the animation after 2 seconds!
+
+      // Auto close after exactly 2 seconds
       const timer = setTimeout(() => {
-        setIsVisible(false);
-        setTimeout(onComplete, 300); // Wait for fade-out to finish before unmounting
+        setIsVisible(false); // Start CSS fade out
+
+        // Wait 500ms for fade to finish, then clear the state in LiveScoring
+        setTimeout(() => {
+          onCompleteRef.current();
+        }, 500);
       }, 2000);
+
       return () => clearTimeout(timer);
+    } else {
+      setIsVisible(false);
     }
-  }, [eventType, onComplete]);
+  }, [eventType]);
 
+  // Don't render anything if there's no event and it's not visible
   if (!eventType && !isVisible) return null;
-
-  // Custom configurations for each event type
-  const eventConfig = {
-    "4": {
-      text: "FOUR!",
-      color: "text-blue-400",
-      bg: "bg-blue-900/40",
-      border: "border-blue-500",
-      shadow: "shadow-[0_0_100px_rgba(59,130,246,0.6)]",
-      icon: (
-        <Target className="w-16 h-16 mb-4 text-blue-400 animate-spin-slow" />
-      ),
-    },
-    "6": {
-      text: "SIX!",
-      color: "text-purple-400",
-      bg: "bg-purple-900/40",
-      border: "border-purple-500",
-      shadow: "shadow-[0_0_100px_rgba(168,85,247,0.6)]",
-      icon: (
-        <Trophy className="w-20 h-20 mb-4 text-purple-400 animate-bounce" />
-      ),
-    },
-    WICKET: {
-      text: "WICKET!",
-      color: "text-red-500",
-      bg: "bg-red-950/80",
-      border: "border-red-600",
-      shadow: "shadow-[0_0_100px_rgba(239,68,68,0.8)]",
-      icon: <Flame className="w-20 h-20 mb-4 text-red-500 animate-pulse" />,
-    },
-    FREE_HIT: {
-      text: "FREE HIT!",
-      color: "text-yellow-400",
-      bg: "bg-yellow-900/40",
-      border: "border-yellow-500",
-      shadow: "shadow-[0_0_100px_rgba(250,204,21,0.6)]",
-      icon: (
-        <ShieldAlert className="w-20 h-20 mb-4 text-yellow-400 animate-pulse" />
-      ),
-    },
-  };
-
-  const config = eventType ? eventConfig[eventType] : eventConfig["4"];
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-md bg-black/60 transition-opacity duration-300 ${
-        isVisible ? "opacity-100" : "opacity-0"
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-500 pointer-events-none ${
+        isVisible ? "opacity-100 scale-100" : "opacity-0 scale-110"
       }`}
     >
-      <div
-        className={`flex flex-col items-center justify-center p-12 rounded-full border-4 ${config.bg} ${config.border} ${config.shadow} transition-transform duration-500 ${
-          isVisible ? "scale-100 rotate-0" : "scale-50 -rotate-12"
-        }`}
-      >
-        {config.icon}
-        <h1
-          className={`text-6xl md:text-8xl font-black italic tracking-tighter ${config.color} drop-shadow-2xl uppercase`}
-        >
-          {config.text}
-        </h1>
+      {/* FREE HIT TEXT */}
+      {eventType?.isFreeHit && (
+        <div className="mb-4 animate-bounce">
+          <span className="text-4xl md:text-6xl font-black italic tracking-widest text-[#0FAF9A] drop-shadow-[0_0_20px_rgba(15,175,154,0.6)]">
+            FREE HIT!
+          </span>
+        </div>
+      )}
+
+      {/* BOUNDARY / WICKET TEXT */}
+      <div className="transform transition-all animate-pulse">
+        {eventType?.type === "4" && (
+          <span className="text-8xl md:text-[160px] leading-none font-black italic tracking-tighter text-blue-500 drop-shadow-[0_0_40px_rgba(59,130,246,0.8)]">
+            FOUR
+          </span>
+        )}
+        {eventType?.type === "6" && (
+          <span className="text-8xl md:text-[160px] leading-none font-black italic tracking-tighter text-orange-500 drop-shadow-[0_0_50px_rgba(249,115,22,0.8)]">
+            SIX!
+          </span>
+        )}
+        {eventType?.type === "WICKET" && (
+          <span className="text-8xl md:text-[160px] leading-none font-black italic tracking-tighter text-red-600 drop-shadow-[0_0_50px_rgba(220,38,38,0.8)]">
+            OUT!
+          </span>
+        )}
       </div>
     </div>
   );
-}
+};

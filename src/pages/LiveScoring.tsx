@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Lock, AlertOctagon, UserPlus, Bug } from "lucide-react";
+import { ChevronLeft, Lock, AlertOctagon, UserPlus } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { api } from "../Api/Auth";
 import toast from "react-hot-toast";
@@ -24,16 +24,16 @@ const LiveScoring = () => {
 
   const [matchData, setMatchData] = useState<any>(null);
   const [liveStats, setLiveStats] = useState<any>(null);
-  const [hasSynced, setHasSynced] = useState(false); // Prevents infinite overwriting
 
-  const [debugLog, setDebugLog] = useState<string>("Waiting for data...");
-  const [showDebug, setShowDebug] = useState(false);
+  // 🔴 VITAL: Protects local player swaps from the 3-second polling
+  const [hasSynced, setHasSynced] = useState(false);
 
   const [modifier, setModifier] = useState<"WD" | "NB" | null>(null);
   const [isFreeHit, setIsFreeHit] = useState(false);
-  const [currentEvent, setCurrentEvent] = useState<
-    "4" | "6" | "FREE_HIT" | "WICKET" | null
-  >(null);
+  const [currentEvent, setCurrentEvent] = useState<{
+    type: "4" | "6" | "WICKET" | null;
+    isFreeHit: boolean;
+  } | null>(null);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -48,6 +48,8 @@ const LiveScoring = () => {
   const [isDeclareModalOpen, setIsDeclareModalOpen] = useState(false);
   const [isInningsDeclared, setIsInningsDeclared] = useState(false);
   const [thisOverTimeline, setThisOverTimeline] = useState<string[]>([]);
+  const [showWicketForm, setShowWicketForm] = useState(false);
+  const [pendingRuns, setPendingRuns] = useState(0);
 
   const getBatterStats = (playerId?: string) => {
     if (!playerId || !liveStats) return { runs: 0, balls: 0 };
@@ -64,9 +66,6 @@ const LiveScoring = () => {
     return { runs: 0, balls: 0 };
   };
 
-  const [showWicketForm, setShowWicketForm] = useState(false);
-  const [pendingRuns, setPendingRuns] = useState(0);
-
   const fetchLiveScoreboard = useCallback(async () => {
     if (!matchId) return;
     try {
@@ -79,6 +78,7 @@ const LiveScoring = () => {
     }
   }, [matchId]);
 
+  // 🔴 POLLING IS SAFE NOW: It updates the scores but won't ruin player positions
   useEffect(() => {
     if (!matchId) return;
     const interval = setInterval(fetchLiveScoreboard, 3000);
@@ -94,7 +94,6 @@ const LiveScoring = () => {
 
         const playersA = match.team_a_players || [];
         const playersB = match.team_b_players || [];
-        setDebugLog(JSON.stringify({ playersA, playersB }, null, 2));
 
         if (playersA.length === 0 || playersB.length === 0) {
           toast.error("Match loaded, but players are missing!", {
@@ -155,7 +154,8 @@ const LiveScoring = () => {
   const battingSquad: Player[] = isTeamABatting ? teamAPlayers : teamBPlayers;
   const bowlingSquad: Player[] = isTeamABatting ? teamBPlayers : teamAPlayers;
 
-  // 🔴 SYNC ONLY ONCE ON LOAD 🔴
+  // 🔴 PROTECTED SYNC: Only runs if hasSynced is false!
+  // Prevents the 3-second poll from resurrecting out players or reverting run swaps.
   useEffect(() => {
     if (liveStats && matchData && !isPreparingSecondInnings && !hasSynced) {
       if (liveStats.striker_id)
@@ -170,7 +170,8 @@ const LiveScoring = () => {
         setActiveBowler(
           bowlingSquad.find((p) => p.id === liveStats.bowler_id) || null,
         );
-      setHasSynced(true);
+
+      setHasSynced(true); // Lock the sync!
     }
   }, [
     liveStats,
@@ -187,86 +188,13 @@ const LiveScoring = () => {
       setActiveNonStriker(null);
       setActiveBowler(null);
       setPreviousBowlerId(null);
-      setHasSynced(false); // Reset sync for the new innings
+      setHasSynced(false); // Reset lock for 2nd innings
     }
   }, [isPreparingSecondInnings]);
 
   const overs = liveStats ? Math.floor((liveStats.legal_balls || 0) / 6) : 0;
   const ballsInOver = liveStats ? (liveStats.legal_balls || 0) % 6 : 0;
   const oversDisplay = Number(`${overs}.${ballsInOver}`);
-
-  // const getPlayerName = (id: string, role: "batter" | "bowler") => {
-  //   if (!id) return null;
-  //   const squad = role === "batter" ? battingSquad : bowlingSquad;
-  //   const player = squad.find((p: Player) => p.id === id);
-  //   return player ? player.name : null;
-  // };
-
-  // const displayStriker =
-  //   activeStriker?.name ||
-  //   (!isPreparingSecondInnings
-  //     ? getPlayerName(liveStats?.striker_id, "batter")
-  //     : null) ||
-  //   (!isPreparingSecondInnings ? liveStats?.striker_name : null) ||
-  //   "Missing Striker";
-  // const displayNonStriker =
-  //   activeNonStriker?.name ||
-  //   (!isPreparingSecondInnings
-  //     ? getPlayerName(liveStats?.non_striker_id, "batter")
-  //     : null) ||
-  //   (!isPreparingSecondInnings ? liveStats?.non_striker_name : null) ||
-  //   "Missing Non-Striker";
-  // const displayBowler =
-  //   activeBowler?.name ||
-  //   (!isPreparingSecondInnings
-  //     ? getPlayerName(liveStats?.bowler_id, "bowler")
-  //     : null) ||
-  //   (!isPreparingSecondInnings ? liveStats?.bowler_name : null) ||
-  //   "Missing Bowler";
-  const formatBatterStr = (
-    localPlayer: Player | null,
-    backendId: string,
-    backendName: string,
-    runs: number,
-    balls: number,
-  ) => {
-    if (localPlayer) {
-      if (localPlayer.id === backendId)
-        return `${localPlayer.name} (${runs || 0} off ${balls || 0})`;
-      return `${localPlayer.name} (0 off 0)`; // Newly selected batter
-    }
-    if (backendId && backendName)
-      return `${backendName} (${runs || 0} off ${balls || 0})`;
-    return "Pick Batter";
-  };
-
-  const displayStriker = !isPreparingSecondInnings
-    ? formatBatterStr(
-        activeStriker,
-        liveStats?.striker_id,
-        liveStats?.striker_name,
-        liveStats?.striker_runs,
-        liveStats?.striker_balls,
-      )
-    : activeStriker?.name || "Pick Striker";
-
-  const displayNonStriker = !isPreparingSecondInnings
-    ? formatBatterStr(
-        activeNonStriker,
-        liveStats?.non_striker_id,
-        liveStats?.non_striker_name,
-        liveStats?.non_striker_runs,
-        liveStats?.non_striker_balls,
-      )
-    : activeNonStriker?.name || "Pick Non-Striker";
-
-  const displayBowler = activeBowler
-    ? activeBowler.id === liveStats?.bowler_id
-      ? `${activeBowler.name} (${liveStats?.bowler_wickets || 0}-${liveStats?.bowler_runs || 0})`
-      : `${activeBowler.name} (0-0)`
-    : liveStats?.bowler_name
-      ? `${liveStats?.bowler_name} (${liveStats?.bowler_wickets || 0}-${liveStats?.bowler_runs || 0})`
-      : "Pick Bowler";
 
   const handleStartInnings = async () => {
     if (!activeStriker || !activeNonStriker || !activeBowler) {
@@ -329,8 +257,6 @@ const LiveScoring = () => {
   const handleBall = (runs: number, isWicket: boolean = false) => {
     if (!liveStats?.innings_id)
       return toast.error("Innings has not started yet!");
-
-    // Block scoring if someone is missing (e.g. over ended, or wicket fell)
     if (!activeStriker || !activeNonStriker || !activeBowler) {
       return toast.error("Please assign missing players before scoring!", {
         duration: 1500,
@@ -342,7 +268,6 @@ const LiveScoring = () => {
       setShowWicketForm(true);
       return;
     }
-
     executeBallApi(runs, false, null, null, null);
   };
 
@@ -385,15 +310,22 @@ const LiveScoring = () => {
       runsFromBat = runs;
       extras = 1;
       extraType = "no_ball";
-      setCurrentEvent("FREE_HIT");
+      setCurrentEvent({ type: null, isFreeHit: true });
       setIsFreeHit(true);
     } else {
       if (isFreeHit) setIsFreeHit(false);
     }
 
-    if (!modifier && runsFromBat === 4) setCurrentEvent("4");
-    if (!modifier && runsFromBat === 6) setCurrentEvent("6");
-    if (isWicket) setCurrentEvent("WICKET");
+    let eventType: "4" | "6" | "WICKET" | null = null;
+    let isFreeHitLabel = modifier === "NB";
+
+    if (!modifier && runsFromBat === 4) eventType = "4";
+    if (!modifier && runsFromBat === 6) eventType = "6";
+    if (isWicket) eventType = "WICKET";
+
+    if (eventType || isFreeHitLabel) {
+      setCurrentEvent({ type: eventType, isFreeHit: isFreeHitLabel });
+    }
 
     const currentStrikerId = activeStriker?.id;
     const currentNonStrikerId = activeNonStriker?.id;
@@ -425,27 +357,31 @@ const LiveScoring = () => {
         id: toastId,
         duration: 1000,
       });
-      setModifier(null);
-      await fetchLiveScoreboard(); // Instantly update UI
 
-      // 🔴 RECORD THE BALL OUTCOME FOR "THIS OVER"
+      // 🔴 TIMELINE FIX: Use extraType to calculate string BEFORE modifier dies
       let ballOutcome = "";
       if (isWicket) ballOutcome = "W";
-      else if (modifier === "WD") ballOutcome = `${extras}wd`;
-      else if (modifier === "NB") ballOutcome = `${runsFromBat + extras}nb`;
+      else if (extraType === "wide") ballOutcome = `${extras}wd`;
+      else if (extraType === "no_ball")
+        ballOutcome = `${runsFromBat + extras}nb`;
       else ballOutcome = `${runsFromBat}`;
 
-      setThisOverTimeline((prev) => [...prev, ballOutcome]); // Add to timeline
+      setThisOverTimeline((prev) => [...prev, ballOutcome]);
+
+      // Now it's safe to kill the modifier
+      setModifier(null);
+      await fetchLiveScoreboard(); // Update UI header stats
 
       let shouldSwapStrikers = runsFromBat % 2 !== 0;
       if (isLegal && ballsInOver === 5)
         shouldSwapStrikers = !shouldSwapStrikers;
 
-      let finalStrikerId = activeStriker?.id;
-      let finalNonStrikerId = activeNonStriker?.id;
+      let finalStrikerId = currentStrikerId;
+      let finalNonStrikerId = currentNonStrikerId;
+
       if (shouldSwapStrikers) {
-        finalStrikerId = activeNonStriker?.id;
-        finalNonStrikerId = activeStriker?.id;
+        finalStrikerId = currentNonStrikerId;
+        finalNonStrikerId = currentStrikerId;
       }
 
       if (isWicket && outPlayerId) {
@@ -460,7 +396,7 @@ const LiveScoring = () => {
         battingSquad.find((p) => p.id === finalNonStrikerId) || null,
       );
 
-      if (isWicket && outPlayerId)
+      if (isWicket && outPlayerId) {
         setTimeout(
           () =>
             setModalConfig({
@@ -469,13 +405,14 @@ const LiveScoring = () => {
             }),
           800,
         );
+      }
 
       if (isLegal && ballsInOver === 5) {
-        setPreviousBowlerId(activeBowler!.id);
+        setPreviousBowlerId(currentBowlerId!);
         setActiveBowler(null);
 
         setTimeout(() => {
-          setThisOverTimeline([]); // 🔴 CLEAR TIMELINE FOR THE NEW OVER
+          setThisOverTimeline([]);
           if (!isWicket) setModalConfig({ isOpen: true, role: "Bowler" });
         }, 1500);
       }
@@ -512,9 +449,6 @@ const LiveScoring = () => {
   const canUpdateScore =
     user?.id &&
     (user.id === matchData.created_by || user.id === matchData.umpire_id);
-
-  // 🔴 CONDITIONAL VISIBILITY TRIGGER 🔴
-  // Only shows the buttons if we are starting a match OR if someone is missing (wicket/over change)
   const needsPlayerAssignment =
     !activeStriker || !activeNonStriker || !activeBowler;
   const showPlayerSelection =
@@ -529,6 +463,7 @@ const LiveScoring = () => {
         eventType={currentEvent}
         onComplete={() => setCurrentEvent(null)}
       />
+
       <DeclareModal
         isOpen={isDeclareModalOpen}
         score={liveStats?.current_score || 0}
@@ -566,7 +501,6 @@ const LiveScoring = () => {
       />
 
       <div className="px-4 mt-4 space-y-4">
-        {/* PLAYER ASSIGNMENT ROW - Appears ONLY when needed */}
         {showPlayerSelection && (
           <div className="flex gap-2 mb-2 animate-fade-in">
             <button
@@ -622,8 +556,7 @@ const LiveScoring = () => {
               : 0
           }
         />
-        {/* <OverTimeline thisOver={liveStats?.this_over || []} />
-        {/* Pass the local timeline array here! */}
+
         <OverTimeline thisOver={thisOverTimeline} />
 
         {canUpdateScore ? (
@@ -672,7 +605,6 @@ const LiveScoring = () => {
                 isFreeHit={isFreeHit}
                 onComplete={() => setIsDeclareModalOpen(true)}
                 onRetire={() => {
-                  // Allows manual retirement / swapping mid-over
                   setActiveStriker(null);
                   setModalConfig({ isOpen: true, role: "Striker" });
                 }}

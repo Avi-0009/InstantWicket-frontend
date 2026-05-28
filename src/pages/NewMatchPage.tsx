@@ -668,7 +668,7 @@ const NewMatchPage = () => {
                 className={`p-3 bg-card border ${isBlocked ? "border-border/30 opacity-50" : "border-primary/50"} rounded-lg flex items-center justify-between shadow-sm`}
               >
                 <div>
-                  <span className="text-foreground text-sm font-bold block truncate max-w-[120px]">
+                  <span className="text-foreground text-sm font-bold block truncate max-w-30">
                     {player.name}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
@@ -936,7 +936,7 @@ const NewMatchPage = () => {
         </p>
       </div>
 
-      <main className="max-w-md mx-auto p-4 pb-32 min-h-[400px]">
+      <main className="max-w-md mx-auto p-4 pb-32 min-h-100">
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
