@@ -64,6 +64,12 @@ const LiveScoring = () => {
   }, [matchId]);
 
   useEffect(() => {
+    if (!matchId) return;
+    const interval = setInterval(fetchLiveScoreboard, 3000);
+    return () => clearInterval(interval);
+  }, [matchId, fetchLiveScoreboard]);
+
+  useEffect(() => {
     const fetchMatchInfo = async () => {
       try {
         const matchRes = await api.get(`/matches/${matchId}`);
@@ -173,34 +179,78 @@ const LiveScoring = () => {
   const ballsInOver = liveStats ? (liveStats.legal_balls || 0) % 6 : 0;
   const oversDisplay = Number(`${overs}.${ballsInOver}`);
 
-  const getPlayerName = (id: string, role: "batter" | "bowler") => {
-    if (!id) return null;
-    const squad = role === "batter" ? battingSquad : bowlingSquad;
-    const player = squad.find((p: Player) => p.id === id);
-    return player ? player.name : null;
+  // const getPlayerName = (id: string, role: "batter" | "bowler") => {
+  //   if (!id) return null;
+  //   const squad = role === "batter" ? battingSquad : bowlingSquad;
+  //   const player = squad.find((p: Player) => p.id === id);
+  //   return player ? player.name : null;
+  // };
+
+  // const displayStriker =
+  //   activeStriker?.name ||
+  //   (!isPreparingSecondInnings
+  //     ? getPlayerName(liveStats?.striker_id, "batter")
+  //     : null) ||
+  //   (!isPreparingSecondInnings ? liveStats?.striker_name : null) ||
+  //   "Missing Striker";
+  // const displayNonStriker =
+  //   activeNonStriker?.name ||
+  //   (!isPreparingSecondInnings
+  //     ? getPlayerName(liveStats?.non_striker_id, "batter")
+  //     : null) ||
+  //   (!isPreparingSecondInnings ? liveStats?.non_striker_name : null) ||
+  //   "Missing Non-Striker";
+  // const displayBowler =
+  //   activeBowler?.name ||
+  //   (!isPreparingSecondInnings
+  //     ? getPlayerName(liveStats?.bowler_id, "bowler")
+  //     : null) ||
+  //   (!isPreparingSecondInnings ? liveStats?.bowler_name : null) ||
+  //   "Missing Bowler";
+  const formatBatterStr = (
+    localPlayer: Player | null,
+    backendId: string,
+    backendName: string,
+    runs: number,
+    balls: number,
+  ) => {
+    if (localPlayer) {
+      if (localPlayer.id === backendId)
+        return `${localPlayer.name} (${runs || 0} off ${balls || 0})`;
+      return `${localPlayer.name} (0 off 0)`; // Newly selected batter
+    }
+    if (backendId && backendName)
+      return `${backendName} (${runs || 0} off ${balls || 0})`;
+    return "Pick Batter";
   };
 
-  const displayStriker =
-    activeStriker?.name ||
-    (!isPreparingSecondInnings
-      ? getPlayerName(liveStats?.striker_id, "batter")
-      : null) ||
-    (!isPreparingSecondInnings ? liveStats?.striker_name : null) ||
-    "Missing Striker";
-  const displayNonStriker =
-    activeNonStriker?.name ||
-    (!isPreparingSecondInnings
-      ? getPlayerName(liveStats?.non_striker_id, "batter")
-      : null) ||
-    (!isPreparingSecondInnings ? liveStats?.non_striker_name : null) ||
-    "Missing Non-Striker";
-  const displayBowler =
-    activeBowler?.name ||
-    (!isPreparingSecondInnings
-      ? getPlayerName(liveStats?.bowler_id, "bowler")
-      : null) ||
-    (!isPreparingSecondInnings ? liveStats?.bowler_name : null) ||
-    "Missing Bowler";
+  const displayStriker = !isPreparingSecondInnings
+    ? formatBatterStr(
+        activeStriker,
+        liveStats?.striker_id,
+        liveStats?.striker_name,
+        liveStats?.striker_runs,
+        liveStats?.striker_balls,
+      )
+    : activeStriker?.name || "Pick Striker";
+
+  const displayNonStriker = !isPreparingSecondInnings
+    ? formatBatterStr(
+        activeNonStriker,
+        liveStats?.non_striker_id,
+        liveStats?.non_striker_name,
+        liveStats?.non_striker_runs,
+        liveStats?.non_striker_balls,
+      )
+    : activeNonStriker?.name || "Pick Non-Striker";
+
+  const displayBowler = activeBowler
+    ? activeBowler.id === liveStats?.bowler_id
+      ? `${activeBowler.name} (${liveStats?.bowler_wickets || 0}-${liveStats?.bowler_runs || 0})`
+      : `${activeBowler.name} (0-0)`
+    : liveStats?.bowler_name
+      ? `${liveStats?.bowler_name} (${liveStats?.bowler_wickets || 0}-${liveStats?.bowler_runs || 0})`
+      : "Pick Bowler";
 
   const handleStartInnings = async () => {
     if (!activeStriker || !activeNonStriker || !activeBowler) {
@@ -535,7 +585,7 @@ const LiveScoring = () => {
           nonStriker={displayNonStriker}
           bowler={displayBowler}
         />
-        <OverTimeline thisOver={[]} />
+        <OverTimeline thisOver={liveStats?.this_over || []} />
 
         {canUpdateScore ? (
           <div className="mt-6 animate-fade-in">
