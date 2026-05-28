@@ -47,6 +47,22 @@ const LiveScoring = () => {
 
   const [isDeclareModalOpen, setIsDeclareModalOpen] = useState(false);
   const [isInningsDeclared, setIsInningsDeclared] = useState(false);
+  const [thisOverTimeline, setThisOverTimeline] = useState<string[]>([]);
+
+  const getBatterStats = (playerId?: string) => {
+    if (!playerId || !liveStats) return { runs: 0, balls: 0 };
+    if (playerId === liveStats.striker_id)
+      return {
+        runs: liveStats.striker_runs || 0,
+        balls: liveStats.striker_balls || 0,
+      };
+    if (playerId === liveStats.non_striker_id)
+      return {
+        runs: liveStats.non_striker_runs || 0,
+        balls: liveStats.non_striker_balls || 0,
+      };
+    return { runs: 0, balls: 0 };
+  };
 
   const [showWicketForm, setShowWicketForm] = useState(false);
   const [pendingRuns, setPendingRuns] = useState(0);
@@ -402,37 +418,41 @@ const LiveScoring = () => {
     if (isWicket && outPlayerId) payload.out_player_id = outPlayerId;
     if (fielderId) payload.fielder_id = fielderId;
 
-    const loadingToast = toast.loading("Recording ball...");
+    const toastId = toast.loading("Recording ball...");
     try {
       await api.post("/scoring/ball", payload);
-      toast.success(isWicket ? "Wicket recorded!" : "Ball recorded", {
-        id: loadingToast,
+      toast.success(isWicket ? "Wicket!" : "Ball recorded", {
+        id: toastId,
         duration: 1000,
       });
       setModifier(null);
-      await fetchLiveScoreboard();
+      await fetchLiveScoreboard(); // Instantly update UI
 
-      let shouldSwapStrikers = false;
-      if (runsFromBat % 2 !== 0) shouldSwapStrikers = !shouldSwapStrikers;
+      // 🔴 RECORD THE BALL OUTCOME FOR "THIS OVER"
+      let ballOutcome = "";
+      if (isWicket) ballOutcome = "W";
+      else if (modifier === "WD") ballOutcome = `${extras}wd`;
+      else if (modifier === "NB") ballOutcome = `${runsFromBat + extras}nb`;
+      else ballOutcome = `${runsFromBat}`;
+
+      setThisOverTimeline((prev) => [...prev, ballOutcome]); // Add to timeline
+
+      let shouldSwapStrikers = runsFromBat % 2 !== 0;
       if (isLegal && ballsInOver === 5)
         shouldSwapStrikers = !shouldSwapStrikers;
 
-      let finalStrikerId = currentStrikerId;
-      let finalNonStrikerId = currentNonStrikerId;
-
-      // 1. Calculate crossing first
+      let finalStrikerId = activeStriker?.id;
+      let finalNonStrikerId = activeNonStriker?.id;
       if (shouldSwapStrikers) {
-        finalStrikerId = currentNonStrikerId;
-        finalNonStrikerId = currentStrikerId;
+        finalStrikerId = activeNonStriker?.id;
+        finalNonStrikerId = activeStriker?.id;
       }
 
-      // 2. Remove the out player AFTER crossing is calculated
       if (isWicket && outPlayerId) {
         if (finalStrikerId === outPlayerId) finalStrikerId = undefined;
         if (finalNonStrikerId === outPlayerId) finalNonStrikerId = undefined;
       }
 
-      // 3. Update active states (nulls out the missing player)
       setActiveStriker(
         battingSquad.find((p) => p.id === finalStrikerId) || null,
       );
@@ -440,32 +460,27 @@ const LiveScoring = () => {
         battingSquad.find((p) => p.id === finalNonStrikerId) || null,
       );
 
-      // 4. Trigger UI popups for missing players
-      if (isWicket && outPlayerId) {
-        setTimeout(() => {
-          setModalConfig({
-            isOpen: true,
-            role: finalStrikerId === undefined ? "Striker" : "Non-Striker",
-          });
-        }, 800);
-      }
+      if (isWicket && outPlayerId)
+        setTimeout(
+          () =>
+            setModalConfig({
+              isOpen: true,
+              role: finalStrikerId === undefined ? "Striker" : "Non-Striker",
+            }),
+          800,
+        );
 
       if (isLegal && ballsInOver === 5) {
-        setPreviousBowlerId(currentBowlerId!);
-        setActiveBowler(null); // Clear bowler for next over
+        setPreviousBowlerId(activeBowler!.id);
+        setActiveBowler(null);
+
         setTimeout(() => {
-          toast("Over Complete! Select new bowler.", {
-            icon: "🏏",
-            duration: 3000,
-          });
+          setThisOverTimeline([]); // 🔴 CLEAR TIMELINE FOR THE NEW OVER
           if (!isWicket) setModalConfig({ isOpen: true, role: "Bowler" });
         }, 1500);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to record ball", {
-        id: loadingToast,
-        duration: 1000,
-      });
+      toast.error(error.response?.data?.error || "Error", { id: toastId });
     }
   };
 
@@ -581,11 +596,35 @@ const LiveScoring = () => {
         )}
 
         <PlayerStats
-          striker={displayStriker}
-          nonStriker={displayNonStriker}
-          bowler={displayBowler}
+          strikerName={
+            activeStriker?.name || liveStats?.striker_name || "Pick Striker"
+          }
+          strikerRuns={getBatterStats(activeStriker?.id).runs}
+          strikerBalls={getBatterStats(activeStriker?.id).balls}
+          nonStrikerName={
+            activeNonStriker?.name ||
+            liveStats?.non_striker_name ||
+            "Pick Non-Striker"
+          }
+          nonStrikerRuns={getBatterStats(activeNonStriker?.id).runs}
+          nonStrikerBalls={getBatterStats(activeNonStriker?.id).balls}
+          bowlerName={
+            activeBowler?.name || liveStats?.bowler_name || "Pick Bowler"
+          }
+          bowlerRuns={
+            activeBowler?.id === liveStats?.bowler_id
+              ? liveStats?.bowler_runs || 0
+              : 0
+          }
+          bowlerWickets={
+            activeBowler?.id === liveStats?.bowler_id
+              ? liveStats?.bowler_wickets || 0
+              : 0
+          }
         />
-        <OverTimeline thisOver={liveStats?.this_over || []} />
+        {/* <OverTimeline thisOver={liveStats?.this_over || []} />
+        {/* Pass the local timeline array here! */}
+        <OverTimeline thisOver={thisOverTimeline} />
 
         {canUpdateScore ? (
           <div className="mt-6 animate-fade-in">

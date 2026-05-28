@@ -1,13 +1,25 @@
 interface PlayerStatsProps {
-  striker: string;
-  nonStriker: string;
-  bowler: string;
+  strikerName: string;
+  strikerRuns: number;
+  strikerBalls: number;
+  nonStrikerName: string;
+  nonStrikerRuns: number;
+  nonStrikerBalls: number;
+  bowlerName: string;
+  bowlerRuns: number;
+  bowlerWickets: number;
 }
 
 export default function PlayerStats({
-  striker,
-  nonStriker,
-  bowler,
+  strikerName,
+  strikerRuns,
+  strikerBalls,
+  nonStrikerName,
+  nonStrikerRuns,
+  nonStrikerBalls,
+  bowlerName,
+  bowlerRuns,
+  bowlerWickets,
 }: PlayerStatsProps) {
   return (
     <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-4 shadow-lg space-y-3">
@@ -18,10 +30,12 @@ export default function PlayerStats({
             Striker
           </div>
           <div className="text-sm font-bold text-[#F4FFFD]">
-            {striker || "Player 1"}{" "}
+            {strikerName || "Pick Striker"}{" "}
             <span className="text-lg text-[#0FAF9A] leading-none">*</span>
           </div>
-          <div className="text-xs text-[#0FAF9A] font-medium mt-0.5">0 (0)</div>
+          <div className="text-xs text-[#0FAF9A] font-medium mt-0.5">
+            {strikerRuns} ({strikerBalls})
+          </div>
         </div>
 
         {/* Non-Striker */}
@@ -30,9 +44,11 @@ export default function PlayerStats({
             Non-Striker
           </div>
           <div className="text-sm font-bold text-[#F4FFFD]">
-            {nonStriker || "Player 2"}
+            {nonStrikerName || "Pick Non-Striker"}
           </div>
-          <div className="text-xs text-[#0FAF9A] font-medium mt-0.5">0 (0)</div>
+          <div className="text-xs text-[#0FAF9A] font-medium mt-0.5">
+            {nonStrikerRuns} ({nonStrikerBalls})
+          </div>
         </div>
       </div>
 
@@ -43,12 +59,14 @@ export default function PlayerStats({
             Bowler
           </div>
           <div className="text-sm font-bold text-[#F4FFFD]">
-            {bowler || "Current Bowler"}
+            {bowlerName || "Pick Bowler"}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[#0FAF9A] font-bold text-sm">0/0</div>
-          <div className="text-[11px] text-[#9FB7B2] font-medium">0.0 ov</div>
+          {/* Formats correctly as Wickets/Runs */}
+          <div className="text-[#0FAF9A] font-bold text-sm">
+            {bowlerWickets}/{bowlerRuns}
+          </div>
         </div>
       </div>
     </div>
