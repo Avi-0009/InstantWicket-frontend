@@ -24,10 +24,8 @@ const LiveScoring = () => {
 
   const [matchData, setMatchData] = useState<any>(null);
   const [liveStats, setLiveStats] = useState<any>(null);
-  const [battingSquad, setBattingSquad] = useState<Player[]>([]);
-  const [bowlingSquad, setBowlingSquad] = useState<Player[]>([]);
 
-  // 🔴 DEBUG STATE - Allows you to see exactly what Go is sending
+  // 🔴 DEBUG STATE
   const [debugLog, setDebugLog] = useState<string>("Waiting for data...");
   const [showDebug, setShowDebug] = useState(false);
 
@@ -41,12 +39,15 @@ const LiveScoring = () => {
     isOpen: boolean;
     role: "Striker" | "Non-Striker" | "Bowler" | null;
   }>({ isOpen: false, role: null });
+
   const [activeStriker, setActiveStriker] = useState<Player | null>(null);
   const [activeNonStriker, setActiveNonStriker] = useState<Player | null>(null);
   const [activeBowler, setActiveBowler] = useState<Player | null>(null);
   const [previousBowlerId, setPreviousBowlerId] = useState<string | null>(null);
 
   const [isDeclareModalOpen, setIsDeclareModalOpen] = useState(false);
+  const [isInningsDeclared, setIsInningsDeclared] = useState(false);
+
   const [showWicketForm, setShowWicketForm] = useState(false);
   const [pendingRuns, setPendingRuns] = useState(0);
 
@@ -54,10 +55,11 @@ const LiveScoring = () => {
     if (!matchId) return;
     try {
       const res = await api.get(`/scoring/live/${matchId}`);
-      setLiveStats(res.data);
+      if (res.data && Object.keys(res.data).length > 0) {
+        setLiveStats(res.data);
+      }
     } catch (error: any) {
-      console.error("Live Scoreboard Error (Line 52):", error);
-      // Fails silently if match hasn't started, this is normal.
+      console.error("Live Scoreboard Error:", error);
     }
   }, [matchId]);
 
@@ -68,7 +70,6 @@ const LiveScoring = () => {
         const match = matchRes.data.match || matchRes.data;
         setMatchData(match);
 
-        // 🔴 NO MORE SECONDARY API CALL! Grab players straight from the match payload
         const playersA = match.team_a_players || [];
         const playersB = match.team_b_players || [];
 
@@ -79,134 +80,161 @@ const LiveScoring = () => {
             duration: 4000,
           });
         }
-
-        // Determine who bats first based on toss
-        let isTeamABatting = true;
-        if (match.toss_decision === "bat") {
-          isTeamABatting = match.toss_winner_team_id === match.team_a_id;
-        } else if (match.toss_decision === "bowl") {
-          isTeamABatting = match.toss_winner_team_id !== match.team_a_id;
-        }
-
-        // Assign squads
-        if (isTeamABatting) {
-          setBattingSquad(playersA);
-          setBowlingSquad(playersB);
-        } else {
-          setBattingSquad(playersB);
-          setBowlingSquad(playersA);
-        }
       } catch (error) {
         console.error("Match Info Error:", error);
       }
     };
-    // --- Start Innings Logic ---
-    const handleStartInnings = async () => {
-      if (!activeStriker || !activeNonStriker || !activeBowler) {
-        toast.error("Please assign a Striker, Non-Striker, and Bowler first!", {
-          duration: 2000,
-        });
-        return;
-      }
 
-      // 🔴 SMART INNINGS DETECTION
-      // If liveStats already has an innings_id, it means the 1st innings finished. We are starting the 2nd.
-      const isSecondInnings = liveStats && liveStats.innings_id;
-      const currentInningsNo = isSecondInnings ? 2 : 1;
-
-      // Set target runs for 2nd innings
-      const targetRuns = isSecondInnings ? liveStats.current_score + 1 : null;
-
-      // Determine who bats first based on toss
-      const tossWinnerBatting =
-        matchData.toss_decision === "bat"
-          ? matchData.toss_winner_team_id === matchData.team_a_id
-          : matchData.toss_winner_team_id === matchData.team_b_id;
-
-      // If it's the 2nd innings, flip the teams!
-      const isTeamABatting = isSecondInnings
-        ? !tossWinnerBatting
-        : tossWinnerBatting;
-
-      const payload = {
-        match_id: matchId,
-        batting_team_id: isTeamABatting
-          ? matchData.team_a_id
-          : matchData.team_b_id,
-        bowling_team_id: isTeamABatting
-          ? matchData.team_b_id
-          : matchData.team_a_id,
-        striker_id: activeStriker.id,
-        non_striker_id: activeNonStriker.id,
-        bowler_id: activeBowler.id,
-        innings_no: currentInningsNo,
-        target_runs: targetRuns,
-      };
-
-      const loadingToast = toast.loading(
-        `Starting Innings ${currentInningsNo}...`,
-      );
-      try {
-        await api.post("/scoring/start", payload);
-        toast.success(`Innings ${currentInningsNo} Started!`, {
-          id: loadingToast,
-          duration: 1500,
-        });
-
-        // If it's the 2nd innings, flip the squads in the UI for the dropdowns
-        if (isSecondInnings) {
-          setBattingSquad(
-            isTeamABatting
-              ? matchData.team_a_players
-              : matchData.team_b_players,
-          );
-          setBowlingSquad(
-            isTeamABatting
-              ? matchData.team_b_players
-              : matchData.team_a_players,
-          );
-        }
-
-        fetchLiveScoreboard();
-      } catch (error: any) {
-        const msg = error.response?.data?.error || "Failed to start innings";
-        toast.error(msg, { id: loadingToast, duration: 2500 });
-      }
-    };
     if (matchId) {
       fetchMatchInfo();
       fetchLiveScoreboard();
     }
   }, [matchId, fetchLiveScoreboard]);
 
-  const overs = liveStats ? Math.floor(liveStats.legal_balls / 6) : 0;
-  const ballsInOver = liveStats ? liveStats.legal_balls % 6 : 0;
+  const teamAPlayers: Player[] = matchData?.team_a_players || [];
+  const teamBPlayers: Player[] = matchData?.team_b_players || [];
+
+  const tossWinnerBatting =
+    matchData?.toss_decision === "bat"
+      ? matchData?.toss_winner_team_id === matchData?.team_a_id
+      : matchData?.toss_winner_team_id === matchData?.team_b_id;
+
+  const targetRuns = liveStats?.target_runs || liveStats?.required_runs || 0;
+  const isSecondInnings = liveStats?.innings_no === 2 || targetRuns > 0;
+
+  const activeBattersCount = isSecondInnings
+    ? tossWinnerBatting
+      ? teamBPlayers.length
+      : teamAPlayers.length
+    : tossWinnerBatting
+      ? teamAPlayers.length
+      : teamBPlayers.length;
+
+  const maxWickets = matchData?.allow_solo_batting
+    ? activeBattersCount
+    : Math.max(1, activeBattersCount - 1);
+  const maxBalls = (matchData?.overs_limit || 0) * 6;
+
+  const isAllOut = liveStats?.wickets >= maxWickets && maxWickets > 0;
+  const isOversDone = maxBalls > 0 && liveStats?.legal_balls >= maxBalls;
+  const isTargetReached =
+    isSecondInnings && liveStats?.current_score >= targetRuns && targetRuns > 0;
+
+  const isCurrentInningsOver =
+    !!liveStats?.innings_id &&
+    (isAllOut || isOversDone || isTargetReached || isInningsDeclared);
+  const isPreparingSecondInnings =
+    !!liveStats?.innings_id && isCurrentInningsOver && !isSecondInnings;
+
+  const shouldFlipTeams = isSecondInnings || isPreparingSecondInnings;
+  const isTeamABatting = shouldFlipTeams
+    ? !tossWinnerBatting
+    : tossWinnerBatting;
+
+  const battingSquad: Player[] = isTeamABatting ? teamAPlayers : teamBPlayers;
+  const bowlingSquad: Player[] = isTeamABatting ? teamBPlayers : teamAPlayers;
+
+  useEffect(() => {
+    if (isPreparingSecondInnings) {
+      setActiveStriker(null);
+      setActiveNonStriker(null);
+      setActiveBowler(null);
+      setPreviousBowlerId(null);
+    }
+  }, [isPreparingSecondInnings]);
+
+  const overs = liveStats ? Math.floor((liveStats.legal_balls || 0) / 6) : 0;
+  const ballsInOver = liveStats ? (liveStats.legal_balls || 0) % 6 : 0;
   const oversDisplay = Number(`${overs}.${ballsInOver}`);
 
   const getPlayerName = (id: string, role: "batter" | "bowler") => {
     if (!id) return null;
     const squad = role === "batter" ? battingSquad : bowlingSquad;
-    const player = squad.find((p) => p.id === id);
+    const player = squad.find((p: Player) => p.id === id);
     return player ? player.name : null;
   };
 
   const displayStriker =
     activeStriker?.name ||
-    getPlayerName(liveStats?.striker_id, "batter") ||
-    liveStats?.striker_name ||
+    (!isPreparingSecondInnings
+      ? getPlayerName(liveStats?.striker_id, "batter")
+      : null) ||
+    (!isPreparingSecondInnings ? liveStats?.striker_name : null) ||
     "Select Striker";
   const displayNonStriker =
     activeNonStriker?.name ||
-    getPlayerName(liveStats?.non_striker_id, "batter") ||
-    liveStats?.non_striker_name ||
+    (!isPreparingSecondInnings
+      ? getPlayerName(liveStats?.non_striker_id, "batter")
+      : null) ||
+    (!isPreparingSecondInnings ? liveStats?.non_striker_name : null) ||
     "Select Non-Striker";
   const displayBowler =
     activeBowler?.name ||
-    getPlayerName(liveStats?.bowler_id, "bowler") ||
-    liveStats?.bowler_name ||
+    (!isPreparingSecondInnings
+      ? getPlayerName(liveStats?.bowler_id, "bowler")
+      : null) ||
+    (!isPreparingSecondInnings ? liveStats?.bowler_name : null) ||
     "Select Bowler";
 
-  // --- Start Innings Logic ---
+  // const handleStartInnings = async () => {
+  //   if (!activeStriker || !activeNonStriker || !activeBowler) {
+  //     toast.error("Please assign a Striker, Non-Striker, and Bowler first!", {
+  //       duration: 2000,
+  //     });
+  //     return;
+  //   }
+
+  //   const currentInningsNo = isPreparingSecondInnings ? 2 : 1;
+  //   const targetToSet = isPreparingSecondInnings
+  //     ? (liveStats?.current_score || 0) + 1
+  //     : null;
+
+  //   const payload = {
+  //     match_id: matchId,
+  //     batting_team_id: isTeamABatting
+  //       ? matchData.team_a_id
+  //       : matchData.team_b_id,
+  //     bowling_team_id: isTeamABatting
+  //       ? matchData.team_b_id
+  //       : matchData.team_a_id,
+  //     striker_id: activeStriker.id,
+  //     non_striker_id: activeNonStriker.id,
+  //     bowler_id: activeBowler.id,
+  //     innings_no: currentInningsNo,
+  //     target_runs: targetToSet,
+  //   };
+
+  //   const loadingToast = toast.loading(
+  //     `Starting Innings ${currentInningsNo}...`,
+  //   );
+  //   try {
+  //     const res = await api.post("/scoring/start", payload);
+  //     toast.success(`Innings ${currentInningsNo} Started!`, {
+  //       id: loadingToast,
+  //       duration: 1500,
+  //     });
+
+  //     setIsInningsDeclared(false);
+
+  //     // 🔴 IMMEDIATE UI SWITCH: This forces the Scoring Pad to appear instantly
+  //     setLiveStats((prev: any) => ({
+  //       ...prev,
+  //       innings_id: res.data?.innings_id || res.data?.id || "active-innings",
+  //       innings_no: currentInningsNo,
+  //       legal_balls: prev?.legal_balls || 0,
+  //       current_score: prev?.current_score || 0,
+  //       wickets: prev?.wickets || 0,
+  //       striker_id: activeStriker.id,
+  //       non_striker_id: activeNonStriker.id,
+  //       bowler_id: activeBowler.id,
+  //     }));
+
+  //     fetchLiveScoreboard();
+  //   } catch (error: any) {
+  //     const msg = error.response?.data?.error || "Failed to start innings";
+  //     toast.error(msg, { id: loadingToast, duration: 2500 });
+  //   }
+  // };
   const handleStartInnings = async () => {
     if (!activeStriker || !activeNonStriker || !activeBowler) {
       toast.error("Please assign a Striker, Non-Striker, and Bowler first!", {
@@ -215,24 +243,10 @@ const LiveScoring = () => {
       return;
     }
 
-    // 🔴 SMART INNINGS DETECTION
-    // If liveStats already has an innings_id, it means the 1st innings finished. We are starting the 2nd.
-    const isSecondInnings = liveStats && liveStats.innings_id;
-    const currentInningsNo = isSecondInnings ? 2 : 1;
-
-    // Set target runs for 2nd innings
-    const targetRuns = isSecondInnings ? liveStats.current_score + 1 : null;
-
-    // Determine who bats first based on toss
-    const tossWinnerBatting =
-      matchData.toss_decision === "bat"
-        ? matchData.toss_winner_team_id === matchData.team_a_id
-        : matchData.toss_winner_team_id === matchData.team_b_id;
-
-    // If it's the 2nd innings, flip the teams!
-    const isTeamABatting = isSecondInnings
-      ? !tossWinnerBatting
-      : tossWinnerBatting;
+    const currentInningsNo = isPreparingSecondInnings ? 2 : 1;
+    const targetToSet = isPreparingSecondInnings
+      ? (liveStats?.current_score || 0) + 1
+      : null;
 
     const payload = {
       match_id: matchId,
@@ -246,28 +260,35 @@ const LiveScoring = () => {
       non_striker_id: activeNonStriker.id,
       bowler_id: activeBowler.id,
       innings_no: currentInningsNo,
-      target_runs: targetRuns,
+      target_runs: targetToSet,
     };
 
     const loadingToast = toast.loading(
       `Starting Innings ${currentInningsNo}...`,
     );
     try {
-      await api.post("/scoring/start", payload);
+      const res = await api.post("/scoring/start", payload);
+
       toast.success(`Innings ${currentInningsNo} Started!`, {
         id: loadingToast,
         duration: 1500,
       });
 
-      // If it's the 2nd innings, flip the squads in the UI for the dropdowns
-      if (isSecondInnings) {
-        setBattingSquad(
-          isTeamABatting ? matchData.team_a_players : matchData.team_b_players,
-        );
-        setBowlingSquad(
-          isTeamABatting ? matchData.team_b_players : matchData.team_a_players,
-        );
-      }
+      setIsInningsDeclared(false);
+
+      // INSTANT UI SWITCH
+      setLiveStats({
+        ...liveStats,
+        innings_id:
+          res.data?.innings_id || res.data?.id || "active-innings-bypass",
+        innings_no: currentInningsNo,
+        legal_balls: 0,
+        current_score: 0,
+        wickets: 0,
+        striker_id: activeStriker.id,
+        non_striker_id: activeNonStriker.id,
+        bowler_id: activeBowler.id,
+      });
 
       fetchLiveScoreboard();
     } catch (error: any) {
@@ -276,8 +297,6 @@ const LiveScoring = () => {
     }
   };
 
-  // --- Core Scoring Logic ---
-  // --- Core Scoring Logic ---
   const handleBall = (runs: number, isWicket: boolean = false) => {
     if (!liveStats?.innings_id) {
       return toast.error("Innings has not been started yet!", {
@@ -285,7 +304,6 @@ const LiveScoring = () => {
       });
     }
 
-    // 🔴 SAFETY LOCK: Force bowler selection at the start of a new over
     if (
       liveStats.legal_balls > 0 &&
       liveStats.legal_balls % 6 === 0 &&
@@ -342,7 +360,6 @@ const LiveScoring = () => {
     if (!modifier && runsFromBat === 6) setCurrentEvent("6");
     if (isWicket) setCurrentEvent("WICKET");
 
-    // Grab current IDs directly from state or liveStats fallback
     const currentStrikerId = activeStriker?.id || liveStats.striker_id;
     const currentNonStrikerId =
       activeNonStriker?.id || liveStats.non_striker_id;
@@ -373,40 +390,31 @@ const LiveScoring = () => {
         duration: 1000,
       });
       setModifier(null);
-
-      // 🔴 RE-FETCH STATS AFTER SUCCESSFUL BALL
       await fetchLiveScoreboard();
 
-      // 🔴 STRIKE ROTATION & OVER COMPLETION LOGIC
       let shouldSwapStrikers = false;
-
-      // Swap on odd runs (1, 3)
       if (runsFromBat % 2 !== 0) shouldSwapStrikers = !shouldSwapStrikers;
 
-      // End of over logic
       if (isLegal && ballsInOver === 5) {
-        shouldSwapStrikers = !shouldSwapStrikers; // Swap at end of over
-
-        // 🔴 ADD THIS LINE: Remember who just finished bowling
+        shouldSwapStrikers = !shouldSwapStrikers;
         setPreviousBowlerId(currentBowlerId);
-
-        setActiveBowler(null); // Clear the active bowler completely
+        setActiveBowler(null);
 
         setTimeout(() => {
           toast("Over Complete! Select new bowler.", {
             icon: "🏏",
             duration: 3000,
           });
-          setModalConfig({ isOpen: true, role: "Bowler" }); // Auto-open modal
+          setModalConfig({ isOpen: true, role: "Bowler" });
         }, 1000);
       }
 
-      // Execute Strike Swap in State
       if (shouldSwapStrikers) {
         const nextStriker =
-          battingSquad.find((p) => p.id === currentNonStrikerId) || null;
+          battingSquad.find((p: Player) => p.id === currentNonStrikerId) ||
+          null;
         const nextNonStriker =
-          battingSquad.find((p) => p.id === currentStrikerId) || null;
+          battingSquad.find((p: Player) => p.id === currentStrikerId) || null;
         setActiveStriker(nextStriker);
         setActiveNonStriker(nextNonStriker);
       }
@@ -420,6 +428,8 @@ const LiveScoring = () => {
 
   const confirmDeclare = async () => {
     setIsDeclareModalOpen(false);
+    setIsInningsDeclared(true);
+
     const loadingToast = toast.loading("Ending Innings...");
     try {
       await api.post(`/scoring/innings/${liveStats.innings_id}/complete`);
@@ -495,7 +505,6 @@ const LiveScoring = () => {
       />
 
       <div className="px-4 mt-4 space-y-4">
-        {/* Buttons to assign players */}
         {canUpdateScore && (
           <div className="flex gap-2 mb-2">
             <button
@@ -531,14 +540,46 @@ const LiveScoring = () => {
 
         {canUpdateScore ? (
           <div className="mt-6 animate-fade-in">
-            {/* Show start button if no innings started OR if 1st innings is completed but we need 2nd */}
-            {!liveStats?.innings_id || liveStats?.wickets === 10 ? ( // You can also add custom state to track if "Declare" was clicked
+            {!liveStats?.innings_id ? (
               <button
                 onClick={handleStartInnings}
                 className="w-full bg-primary hover:bg-primary-hover text-background transition-colors font-bold text-xl py-6 rounded-xl shadow-[0_0_15px_rgba(15,175,154,0.2)]"
               >
-                START {liveStats?.innings_id ? "2ND" : "1ST"} INNINGS
+                START 1ST INNINGS
               </button>
+            ) : isCurrentInningsOver ? (
+              <div className="bg-card p-6 rounded-2xl border-2 border-warning/50 text-center shadow-lg animate-bounce-in">
+                <h2 className="text-2xl font-black text-warning mb-2">
+                  INNINGS OVER
+                </h2>
+                <p className="text-muted-foreground font-bold mb-6">
+                  {isAllOut && "The batting team is All Out!"}
+                  {isOversDone && !isAllOut && "All overs have been bowled!"}
+                  {isTargetReached && "Target reached! What a chase!"}
+                  {isInningsDeclared &&
+                    !isAllOut &&
+                    !isOversDone &&
+                    "Innings was declared by the host."}
+                </p>
+
+                {!isSecondInnings ? (
+                  <button
+                    onClick={handleStartInnings}
+                    className="bg-primary hover:bg-primary-hover text-background py-4 px-6 rounded-xl font-bold w-full flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(15,175,154,0.2)] transition-all"
+                  >
+                    START 2ND INNINGS
+                  </button>
+                ) : (
+                  <button
+                    onClick={() =>
+                      toast.success("Match complete API coming next!")
+                    }
+                    className="bg-destructive hover:bg-destructive/90 text-background py-4 px-6 rounded-xl font-bold w-full flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(255,107,107,0.3)] transition-all"
+                  >
+                    FINALIZE MATCH
+                  </button>
+                )}
+              </div>
             ) : showWicketForm ? (
               <WicketForm
                 bowlingSquad={bowlingSquad}
@@ -551,6 +592,10 @@ const LiveScoring = () => {
                 modifier={modifier}
                 setModifier={setModifier}
                 isFreeHit={isFreeHit}
+                onRetire={() =>
+                  toast("Retire feature coming up!", { icon: "🏏" })
+                }
+                onComplete={() => setIsDeclareModalOpen(true)}
               />
             )}
           </div>
@@ -571,7 +616,6 @@ const LiveScoring = () => {
             activeStriker?.id || liveStats?.striker_id,
             activeNonStriker?.id || liveStats?.non_striker_id,
             activeBowler?.id || liveStats?.bowler_id,
-            // 🔴 ADD THIS LINE: Block the previous bowler from consecutive overs
             modalConfig.role === "Bowler" ? previousBowlerId : null,
           ].filter(Boolean) as string[]
         }
@@ -579,7 +623,6 @@ const LiveScoring = () => {
         onClose={() => setModalConfig({ isOpen: false, role: null })}
       />
 
-      {/* 🔴 DEBUG PANEL - REMOVE ONCE YOU CONFIRM DATA IS LOADING */}
       <div className="px-4 mt-12 mb-8">
         <button
           onClick={() => setShowDebug(!showDebug)}

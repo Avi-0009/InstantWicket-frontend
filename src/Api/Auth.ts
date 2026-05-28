@@ -18,7 +18,7 @@ api.interceptors.request.use((config) => {
 
 // Restored exact original names: Login, Register, Logout
 export const Login = async (phone_no: string, password: string) => {
-  const response = await api.post("/login", { phone_no, password });
+  const response = await api.post("/auth/login", { phone_no, password });
   return response.data;
 };
 
@@ -27,18 +27,22 @@ export const Register = async (
   phone_no: string,
   password: string,
 ) => {
-  const response = await api.post("/register", { name, phone_no, password });
+  const response = await api.post("/auth/register", {
+    name,
+    phone_no,
+    password,
+  });
   return response.data;
 };
 
 export const Logout = async () => {
-  const response = await api.post("/logout");
+  const response = await api.post("/auth/logout");
   return response.data;
 };
 
 export const ResetPassword = async (phone_no: string, password: string) => {
   // Sending as a PUT request to the backend
-  const response = await api.put("/reset-password", {
+  const response = await api.put("/auth/reset-password", {
     phone_no,
     password,
   });
