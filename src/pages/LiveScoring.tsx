@@ -24,8 +24,8 @@ const LiveScoring = () => {
 
   const [matchData, setMatchData] = useState<any>(null);
   const [liveStats, setLiveStats] = useState<any>(null);
+  const [hasSynced, setHasSynced] = useState(false); // Prevents infinite overwriting
 
-  // 🔴 DEBUG STATE
   const [debugLog, setDebugLog] = useState<string>("Waiting for data...");
   const [showDebug, setShowDebug] = useState(false);
 
@@ -72,7 +72,6 @@ const LiveScoring = () => {
 
         const playersA = match.team_a_players || [];
         const playersB = match.team_b_players || [];
-
         setDebugLog(JSON.stringify({ playersA, playersB }, null, 2));
 
         if (playersA.length === 0 || playersB.length === 0) {
@@ -134,12 +133,39 @@ const LiveScoring = () => {
   const battingSquad: Player[] = isTeamABatting ? teamAPlayers : teamBPlayers;
   const bowlingSquad: Player[] = isTeamABatting ? teamBPlayers : teamAPlayers;
 
+  // 🔴 SYNC ONLY ONCE ON LOAD 🔴
+  useEffect(() => {
+    if (liveStats && matchData && !isPreparingSecondInnings && !hasSynced) {
+      if (liveStats.striker_id)
+        setActiveStriker(
+          battingSquad.find((p) => p.id === liveStats.striker_id) || null,
+        );
+      if (liveStats.non_striker_id)
+        setActiveNonStriker(
+          battingSquad.find((p) => p.id === liveStats.non_striker_id) || null,
+        );
+      if (liveStats.bowler_id)
+        setActiveBowler(
+          bowlingSquad.find((p) => p.id === liveStats.bowler_id) || null,
+        );
+      setHasSynced(true);
+    }
+  }, [
+    liveStats,
+    matchData,
+    isPreparingSecondInnings,
+    hasSynced,
+    battingSquad,
+    bowlingSquad,
+  ]);
+
   useEffect(() => {
     if (isPreparingSecondInnings) {
       setActiveStriker(null);
       setActiveNonStriker(null);
       setActiveBowler(null);
       setPreviousBowlerId(null);
+      setHasSynced(false); // Reset sync for the new innings
     }
   }, [isPreparingSecondInnings]);
 
@@ -160,81 +186,22 @@ const LiveScoring = () => {
       ? getPlayerName(liveStats?.striker_id, "batter")
       : null) ||
     (!isPreparingSecondInnings ? liveStats?.striker_name : null) ||
-    "Select Striker";
+    "Missing Striker";
   const displayNonStriker =
     activeNonStriker?.name ||
     (!isPreparingSecondInnings
       ? getPlayerName(liveStats?.non_striker_id, "batter")
       : null) ||
     (!isPreparingSecondInnings ? liveStats?.non_striker_name : null) ||
-    "Select Non-Striker";
+    "Missing Non-Striker";
   const displayBowler =
     activeBowler?.name ||
     (!isPreparingSecondInnings
       ? getPlayerName(liveStats?.bowler_id, "bowler")
       : null) ||
     (!isPreparingSecondInnings ? liveStats?.bowler_name : null) ||
-    "Select Bowler";
+    "Missing Bowler";
 
-  // const handleStartInnings = async () => {
-  //   if (!activeStriker || !activeNonStriker || !activeBowler) {
-  //     toast.error("Please assign a Striker, Non-Striker, and Bowler first!", {
-  //       duration: 2000,
-  //     });
-  //     return;
-  //   }
-
-  //   const currentInningsNo = isPreparingSecondInnings ? 2 : 1;
-  //   const targetToSet = isPreparingSecondInnings
-  //     ? (liveStats?.current_score || 0) + 1
-  //     : null;
-
-  //   const payload = {
-  //     match_id: matchId,
-  //     batting_team_id: isTeamABatting
-  //       ? matchData.team_a_id
-  //       : matchData.team_b_id,
-  //     bowling_team_id: isTeamABatting
-  //       ? matchData.team_b_id
-  //       : matchData.team_a_id,
-  //     striker_id: activeStriker.id,
-  //     non_striker_id: activeNonStriker.id,
-  //     bowler_id: activeBowler.id,
-  //     innings_no: currentInningsNo,
-  //     target_runs: targetToSet,
-  //   };
-
-  //   const loadingToast = toast.loading(
-  //     `Starting Innings ${currentInningsNo}...`,
-  //   );
-  //   try {
-  //     const res = await api.post("/scoring/start", payload);
-  //     toast.success(`Innings ${currentInningsNo} Started!`, {
-  //       id: loadingToast,
-  //       duration: 1500,
-  //     });
-
-  //     setIsInningsDeclared(false);
-
-  //     // 🔴 IMMEDIATE UI SWITCH: This forces the Scoring Pad to appear instantly
-  //     setLiveStats((prev: any) => ({
-  //       ...prev,
-  //       innings_id: res.data?.innings_id || res.data?.id || "active-innings",
-  //       innings_no: currentInningsNo,
-  //       legal_balls: prev?.legal_balls || 0,
-  //       current_score: prev?.current_score || 0,
-  //       wickets: prev?.wickets || 0,
-  //       striker_id: activeStriker.id,
-  //       non_striker_id: activeNonStriker.id,
-  //       bowler_id: activeBowler.id,
-  //     }));
-
-  //     fetchLiveScoreboard();
-  //   } catch (error: any) {
-  //     const msg = error.response?.data?.error || "Failed to start innings";
-  //     toast.error(msg, { id: loadingToast, duration: 2500 });
-  //   }
-  // };
   const handleStartInnings = async () => {
     if (!activeStriker || !activeNonStriker || !activeBowler) {
       toast.error("Please assign a Striker, Non-Striker, and Bowler first!", {
@@ -268,19 +235,15 @@ const LiveScoring = () => {
     );
     try {
       const res = await api.post("/scoring/start", payload);
-
       toast.success(`Innings ${currentInningsNo} Started!`, {
         id: loadingToast,
         duration: 1500,
       });
-
       setIsInningsDeclared(false);
 
-      // INSTANT UI SWITCH
       setLiveStats((prev: any) => ({
         ...prev,
-        innings_id:
-          res.data?.innings_id || res.data?.id || "active-innings-bypass",
+        innings_id: res.data?.data || prev?.innings_id,
         innings_no: currentInningsNo,
         legal_balls: 0,
         current_score: 0,
@@ -289,31 +252,23 @@ const LiveScoring = () => {
         non_striker_id: activeNonStriker.id,
         bowler_id: activeBowler.id,
       }));
-
-      // 🚨 REMOVED fetchLiveScoreboard() FROM HERE!
-      // This is what was causing the screen to glitch back to the start button.
     } catch (error: any) {
-      const msg = error.response?.data?.error || "Failed to start innings";
-      toast.error(msg, { id: loadingToast, duration: 2500 });
+      toast.error(error.response?.data?.error || "Failed to start innings", {
+        id: loadingToast,
+        duration: 2500,
+      });
     }
   };
+
   const handleBall = (runs: number, isWicket: boolean = false) => {
-    if (!liveStats?.innings_id) {
-      return toast.error("Innings has not been started yet!", {
+    if (!liveStats?.innings_id)
+      return toast.error("Innings has not started yet!");
+
+    // Block scoring if someone is missing (e.g. over ended, or wicket fell)
+    if (!activeStriker || !activeNonStriker || !activeBowler) {
+      return toast.error("Please assign missing players before scoring!", {
         duration: 1500,
       });
-    }
-
-    if (
-      liveStats.legal_balls > 0 &&
-      liveStats.legal_balls % 6 === 0 &&
-      !activeBowler
-    ) {
-      toast.error("Over complete! Please select a new bowler.", {
-        duration: 2000,
-      });
-      setModalConfig({ isOpen: true, role: "Bowler" });
-      return;
     }
 
     if (isWicket) {
@@ -322,7 +277,6 @@ const LiveScoring = () => {
       return;
     }
 
-    // 🔴 FIX: Added the 5th argument (null for outPlayerId, null for fielderId)
     executeBallApi(runs, false, null, null, null);
   };
 
@@ -331,11 +285,8 @@ const LiveScoring = () => {
     outBatterRole: "striker" | "non_striker",
     fielderId: string | null,
   ) => {
-    // Figure out the exact ID of the player who got out based on the selection
     const exactOutPlayerId =
       outBatterRole === "striker" ? activeStriker?.id : activeNonStriker?.id;
-
-    // Pass it to the API
     executeBallApi(
       pendingRuns,
       true,
@@ -378,12 +329,10 @@ const LiveScoring = () => {
     if (!modifier && runsFromBat === 6) setCurrentEvent("6");
     if (isWicket) setCurrentEvent("WICKET");
 
-    const currentStrikerId = activeStriker?.id || liveStats.striker_id;
-    const currentNonStrikerId =
-      activeNonStriker?.id || liveStats.non_striker_id;
-    const currentBowlerId = activeBowler?.id || liveStats.bowler_id;
+    const currentStrikerId = activeStriker?.id;
+    const currentNonStrikerId = activeNonStriker?.id;
+    const currentBowlerId = activeBowler?.id;
 
-    // GUARANTEED FIELDS ONLY - This stops Go from panicking on nulls
     const payload: any = {
       match_id: matchId,
       innings_id: liveStats.innings_id,
@@ -398,7 +347,6 @@ const LiveScoring = () => {
       is_wicket: isWicket,
     };
 
-    // OPTIONAL FIELDS - Only attach them if they actually have data
     if (extraType) payload.extra_type = extraType;
     if (wicketType) payload.wicket_type = wicketType;
     if (isWicket && outPlayerId) payload.out_player_id = outPlayerId;
@@ -416,34 +364,57 @@ const LiveScoring = () => {
 
       let shouldSwapStrikers = false;
       if (runsFromBat % 2 !== 0) shouldSwapStrikers = !shouldSwapStrikers;
+      if (isLegal && ballsInOver === 5)
+        shouldSwapStrikers = !shouldSwapStrikers;
+
+      let finalStrikerId = currentStrikerId;
+      let finalNonStrikerId = currentNonStrikerId;
+
+      // 1. Calculate crossing first
+      if (shouldSwapStrikers) {
+        finalStrikerId = currentNonStrikerId;
+        finalNonStrikerId = currentStrikerId;
+      }
+
+      // 2. Remove the out player AFTER crossing is calculated
+      if (isWicket && outPlayerId) {
+        if (finalStrikerId === outPlayerId) finalStrikerId = undefined;
+        if (finalNonStrikerId === outPlayerId) finalNonStrikerId = undefined;
+      }
+
+      // 3. Update active states (nulls out the missing player)
+      setActiveStriker(
+        battingSquad.find((p) => p.id === finalStrikerId) || null,
+      );
+      setActiveNonStriker(
+        battingSquad.find((p) => p.id === finalNonStrikerId) || null,
+      );
+
+      // 4. Trigger UI popups for missing players
+      if (isWicket && outPlayerId) {
+        setTimeout(() => {
+          setModalConfig({
+            isOpen: true,
+            role: finalStrikerId === undefined ? "Striker" : "Non-Striker",
+          });
+        }, 800);
+      }
 
       if (isLegal && ballsInOver === 5) {
-        shouldSwapStrikers = !shouldSwapStrikers;
-        setPreviousBowlerId(currentBowlerId);
-        setActiveBowler(null);
-
+        setPreviousBowlerId(currentBowlerId!);
+        setActiveBowler(null); // Clear bowler for next over
         setTimeout(() => {
           toast("Over Complete! Select new bowler.", {
             icon: "🏏",
             duration: 3000,
           });
-          setModalConfig({ isOpen: true, role: "Bowler" });
-        }, 1000);
-      }
-
-      if (shouldSwapStrikers) {
-        const nextStriker =
-          battingSquad.find((p: Player) => p.id === currentNonStrikerId) ||
-          null;
-        const nextNonStriker =
-          battingSquad.find((p: Player) => p.id === currentStrikerId) || null;
-        setActiveStriker(nextStriker);
-        setActiveNonStriker(nextNonStriker);
+          if (!isWicket) setModalConfig({ isOpen: true, role: "Bowler" });
+        }, 1500);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.error || "Failed to record ball", {
         id: loadingToast,
-        duration: 1500,
+        duration: 1000,
       });
     }
   };
@@ -451,17 +422,13 @@ const LiveScoring = () => {
   const confirmDeclare = async () => {
     setIsDeclareModalOpen(false);
     setIsInningsDeclared(true);
-
     const loadingToast = toast.loading("Ending Innings...");
     try {
       await api.post(`/scoring/innings/${liveStats.innings_id}/complete`);
       toast.success("Innings Completed!", { id: loadingToast, duration: 1500 });
       fetchLiveScoreboard();
     } catch (err) {
-      toast.error("Failed to complete innings.", {
-        id: loadingToast,
-        duration: 1500,
-      });
+      toast.error("Failed to complete innings.");
     }
   };
 
@@ -474,14 +441,22 @@ const LiveScoring = () => {
 
   if (!matchData)
     return (
-      <div className="text-foreground p-8 text-center animate-pulse">
-        Loading match...
-      </div>
+      <div className="p-8 text-center animate-pulse">Loading match...</div>
     );
 
   const canUpdateScore =
     user?.id &&
     (user.id === matchData.created_by || user.id === matchData.umpire_id);
+
+  // 🔴 CONDITIONAL VISIBILITY TRIGGER 🔴
+  // Only shows the buttons if we are starting a match OR if someone is missing (wicket/over change)
+  const needsPlayerAssignment =
+    !activeStriker || !activeNonStriker || !activeBowler;
+  const showPlayerSelection =
+    canUpdateScore &&
+    (!liveStats?.innings_id ||
+      isPreparingSecondInnings ||
+      needsPlayerAssignment);
 
   return (
     <div className="min-h-screen bg-background pb-8 relative">
@@ -489,7 +464,6 @@ const LiveScoring = () => {
         eventType={currentEvent}
         onComplete={() => setCurrentEvent(null)}
       />
-
       <DeclareModal
         isOpen={isDeclareModalOpen}
         score={liveStats?.current_score || 0}
@@ -527,27 +501,31 @@ const LiveScoring = () => {
       />
 
       <div className="px-4 mt-4 space-y-4">
-        {canUpdateScore && (
-          <div className="flex gap-2 mb-2">
+        {/* PLAYER ASSIGNMENT ROW - Appears ONLY when needed */}
+        {showPlayerSelection && (
+          <div className="flex gap-2 mb-2 animate-fade-in">
             <button
               onClick={() => setModalConfig({ isOpen: true, role: "Striker" })}
-              className="flex-1 py-2 bg-card border border-border rounded-lg text-xs font-semibold text-primary hover:bg-border transition-colors flex items-center justify-center gap-1"
+              className={`flex-1 py-2 border rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${!activeStriker ? "bg-primary border-primary text-background animate-pulse" : "bg-card border-border text-primary"}`}
             >
-              <UserPlus className="w-3 h-3" /> Striker
+              <UserPlus className="w-3 h-3" />{" "}
+              {activeStriker ? activeStriker.name : "Pick Striker"}
             </button>
             <button
               onClick={() =>
                 setModalConfig({ isOpen: true, role: "Non-Striker" })
               }
-              className="flex-1 py-2 bg-card border border-border rounded-lg text-xs font-semibold text-primary hover:bg-border transition-colors flex items-center justify-center gap-1"
+              className={`flex-1 py-2 border rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${!activeNonStriker ? "bg-primary border-primary text-background animate-pulse" : "bg-card border-border text-primary"}`}
             >
-              <UserPlus className="w-3 h-3" /> Non-Striker
+              <UserPlus className="w-3 h-3" />{" "}
+              {activeNonStriker ? activeNonStriker.name : "Pick Non-Striker"}
             </button>
             <button
               onClick={() => setModalConfig({ isOpen: true, role: "Bowler" })}
-              className="flex-1 py-2 bg-card border border-border rounded-lg text-xs font-semibold text-destructive hover:bg-border transition-colors flex items-center justify-center gap-1"
+              className={`flex-1 py-2 border rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${!activeBowler ? "bg-destructive border-destructive text-background animate-pulse" : "bg-card border-border text-destructive"}`}
             >
-              <UserPlus className="w-3 h-3" /> Bowler
+              <UserPlus className="w-3 h-3" />{" "}
+              {activeBowler ? activeBowler.name : "Pick Bowler"}
             </button>
           </div>
         )}
@@ -557,7 +535,6 @@ const LiveScoring = () => {
           nonStriker={displayNonStriker}
           bowler={displayBowler}
         />
-
         <OverTimeline thisOver={[]} />
 
         {canUpdateScore ? (
@@ -565,29 +542,19 @@ const LiveScoring = () => {
             {!liveStats?.innings_id ? (
               <button
                 onClick={handleStartInnings}
-                className="w-full bg-primary hover:bg-primary-hover text-background transition-colors font-bold text-xl py-6 rounded-xl shadow-[0_0_15px_rgba(15,175,154,0.2)]"
+                className="w-full bg-primary hover:bg-primary-hover text-background font-bold text-xl py-6 rounded-xl"
               >
                 START 1ST INNINGS
               </button>
             ) : isCurrentInningsOver ? (
-              <div className="bg-card p-6 rounded-2xl border-2 border-warning/50 text-center shadow-lg animate-bounce-in">
+              <div className="bg-card p-6 rounded-2xl border-2 border-warning/50 text-center shadow-lg">
                 <h2 className="text-2xl font-black text-warning mb-2">
                   INNINGS OVER
                 </h2>
-                <p className="text-muted-foreground font-bold mb-6">
-                  {isAllOut && "The batting team is All Out!"}
-                  {isOversDone && !isAllOut && "All overs have been bowled!"}
-                  {isTargetReached && "Target reached! What a chase!"}
-                  {isInningsDeclared &&
-                    !isAllOut &&
-                    !isOversDone &&
-                    "Innings was declared by the host."}
-                </p>
-
                 {!isSecondInnings ? (
                   <button
                     onClick={handleStartInnings}
-                    className="bg-primary hover:bg-primary-hover text-background py-4 px-6 rounded-xl font-bold w-full flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(15,175,154,0.2)] transition-all"
+                    className="bg-primary text-background py-4 px-6 rounded-xl font-bold w-full"
                   >
                     START 2ND INNINGS
                   </button>
@@ -596,7 +563,7 @@ const LiveScoring = () => {
                     onClick={() =>
                       toast.success("Match complete API coming next!")
                     }
-                    className="bg-destructive hover:bg-destructive/90 text-background py-4 px-6 rounded-xl font-bold w-full flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(255,107,107,0.3)] transition-all"
+                    className="bg-destructive text-background py-4 px-6 rounded-xl font-bold w-full"
                   >
                     FINALIZE MATCH
                   </button>
@@ -614,17 +581,19 @@ const LiveScoring = () => {
                 modifier={modifier}
                 setModifier={setModifier}
                 isFreeHit={isFreeHit}
-                onRetire={() =>
-                  toast("Retire feature coming up!", { icon: "🏏" })
-                }
                 onComplete={() => setIsDeclareModalOpen(true)}
+                onRetire={() => {
+                  // Allows manual retirement / swapping mid-over
+                  setActiveStriker(null);
+                  setModalConfig({ isOpen: true, role: "Striker" });
+                }}
               />
             )}
           </div>
         ) : (
-          <div className="mt-8 p-6 bg-card border border-border rounded-2xl flex flex-col items-center justify-center text-center shadow-lg">
-            <Lock className="w-6 h-6 text-primary mb-3" />
-            <h3 className="text-foreground font-bold mb-1">Read-Only View</h3>
+          <div className="mt-8 p-6 bg-card border border-border rounded-2xl text-center">
+            <Lock className="w-6 h-6 text-primary mx-auto mb-3" />
+            <h3>Read-Only View</h3>
           </div>
         )}
       </div>
@@ -635,29 +604,15 @@ const LiveScoring = () => {
         squad={modalConfig.role === "Bowler" ? bowlingSquad : battingSquad}
         currentlyPlayingIds={
           [
-            activeStriker?.id || liveStats?.striker_id,
-            activeNonStriker?.id || liveStats?.non_striker_id,
-            activeBowler?.id || liveStats?.bowler_id,
+            activeStriker?.id,
+            activeNonStriker?.id,
+            activeBowler?.id,
             modalConfig.role === "Bowler" ? previousBowlerId : null,
           ].filter(Boolean) as string[]
         }
         onSelect={handlePlayerSelect}
         onClose={() => setModalConfig({ isOpen: false, role: null })}
       />
-
-      <div className="px-4 mt-12 mb-8">
-        <button
-          onClick={() => setShowDebug(!showDebug)}
-          className="flex items-center gap-2 text-xs text-muted-foreground border border-border px-3 py-2 rounded-lg hover:text-white"
-        >
-          <Bug className="w-4 h-4" /> Show Backend Data
-        </button>
-        {showDebug && (
-          <pre className="mt-2 p-4 bg-black border border-red-500 rounded-lg text-red-400 text-[10px] overflow-x-auto whitespace-pre-wrap">
-            {debugLog}
-          </pre>
-        )}
-      </div>
     </div>
   );
 };
