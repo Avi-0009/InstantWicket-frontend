@@ -12,6 +12,8 @@ let hasSeenSplashThisSession = false;
 const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(!hasSeenSplashThisSession);
   const [activeTab, setActiveTab] = useState("All");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   // REAL DATA STATE
   const [matches, setMatches] = useState<any[]>([]);
