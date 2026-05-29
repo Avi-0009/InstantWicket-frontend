@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
+import { useThemeStore } from "../store/useThemeStore";
 import { getInitials } from "../utils/helpers";
 import { Logout } from "../Api/Auth";
 import {
@@ -12,6 +13,8 @@ import {
   Shield,
   Info,
   ChevronLeft,
+  Moon,
+  Sun,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -22,11 +25,11 @@ const SettingsSection = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div className="mb-6">
-    <h3 className="text-xs font-bold text-[#9FB7B2] uppercase tracking-wider mb-2 px-2">
+  <div className="mb-6 animate-fade-in">
+    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 px-2">
       {title}
     </h3>
-    <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl overflow-hidden shadow-lg">
+    <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm transition-colors">
       {children}
     </div>
   </div>
@@ -37,23 +40,30 @@ const SettingsMenuItem = ({
   label,
   onClick,
   hideBorder = false,
+  rightElement,
 }: any) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center justify-between p-4 bg-transparent hover:bg-[#122A25] transition-colors ${
-      !hideBorder ? "border-b border-[#1B3530]" : ""
+    className={`w-full flex items-center justify-between p-4 bg-transparent hover:bg-card-hover transition-colors ${
+      !hideBorder ? "border-b border-border" : ""
     }`}
   >
     <div className="flex items-center gap-3">
-      <Icon className="w-5 h-5 text-[#0FAF9A]" />
-      <span className="font-medium text-sm text-[#F4FFFD]">{label}</span>
+      <Icon className="w-5 h-5 text-primary" />
+      <span className="font-medium text-sm text-foreground">{label}</span>
     </div>
-    <ChevronRight className="w-4 h-4 text-[#9FB7B2]" />
+    {/* If a custom right element (like a toggle) is passed, render it. Otherwise show chevron */}
+    {rightElement ? (
+      rightElement
+    ) : (
+      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+    )}
   </button>
 );
 
 const SettingsPage = () => {
   const { user, logout } = useAuthStore();
+  const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -72,26 +82,28 @@ const SettingsPage = () => {
   if (!user) return null;
 
   return (
-    <main className="p-4 md:p-6 max-w-2xl mx-auto w-full animate-fade-in pb-24 bg-background">
+    <main className="p-4 md:p-6 max-w-2xl mx-auto w-full animate-fade-in pb-24 bg-background min-h-screen transition-colors duration-200">
+      {/* HEADER */}
       <div className="flex items-center gap-3 mb-8">
         <button
           onClick={() => navigate("/")}
-          className="p-2 bg-[#0B1F1B] border border-[#1B3530] rounded-full hover:bg-[#122A25] hover:border-[#0FAF9A]/50 transition-all shadow-lg text-[#F4FFFD]"
+          className="p-2 bg-card border border-border rounded-full hover:bg-card-hover hover:border-primary/50 transition-all shadow-sm text-foreground"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-[28px] font-bold text-[#F4FFFD]">Settings</h1>
+        <h1 className="text-[28px] font-bold text-foreground">Settings</h1>
       </div>
 
-      <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl p-5 mb-8 flex items-center gap-4 shadow-lg hover:border-[#0FAF9A]/30 transition-colors cursor-pointer">
-        <div className="w-16 h-16 rounded-full bg-[#0FAF9A]/20 text-[#0FAF9A] flex items-center justify-center text-2xl font-bold border border-[#0FAF9A]/30">
+      {/* PROFILE CARD */}
+      <div className="bg-card border border-border rounded-xl p-5 mb-8 flex items-center gap-4 shadow-sm hover:border-primary/30 transition-colors cursor-pointer">
+        <div className="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center text-2xl font-bold border border-primary/30">
           {getInitials(user.name)}
         </div>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-[#F4FFFD]">{user.name}</h2>
-          <p className="text-sm text-[#9FB7B2]">{user.phone}</p>
+          <h2 className="text-xl font-bold text-foreground">{user.name}</h2>
+          <p className="text-sm text-muted-foreground">{user.phone}</p>
         </div>
-        <ChevronRight className="w-5 h-5 text-[#9FB7B2]" />
+        <ChevronRight className="w-5 h-5 text-muted-foreground" />
       </div>
 
       <SettingsSection title="Account">
@@ -109,6 +121,39 @@ const SettingsPage = () => {
       </SettingsSection>
 
       <SettingsSection title="Preferences">
+        {/* THEME TOGGLE MENU ITEM */}
+        <div className="w-full flex items-center justify-between p-4 bg-transparent border-b border-border hover:bg-card-hover transition-colors">
+          <div className="flex items-center gap-3">
+            {theme === "dark" ? (
+              <Moon className="w-5 h-5 text-primary" />
+            ) : (
+              <Sun className="w-5 h-5 text-primary" />
+            )}
+            <div>
+              <span className="font-medium text-sm text-foreground block">
+                App Theme
+              </span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                {theme} mode
+              </span>
+            </div>
+          </div>
+
+          {/* Animated Toggle Switch */}
+          <button
+            onClick={toggleTheme}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+              theme === "dark" ? "bg-primary" : "bg-muted-foreground/40"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                theme === "dark" ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
         <SettingsMenuItem
           icon={Bell}
           label="Push Notifications"
@@ -134,7 +179,7 @@ const SettingsPage = () => {
       <div className="mt-8">
         <button
           onClick={handleLogout}
-          className="w-full bg-[#1B3530]/30 hover:bg-[#FF6B6B]/10 border border-[#1B3530] hover:border-[#FF6B6B]/50 text-[#FF6B6B] rounded-xl p-4 flex items-center justify-center gap-2 font-bold transition-all shadow-lg"
+          className="w-full bg-border/30 hover:bg-destructive/10 border border-border hover:border-destructive/50 text-destructive rounded-xl p-4 flex items-center justify-center gap-2 font-bold transition-all shadow-sm"
         >
           <LogOut className="w-5 h-5" />
           Log Out

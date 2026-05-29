@@ -4,7 +4,25 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>InstantWicket</title>
+
+    <script>
+      (function () {
+        try {
+          // Check Zustand's local storage item
+          var local = localStorage.getItem("instantwicket-theme-storage");
+          var theme = "dark"; // Default to your dark theme
+          if (local) {
+            theme = JSON.parse(local).state.theme;
+          }
+          if (theme === "dark") {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.add("light");
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

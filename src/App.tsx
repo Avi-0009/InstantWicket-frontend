@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import MainLayout from "./layouts/MainLayout";
@@ -11,16 +12,20 @@ import MatchesListPage from "./pages/MatchesListPage";
 import MatchDetailsPage from "./pages/MatchDetailsPage";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import NewMatchPage from "./pages/NewMatchPage";
+import { useThemeStore } from "./store/useThemeStore";
 
 // Extracted a small fallback component to utilize NavLink instead of Navigate redirect
 const NotFoundFallback = () => (
   <div style={{ textAlign: "center", marginTop: "50px" }}>
-    <h2>404 - Page Not Found</h2>
+    <h2 className="text-[var(--foreground)] text-xl font-bold mb-4">
+      404 - Page Not Found
+    </h2>
     <NavLink
       to="/"
       style={{
-        color: "var(--primary-color, blue)",
+        color: "var(--primary)",
         textDecoration: "underline",
+        fontWeight: "bold",
       }}
     >
       Go back to Dashboard
@@ -29,6 +34,15 @@ const NotFoundFallback = () => (
 );
 
 const App = () => {
+  const { theme } = useThemeStore();
+
+  // This listens for theme changes and updates the actual HTML tag dynamically
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+  }, [theme]);
+
   return (
     <BrowserRouter>
       <Toaster
@@ -36,16 +50,16 @@ const App = () => {
         reverseOrder={false}
         toastOptions={{
           duration: 1000,
-          // Optional: You can style it to match your dark theme perfectly!
+          // Updated to use CSS variables so toasts match Light/Dark mode!
           style: {
-            background: "#0B1F1B",
-            color: "#F4FFFD",
-            border: "1px solid #1B3530",
+            background: "var(--card)",
+            color: "var(--foreground)",
+            border: "1px solid var(--border)",
           },
           success: {
             iconTheme: {
-              primary: "#0FAF9A",
-              secondary: "#061311",
+              primary: "var(--primary)",
+              secondary: "var(--background)",
             },
           },
         }}
@@ -56,9 +70,6 @@ const App = () => {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/players" element={<PlayersListPage />} />
-          {/* <Route path="/player-stats/:id" element={<PlayerStatsPage />} /> */}
-          {/* <Route path="/player-stats" element={<PlayerStatsPage />} /> */}
-          {/* <Route path="/player-stats/:id" element={<PlayerStatsPage />} /> */}
           <Route path="/player-stats/:id" element={<PlayerStatsPage />} />
           <Route path="/matches" element={<MatchesListPage />} />
           <Route path="/match/:id" element={<MatchDetailsPage />} />
