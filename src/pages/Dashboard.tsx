@@ -2,23 +2,17 @@ import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import SplashScreen from "../components/SplashScreen";
 import LiveMatchCard from "../components/matches/LiveMatchCard";
-import {
-  Trophy,
-  Activity,
-  TrendingUp,
-  Users,
-  Zap,
-  ChevronDown,
-} from "lucide-react";
+import { Trophy, Activity, TrendingUp, Zap, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { api } from "../Api/Auth";
+import { useAuthStore } from "../store/useAuthStore";
 import toast from "react-hot-toast";
 
 let hasSeenSplashThisSession = false;
 
 const Dashboard = () => {
+  const { user } = useAuthStore(); // Retrieve the logged-in user
   const [isLoading, setIsLoading] = useState(!hasSeenSplashThisSession);
-  const [activeTab, setActiveTab] = useState("All");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingPage, setIsFetchingPage] = useState(false);
@@ -36,39 +30,52 @@ const Dashboard = () => {
     }
   }, []);
 
-  // FETCH REAL MATCHES WITH PAGINATION
+  // FETCH & STRICTLY FILTER MATCHES
   useEffect(() => {
     const fetchMatches = async () => {
+      if (!user) return; // Do not fetch if the user isn't loaded
+
       setIsFetchingPage(true);
       try {
-        const res = await api.get(`/matches?page=${page}&limit=10`);
-        const newMatches = res.data.matches || res.data || [];
+        // Pass query params to tell the backend what to look for using the strict TypeScript property
+        const res = await api.get(
+          `/matches?page=${page}&limit=10&status=ongoing&user_id=${user.id}`,
+        );
+        const rawMatches = res.data.matches || res.data || [];
 
-        // If the backend returns less than 10 matches, we know there are no more pages
-        if (newMatches.length < 10) {
+        // 🛡️ FRONTEND SAFETY FILTER
+        // Strictly guarantee only ONGOING matches where the user is creator or umpire are shown
+        const strictlyFilteredMatches = rawMatches.filter((m: any) => {
+          const isOngoing = m.status === "ongoing";
+          const isMine = m.created_by === user.id || m.umpire_id === user.id;
+          return isOngoing && isMine;
+        });
+
+        // Check if the backend has run out of matches
+        if (rawMatches.length < 10) {
           setHasMore(false);
         } else {
           setHasMore(true);
         }
 
-        // If it's page 1, set the matches. If it's page 2+, APPEND them to the existing list.
+        // Apply pagination append logic
         setMatches((prev) =>
-          page === 1 ? newMatches : [...prev, ...newMatches],
+          page === 1
+            ? strictlyFilteredMatches
+            : [...prev, ...strictlyFilteredMatches],
         );
       } catch (error) {
         console.error("Failed to fetch matches:", error);
-        toast.error("Failed to fetch match list!");
+        toast.error("Failed to fetch dashboard matches!");
       } finally {
         setIsFetchingPage(false);
       }
     };
+
     fetchMatches();
-  }, [page]);
+  }, [page, user]);
 
   if (isLoading) return <SplashScreen />;
-
-  // Calculate real stats
-  const liveMatchesCount = matches.filter((m) => m.status === "ongoing").length;
 
   return (
     <motion.main
@@ -84,7 +91,7 @@ const Dashboard = () => {
             InstantWicket
           </h1>
           <p className="text-sm text-muted-foreground">
-            Welcome! Here's what's happening today.
+            Welcome back, {user?.name || "Umpire"}! Here is your active console.
           </p>
         </div>
 
@@ -96,84 +103,53 @@ const Dashboard = () => {
         </NavLink>
       </div>
 
-      {/* Top Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div
-          onClick={() => setActiveTab("Recent")}
-          className="bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-primary/50 transition-colors shadow-sm"
-        >
-          <Trophy className="w-5 h-5 text-warning mb-2" />
+      {/* Top Stats Grid (Simplified for Live Action) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+          <Activity className="w-5 h-5 text-destructive mb-2 animate-pulse" />
           <div className="text-3xl font-bold text-foreground">
             {matches.length}
           </div>
-          <div className="text-xs text-muted-foreground mt-1">Total Loaded</div>
-        </div>
-        <div
-          onClick={() => setActiveTab("Live")}
-          className="bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-primary/50 transition-colors shadow-sm"
-        >
-          <Activity className="w-5 h-5 text-[#818CF8] mb-2" />
-          <div className="text-3xl font-bold text-foreground">
-            {liveMatchesCount}
+          <div className="text-xs text-muted-foreground mt-1">
+            My Active Matches
           </div>
-          <div className="text-xs text-muted-foreground mt-1">Live Now</div>
         </div>
         <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
-          <TrendingUp className="w-5 h-5 text-destructive mb-2" />
-          <div className="text-3xl font-bold text-foreground">0</div>
-          <div className="text-xs text-muted-foreground mt-1">Total Runs</div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
-          <Users className="w-5 h-5 text-[#3B82F6] mb-2" />
+          <TrendingUp className="w-5 h-5 text-primary mb-2" />
           <div className="text-3xl font-bold text-foreground">0</div>
           <div className="text-xs text-muted-foreground mt-1">
-            Active Players
+            Runs Scored (Today)
+          </div>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm col-span-2 md:col-span-1">
+          <Trophy className="w-5 h-5 text-warning mb-2" />
+          <div className="text-3xl font-bold text-foreground">0</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Wickets Taken (Today)
           </div>
         </div>
       </div>
 
-      {/* Match Tabs */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-semibold flex items-center gap-2 text-foreground">
-          <Zap className="w-4 h-4 text-primary" /> Matches
+      {/* Title Area */}
+      <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+        <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+          <Zap className="w-5 h-5 text-primary" /> My Live Matches
         </h2>
-        <div className="flex gap-1 overflow-x-auto no-scrollbar">
-          {["All", "Live", "Upcoming", "Recent"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors ${
-                activeTab === tab
-                  ? "bg-primary/20 text-primary font-bold"
-                  : "text-muted-foreground hover:bg-card hover:text-foreground"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* REAL Matches Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {(activeTab === "All" || activeTab === "Live") && (
-          <>
-            <div className="w-full col-span-1 md:col-span-2 text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em] flex items-center gap-1.5 mb-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse inline-block"></span>{" "}
-              Live Matches
-            </div>
-
-            {/* MAP REAL MATCHES */}
-            {matches.length === 0 && !isFetchingPage ? (
-              <div className="text-muted-foreground text-sm col-span-2 py-4 text-center bg-card rounded-xl border border-border">
-                No matches found. Create one!
-              </div>
-            ) : (
-              matches.map((match) => (
-                <LiveMatchCard key={match.id} match={match} />
-              ))
-            )}
-          </>
+        {matches.length === 0 && !isFetchingPage ? (
+          <div className="text-muted-foreground text-sm col-span-2 py-8 text-center bg-card rounded-xl border border-border flex flex-col items-center justify-center gap-2">
+            <Activity className="w-8 h-8 text-border mb-2" />
+            <p className="font-semibold">You have no active matches.</p>
+            <p className="text-xs">
+              Start a new match to see it here, or check the Matches tab for
+              history.
+            </p>
+          </div>
+        ) : (
+          matches.map((match) => <LiveMatchCard key={match.id} match={match} />)
         )}
       </div>
 

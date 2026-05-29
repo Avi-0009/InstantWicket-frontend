@@ -8,6 +8,8 @@ interface PlayerStatsProps {
   bowlerName: string;
   bowlerRuns: number;
   bowlerWickets: number;
+  partnershipRuns?: number;
+  partnershipBalls?: number;
 }
 
 export default function PlayerStats({

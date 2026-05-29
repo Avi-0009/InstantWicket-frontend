@@ -10,7 +10,7 @@ interface BatterStats {
   balls_played: number;
   fours: number;
   sixes: number;
-  is_out: boolean;
+  is_not_out: boolean;
 }
 
 interface BowlerStats {
@@ -18,8 +18,18 @@ interface BowlerStats {
   player_name: string;
   runs_conceded: number;
   wickets_taken: number;
-  overs_bowled: number;
+  balls_bowled: number;
   maidens: number;
+  wides: number;
+  no_balls: number;
+}
+
+interface FielderStats {
+  player_id: string;
+  player_name: string;
+  catches: number;
+  runouts: number;
+  stumpings: number;
 }
 
 export default function MatchDetailsPage() {
@@ -107,6 +117,7 @@ export default function MatchDetailsPage() {
     currentBattingTeamId === teamAId
       ? matchData?.team_a_players
       : matchData?.team_b_players;
+
   const batters: BatterStats[] = (teamPlayers || []).map((p: any) => {
     const stats = scorecard.find((s) => s.player_id === p.id) || {};
     let runs = stats.runs_scored || 0;
@@ -127,7 +138,7 @@ export default function MatchDetailsPage() {
       balls_played: playedBalls,
       fours: stats.fours || 0,
       sixes: stats.sixes || 0,
-      is_out: stats.is_out || false,
+      is_not_out: stats.is_not_out ?? true,
     };
   });
 
@@ -135,6 +146,7 @@ export default function MatchDetailsPage() {
     currentBowlingTeamId === teamAId
       ? matchData?.team_a_players
       : matchData?.team_b_players;
+
   const bowlers: BowlerStats[] = (bowlingTeamPlayers || [])
     .map((p: any) => {
       const stats = scorecard.find((s) => s.player_id === p.id) || {};
@@ -150,16 +162,33 @@ export default function MatchDetailsPage() {
         player_name: p.name,
         runs_conceded: runs,
         wickets_taken: wickets,
-        overs_bowled: stats.overs_bowled || 0.0,
+        balls_bowled: stats.balls_bowled || 0,
         maidens: stats.maidens || 0,
+        wides: stats.wides || 0,
+        no_balls: stats.no_balls || 0,
       };
     })
     .filter(
       (b: BowlerStats) =>
-        b.overs_bowled > 0 ||
+        b.balls_bowled > 0 ||
         b.runs_conceded > 0 ||
         b.wickets_taken > 0 ||
         liveStats?.bowler_id === b.player_id,
+    );
+
+  const fielders: FielderStats[] = (bowlingTeamPlayers || [])
+    .map((p: any) => {
+      const stats = scorecard.find((s) => s.player_id === p.id) || {};
+      return {
+        player_id: p.id,
+        player_name: p.name,
+        catches: stats.catches || 0,
+        runouts: stats.runouts || 0,
+        stumpings: stats.stumpings || 0,
+      };
+    })
+    .filter(
+      (f: FielderStats) => f.catches > 0 || f.runouts > 0 || f.stumpings > 0,
     );
 
   return (
@@ -243,11 +272,59 @@ export default function MatchDetailsPage() {
                   </span>
                 </div>
 
+                {/* 👇 NEW: TARGET & CHASE TRACKER 👇 */}
                 {liveStats.target_runs > 0 && (
-                  <div className="mt-3 text-xs font-bold text-[#FF6B6B] bg-[#FF6B6B]/10 py-1.5 px-3 rounded-lg inline-block">
-                    Target: {liveStats.target_runs}
+                  <div className="mt-5 bg-[#0D2420] border border-[#1B3530]/70 rounded-xl p-4 shadow-sm text-left">
+                    <div className="flex justify-between items-center mb-2.5 text-sm">
+                      <span className="text-[#9FB7B2] font-medium">
+                        Target: {liveStats.target_runs}
+                      </span>
+                      <span className="text-[#0FAF9A] font-bold">
+                        Need{" "}
+                        {Math.max(
+                          0,
+                          liveStats.target_runs - liveStats.current_score,
+                        )}{" "}
+                        runs
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="h-1.5 w-full bg-[#1B3530] rounded-full overflow-hidden mb-2.5">
+                      <div
+                        className="h-full bg-[#0FAF9A] transition-all duration-500 ease-in-out rounded-full"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, (liveStats.current_score / liveStats.target_runs) * 100))}%`,
+                        }}
+                      ></div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs text-[#9FB7B2] font-medium">
+                      <span>
+                        RRR:{" "}
+                        {matchData.overs_limit * 6 - liveStats.legal_balls > 0
+                          ? (
+                              (Math.max(
+                                0,
+                                liveStats.target_runs - liveStats.current_score,
+                              ) /
+                                (matchData.overs_limit * 6 -
+                                  liveStats.legal_balls)) *
+                              6
+                            ).toFixed(2)
+                          : "0.00"}
+                      </span>
+                      <span>
+                        {Math.max(
+                          0,
+                          matchData.overs_limit * 6 - liveStats.legal_balls,
+                        )}{" "}
+                        balls left
+                      </span>
+                    </div>
                   </div>
                 )}
+                {/* 👆 END TARGET TRACKER 👆 */}
 
                 <div className="grid grid-cols-2 gap-3 mt-6 text-left">
                   <div className="bg-[#0D2420] p-3.5 rounded-xl border border-[#1B3530]/50">
@@ -306,7 +383,7 @@ export default function MatchDetailsPage() {
 
         {/* ----------------- SCOREBOARD TAB ----------------- */}
         {activeTab === "Scoreboard" && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in space-y-6">
             <div className="flex gap-6 border-b border-[#1B3530] mb-4 px-2">
               <button
                 onClick={() => setInningsTab(1)}
@@ -328,11 +405,12 @@ export default function MatchDetailsPage() {
               </button>
             </div>
 
-            <h3 className="text-[#F4FFFD] font-bold text-sm mb-3 px-1">
-              {battingTeamName}
+            <h3 className="text-[#F4FFFD] font-bold text-sm px-1">
+              {battingTeamName} Batting
             </h3>
 
-            <div className="overflow-x-auto no-scrollbar mb-4">
+            {/* BATTING SCORECARD */}
+            <div className="overflow-x-auto no-scrollbar">
               <div className="bg-[#0B1F1B] rounded-xl border border-[#1B3530] overflow-hidden shadow-md min-w-[500px]">
                 <div className="bg-[#1B3530]/50 p-2.5 flex items-center text-[11px] text-[#9FB7B2] font-bold uppercase tracking-wider">
                   <div className="w-1/3 min-w-[130px]">Batter</div>
@@ -345,8 +423,9 @@ export default function MatchDetailsPage() {
 
                 <div className="divide-y divide-[#1B3530]/50">
                   {batters.map((batter: BatterStats) => {
+                    // 🛡️ THE BULLETPROOF NOT-OUT LOGIC
                     let statusText = "Yet to bat";
-                    let statusColor = "text-[#9FB7B2]";
+                    let statusClass = "text-[#9FB7B2]"; // Default grey
 
                     const isStriker =
                       liveStats?.striker_id === batter.player_id;
@@ -355,17 +434,21 @@ export default function MatchDetailsPage() {
                     const isActiveBatter =
                       (isStriker || isNonStriker) &&
                       liveStats?.innings_no === inningsTab;
-
-                    if (batter.is_out) {
-                      statusText = "Out";
-                      statusColor = "text-destructive";
-                    } else if (
+                    const hasBatted =
                       isActiveBatter ||
                       batter.balls_played > 0 ||
-                      batter.runs_scored > 0
-                    ) {
-                      statusText = "Not out";
-                      statusColor = "text-[#0FAF9A]";
+                      batter.runs_scored > 0;
+
+                    if (hasBatted) {
+                      if (batter.is_not_out) {
+                        statusText = "Not out";
+                        // 👇 Your requested background color treatment 👇
+                        statusClass =
+                          "bg-[#0FAF9A]/20 text-[#0FAF9A] px-2 py-0.5 rounded-md font-bold";
+                      } else {
+                        statusText = "Out";
+                        statusClass = "text-destructive font-bold";
+                      }
                     }
 
                     const sr =
@@ -381,14 +464,15 @@ export default function MatchDetailsPage() {
                         key={batter.player_id}
                         className="p-2.5 flex items-center text-sm"
                       >
-                        <div className="w-1/3 min-w-[130px] font-bold text-[#F4FFFD] flex flex-col justify-center">
+                        <div className="w-1/3 min-w-[130px] font-bold text-[#F4FFFD] flex flex-col justify-center items-start">
                           <span>{batter.player_name}</span>
                           <span
-                            className={`text-[10px] ${statusColor} font-normal mt-0.5 leading-none`}
+                            className={`text-[10px] mt-1 leading-none inline-block ${statusClass}`}
                           >
                             {statusText}
                           </span>
                         </div>
+                        {/* ... rest of the batter row ... */}
                         <div className="flex-1 text-center font-bold text-[#F4FFFD]">
                           {batter.runs_scored}
                         </div>
@@ -396,10 +480,10 @@ export default function MatchDetailsPage() {
                           {batter.balls_played}
                         </div>
                         <div className="flex-1 text-center text-[#9FB7B2]">
-                          {batter.fours || 0}
+                          {batter.fours}
                         </div>
                         <div className="flex-1 text-center text-[#9FB7B2]">
-                          {batter.sixes || 0}
+                          {batter.sixes}
                         </div>
                         <div className="flex-1 text-right pr-2 text-[#9FB7B2]">
                           {sr}
@@ -411,59 +495,115 @@ export default function MatchDetailsPage() {
               </div>
             </div>
 
+            {/* BOWLING SCORECARD */}
             {bowlers.length > 0 && (
-              <div className="overflow-x-auto no-scrollbar">
-                <div className="bg-[#0B1F1B] rounded-xl border border-[#1B3530] overflow-hidden shadow-md min-w-[500px]">
-                  <div className="bg-[#1B3530]/50 p-2.5 flex items-center text-[11px] text-[#9FB7B2] font-bold uppercase tracking-wider">
-                    <div className="w-1/3 min-w-[130px]">Bowler</div>
-                    <div className="flex-1 text-center">O</div>
-                    <div className="flex-1 text-center">M</div>
-                    <div className="flex-1 text-center">R</div>
-                    <div className="flex-1 text-center">W</div>
-                    <div className="flex-1 text-right pr-2">ECO</div>
-                  </div>
+              <>
+                <h3 className="text-[#F4FFFD] font-bold text-sm px-1 mt-6">
+                  Bowling
+                </h3>
+                <div className="overflow-x-auto no-scrollbar">
+                  <div className="bg-[#0B1F1B] rounded-xl border border-[#1B3530] overflow-hidden shadow-md min-w-[600px]">
+                    <div className="bg-[#1B3530]/50 p-2.5 flex items-center text-[11px] text-[#9FB7B2] font-bold uppercase tracking-wider">
+                      <div className="w-1/4 min-w-[120px]">Bowler</div>
+                      <div className="flex-1 text-center">O</div>
+                      <div className="flex-1 text-center">M</div>
+                      <div className="flex-1 text-center">R</div>
+                      <div className="flex-1 text-center">W</div>
+                      <div className="flex-1 text-center">NB</div>
+                      <div className="flex-1 text-center">WD</div>
+                      <div className="flex-1 text-right pr-2">ECO</div>
+                    </div>
 
-                  <div className="divide-y divide-[#1B3530]/50">
-                    {bowlers.map((bowler: BowlerStats) => {
-                      const bOvers = Math.floor(bowler.overs_bowled);
-                      const bBalls = Math.round(
-                        (bowler.overs_bowled - bOvers) * 10,
-                      );
-                      const totalBalls = bOvers * 6 + bBalls;
-                      const ecoCalc =
-                        totalBalls > 0
-                          ? ((bowler.runs_conceded / totalBalls) * 6).toFixed(1)
-                          : "0.0";
+                    <div className="divide-y divide-[#1B3530]/50">
+                      {bowlers.map((bowler: BowlerStats) => {
+                        const bOvers = Math.floor(bowler.balls_bowled / 6);
+                        const bBalls = bowler.balls_bowled % 6;
+                        const displayOvers = `${bOvers}.${bBalls}`;
+                        const ecoCalc =
+                          bowler.balls_bowled > 0
+                            ? (
+                                (bowler.runs_conceded / bowler.balls_bowled) *
+                                6
+                              ).toFixed(1)
+                            : "0.0";
 
-                      return (
-                        <div
-                          key={bowler.player_id}
-                          className="p-2.5 flex items-center text-sm"
-                        >
-                          <div className="w-1/3 min-w-[130px] font-bold text-[#F4FFFD]">
-                            {bowler.player_name}
+                        return (
+                          <div
+                            key={bowler.player_id}
+                            className="p-2.5 flex items-center text-sm"
+                          >
+                            <div className="w-1/4 min-w-[120px] font-bold text-[#F4FFFD]">
+                              {bowler.player_name}
+                            </div>
+                            <div className="flex-1 text-center text-[#9FB7B2]">
+                              {displayOvers}
+                            </div>
+                            <div className="flex-1 text-center text-[#9FB7B2]">
+                              {bowler.maidens}
+                            </div>
+                            <div className="flex-1 text-center font-bold text-destructive">
+                              {bowler.runs_conceded}
+                            </div>
+                            <div className="flex-1 text-center font-bold text-[#F4FFFD]">
+                              {bowler.wickets_taken}
+                            </div>
+                            <div className="flex-1 text-center text-[#9FB7B2]">
+                              {bowler.no_balls}
+                            </div>
+                            <div className="flex-1 text-center text-[#9FB7B2]">
+                              {bowler.wides}
+                            </div>
+                            <div className="flex-1 text-right pr-2 text-[#9FB7B2]">
+                              {ecoCalc}
+                            </div>
                           </div>
-                          <div className="flex-1 text-center text-[#9FB7B2]">
-                            {bowler.overs_bowled}
-                          </div>
-                          <div className="flex-1 text-center text-[#9FB7B2]">
-                            {bowler.maidens || 0}
-                          </div>
-                          <div className="flex-1 text-center font-bold text-destructive">
-                            {bowler.runs_conceded}
-                          </div>
-                          <div className="flex-1 text-center font-bold text-[#F4FFFD]">
-                            {bowler.wickets_taken}
-                          </div>
-                          <div className="flex-1 text-right pr-2 text-[#9FB7B2]">
-                            {ecoCalc}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </>
+            )}
+
+            {/* FIELDING SCORECARD */}
+            {fielders.length > 0 && (
+              <>
+                <h3 className="text-[#F4FFFD] font-bold text-sm px-1 mt-6">
+                  Fielding
+                </h3>
+                <div className="overflow-x-auto no-scrollbar">
+                  <div className="bg-[#0B1F1B] rounded-xl border border-[#1B3530] overflow-hidden shadow-md min-w-[400px]">
+                    <div className="bg-[#1B3530]/50 p-2.5 flex items-center text-[11px] text-[#9FB7B2] font-bold uppercase tracking-wider">
+                      <div className="w-1/2 min-w-[130px]">Fielder</div>
+                      <div className="flex-1 text-center">Catches</div>
+                      <div className="flex-1 text-center">Run Outs</div>
+                      <div className="flex-1 text-right pr-2">Stumpings</div>
+                    </div>
+
+                    <div className="divide-y divide-[#1B3530]/50">
+                      {fielders.map((fielder: FielderStats) => (
+                        <div
+                          key={fielder.player_id}
+                          className="p-2.5 flex items-center text-sm"
+                        >
+                          <div className="w-1/2 min-w-[130px] font-bold text-[#F4FFFD]">
+                            {fielder.player_name}
+                          </div>
+                          <div className="flex-1 text-center text-[#0FAF9A] font-bold">
+                            {fielder.catches}
+                          </div>
+                          <div className="flex-1 text-center text-destructive font-bold">
+                            {fielder.runouts}
+                          </div>
+                          <div className="flex-1 text-right pr-2 text-warning font-bold">
+                            {fielder.stumpings}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}
