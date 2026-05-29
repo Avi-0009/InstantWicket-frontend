@@ -1,9 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { useThemeStore } from "../store/useThemeStore";
-import { getInitials } from "../utils/helpers";
-import { Logout } from "../Api/Auth";
+import { Logout, api } from "../Api/Auth";
 import {
   Bell,
   HelpCircle,
@@ -15,6 +14,9 @@ import {
   ChevronLeft,
   Moon,
   Sun,
+  UserCircle,
+  ShieldCheck,
+  Phone,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -52,7 +54,6 @@ const SettingsMenuItem = ({
       <Icon className="w-5 h-5 text-primary" />
       <span className="font-medium text-sm text-foreground">{label}</span>
     </div>
-    {/* If a custom right element (like a toggle) is passed, render it. Otherwise show chevron */}
     {rightElement ? (
       rightElement
     ) : (
@@ -66,13 +67,32 @@ const SettingsPage = () => {
   const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
 
+  // 1. State to hold the fetched player stats
+  const [playerStats, setPlayerStats] = useState<any>(null);
+
+  // 2. Fetch stats directly when component mounts
+  useEffect(() => {
+    const fetchFullStats = async () => {
+      if (!user?.id) return;
+      try {
+        const res = await api.get(`/player-stats/${user.id}`);
+        // Handle potential nested API responses securely
+        const fetchedData = res.data?.data || res.data?.stats || res.data;
+        setPlayerStats(fetchedData);
+      } catch (e) {
+        console.error("Failed to load full stats in settings", e);
+      }
+    };
+    fetchFullStats();
+  }, [user]);
+
   const handleLogout = async () => {
     try {
       await Logout();
       toast.success("User logged out successfully!");
     } catch (err) {
       console.error("Logout failed on server", err);
-      toast.success("Failed to logout user!");
+      toast.error("Failed to logout user!");
     } finally {
       logout();
       navigate("/auth");
@@ -86,7 +106,7 @@ const SettingsPage = () => {
       {/* HEADER */}
       <div className="flex items-center gap-3 mb-8">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate(-1)}
           className="p-2 bg-card border border-border rounded-full hover:bg-card-hover hover:border-primary/50 transition-all shadow-sm text-foreground"
         >
           <ChevronLeft className="w-5 h-5" />
@@ -94,34 +114,84 @@ const SettingsPage = () => {
         <h1 className="text-[28px] font-bold text-foreground">Settings</h1>
       </div>
 
-      {/* PROFILE CARD */}
-      <div className="bg-card border border-border rounded-xl p-5 mb-8 flex items-center gap-4 shadow-sm hover:border-primary/30 transition-colors cursor-pointer">
-        <div className="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center text-2xl font-bold border border-primary/30">
-          {getInitials(user.name)}
+      {/* OFFICIAL PLAYER CARD */}
+      <div className="bg-gradient-to-br from-card to-background p-8 rounded-3xl border border-border shadow-lg text-center mb-8 relative overflow-hidden">
+        {/* Background Ambient Glow */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -ml-10 -mb-10"></div>
+
+        <div className="relative z-10">
+          <div className="w-24 h-24 bg-primary/10 border-2 border-primary/20 rounded-full mx-auto flex items-center justify-center mb-4 shadow-inner">
+            <UserCircle className="w-16 h-16 text-primary" />
+          </div>
+
+          <h2 className="text-2xl font-black text-foreground">
+            {playerStats?.name || user?.name}
+          </h2>
+
+          <div className="flex items-center justify-center gap-2 mt-1 mb-6">
+            <ShieldCheck className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold text-primary">
+              Verified Player
+            </p>
+          </div>
+
+          {/* Details Summary */}
+          <div className="border-t border-border/50 pt-6 mt-2">
+            {/* Phone Number */}
+            <div className="flex items-center justify-center gap-2 text-muted-foreground mb-6">
+              <Phone className="w-4 h-4" />
+              <span className="font-medium text-sm tracking-wide">
+                {playerStats?.phone_no ||
+                  user?.phone_no ||
+                  user?.phone ||
+                  "No phone linked"}
+              </span>
+            </div>
+
+            {/* Playing Styles */}
+            <div className="flex justify-center gap-4">
+              <div className="flex-1 max-w-[140px]">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                  Batting Style
+                </div>
+                <div className="text-sm font-black text-foreground capitalize truncate">
+                  {playerStats?.batting_style || "N/A"}
+                </div>
+              </div>
+
+              <div className="w-px bg-border/60"></div>
+
+              <div className="flex-1 max-w-[140px]">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                  Bowling Style
+                </div>
+                <div className="text-sm font-black text-foreground capitalize truncate">
+                  {playerStats?.bowling_style || "N/A"}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex-1">
-          <h2 className="text-xl font-bold text-foreground">{user.name}</h2>
-          <p className="text-sm text-muted-foreground">{user.phone}</p>
-        </div>
-        <ChevronRight className="w-5 h-5 text-muted-foreground" />
       </div>
 
+      {/* SETTINGS SECTIONS */}
       <SettingsSection title="Account">
         <SettingsMenuItem
           icon={User}
           label="Personal Information"
           onClick={() => {}}
         />
-        <SettingsMenuItem
+        {/* <SettingsMenuItem
           icon={Shield}
           label="Privacy & Security"
           onClick={() => {}}
           hideBorder={true}
-        />
+        /> */}
       </SettingsSection>
 
       <SettingsSection title="Preferences">
-        {/* THEME TOGGLE MENU ITEM */}
+        {/* THEME TOGGLE */}
         <div className="w-full flex items-center justify-between p-4 bg-transparent border-b border-border hover:bg-card-hover transition-colors">
           <div className="flex items-center gap-3">
             {theme === "dark" ? (
@@ -139,7 +209,6 @@ const SettingsPage = () => {
             </div>
           </div>
 
-          {/* Animated Toggle Switch */}
           <button
             onClick={toggleTheme}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
@@ -154,15 +223,15 @@ const SettingsPage = () => {
           </button>
         </div>
 
-        <SettingsMenuItem
+        {/* <SettingsMenuItem
           icon={Bell}
           label="Push Notifications"
           onClick={() => {}}
           hideBorder={true}
-        />
+        /> */}
       </SettingsSection>
 
-      <SettingsSection title="Support">
+      {/* <SettingsSection title="Support">
         <SettingsMenuItem
           icon={HelpCircle}
           label="Help Center"
@@ -174,8 +243,9 @@ const SettingsPage = () => {
           onClick={() => {}}
           hideBorder={true}
         />
-      </SettingsSection>
+      </SettingsSection> */}
 
+      {/* LOGOUT */}
       <div className="mt-8">
         <button
           onClick={handleLogout}

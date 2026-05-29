@@ -5,11 +5,11 @@ export interface PlayerStats {
   id: string;
   user_id: string;
   name: string;
-  batting_style: string;
-  bowling_style: string;
-  career_matches: number;
-  career_runs: number;
-  career_wickets: number;
+  batting_style?: string;
+  bowling_style?: string;
+  career_matches?: number;
+  career_runs?: number;
+  career_wickets?: number;
   career_catches: number;
   career_runouts: number;
   career_stumpings: number;

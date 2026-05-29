@@ -1,11 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { PlayerStats } from "../hooks/usePlayerQueries";
 
-interface User {
+export interface User {
   id: string;
   name: string;
-  phone: string;
-  avatar?: string;
+  phone_no?: string;
+  phone?: string;
+  batting_style?: string;
+  bowling_style?: string;
+  player_stats?: PlayerStats;
 }
 
 interface AuthState {

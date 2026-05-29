@@ -1,173 +1,223 @@
-import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
-import SplashScreen from "../components/SplashScreen";
-import LiveMatchCard from "../components/matches/LiveMatchCard";
-import { Trophy, Activity, TrendingUp, Zap, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
-import { api } from "../Api/Auth";
+import {
+  Trophy,
+  Activity,
+  TrendingUp,
+  UserCircle,
+  ChevronRight,
+  Zap,
+  LogIn,
+} from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
-import toast from "react-hot-toast";
-
-let hasSeenSplashThisSession = false;
+import { useNavigate } from "react-router-dom";
+import { api } from "../Api/Auth";
+import LiveMatchCard from "../components/matches/LiveMatchCard";
 
 const Dashboard = () => {
-  const { user } = useAuthStore(); // Retrieve the logged-in user
-  const [isLoading, setIsLoading] = useState(!hasSeenSplashThisSession);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingPage, setIsFetchingPage] = useState(false);
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
 
-  // REAL DATA STATE
+  const [stats, setStats] = useState<any>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
   const [matches, setMatches] = useState<any[]>([]);
+  const [isFetchingMatches, setIsFetchingMatches] = useState(true);
 
+  // 1. Fetch Actual Player Stats (Only if Logged In)
   useEffect(() => {
-    if (!hasSeenSplashThisSession) {
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-        hasSeenSplashThisSession = true;
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  // FETCH & STRICTLY FILTER MATCHES
-  useEffect(() => {
-    const fetchMatches = async () => {
-      if (!user) return; // Do not fetch if the user isn't loaded
-
-      setIsFetchingPage(true);
+    const fetchFullStats = async () => {
+      if (!user?.id) {
+        setIsLoadingStats(false);
+        return;
+      }
       try {
-        // Pass query params to tell the backend what to look for using the strict TypeScript property
-        const res = await api.get(
-          `/matches?page=${page}&limit=10&status=ongoing&user_id=${user.id}`,
-        );
-        const rawMatches = res.data.matches || res.data || [];
-
-        // 🛡️ FRONTEND SAFETY FILTER
-        // Strictly guarantee only ONGOING matches where the user is creator or umpire are shown
-        const strictlyFilteredMatches = rawMatches.filter((m: any) => {
-          const isOngoing = m.status === "ongoing";
-          const isMine = m.created_by === user.id || m.umpire_id === user.id;
-          return isOngoing && isMine;
-        });
-
-        // Check if the backend has run out of matches
-        if (rawMatches.length < 10) {
-          setHasMore(false);
-        } else {
-          setHasMore(true);
-        }
-
-        // Apply pagination append logic
-        setMatches((prev) =>
-          page === 1
-            ? strictlyFilteredMatches
-            : [...prev, ...strictlyFilteredMatches],
-        );
-      } catch (error) {
-        console.error("Failed to fetch matches:", error);
-        toast.error("Failed to fetch dashboard matches!");
+        const res = await api.get(`/player-stats/${user.id}`);
+        const fetchedData = res.data?.data || res.data?.stats || res.data;
+        setStats(fetchedData);
+      } catch (e) {
+        console.error("Failed to load full stats", e);
       } finally {
-        setIsFetchingPage(false);
+        setIsLoadingStats(false);
       }
     };
+    fetchFullStats();
+  }, [user]);
 
+  // 2. Fetch Live Matches (Global for Guests, Filtered for Users)
+  useEffect(() => {
+    const fetchMatches = async () => {
+      setIsFetchingMatches(true);
+      try {
+        const res = await api.get(`/matches?limit=50`);
+        const rawMatches = res.data.matches || res.data || [];
+
+        // Base Filter: Must be ONGOING
+        const ongoingMatches = rawMatches.filter(
+          (m: any) => m.status === "ongoing",
+        );
+
+        if (user?.id) {
+          // STRICT FILTER: Only show matches where the logged-in user is Host or Umpire
+          setMatches(
+            ongoingMatches.filter(
+              (m: any) => m.created_by === user.id || m.umpire_id === user.id,
+            ),
+          );
+        } else {
+          // GUEST FILTER: Show all live matches happening right now
+          setMatches(ongoingMatches);
+        }
+      } catch (error) {
+        console.error("Failed to fetch matches", error);
+      } finally {
+        setIsFetchingMatches(false);
+      }
+    };
     fetchMatches();
-  }, [page, user]);
+  }, [user]);
 
-  if (isLoading) return <SplashScreen />;
+  const displayFullName = stats?.name || user?.name || "Player";
 
   return (
     <motion.main
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="p-4 md:p-6 max-w-6xl mx-auto pb-24 transition-colors duration-200"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="p-6 max-w-4xl mx-auto pb-24"
     >
-      {/* Header Area */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-[28px] font-bold text-foreground">
-            InstantWicket
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Welcome back, {user?.name || "Umpire"}! Here is your active console.
+      {/* BRANDING HEADER (Visible to everyone) */}
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl font-black bg-gradient-to-r from-[#0FAF9A] to-[#1B3530] bg-clip-text text-transparent drop-shadow-sm">
+          InstantWicket
+        </h1>
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <div className="w-2 h-2 rounded-full bg-[#0FAF9A] animate-pulse" />
+          <p className="text-foreground font-bold text-lg">
+            {user ? `${displayFullName}'s Dashboard` : "Live Action Dashboard"}
           </p>
         </div>
-
-        <NavLink
-          to="/new-match"
-          className="bg-primary text-white border-none rounded-lg px-6 py-3 text-sm font-bold flex items-center gap-2 w-full md:w-auto justify-center hover:bg-primary-hover transition-colors shadow-[0_0_15px_rgba(15,175,154,0.2)]"
-        >
-          <Trophy className="w-4 h-4" /> Start New Match
-        </NavLink>
       </div>
 
-      {/* Top Stats Grid (Simplified for Live Action) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
-          <Activity className="w-5 h-5 text-destructive mb-2 animate-pulse" />
-          <div className="text-3xl font-bold text-foreground">
-            {matches.length}
+      {/* CONDITIONAL TOP SECTION: User Stats vs Guest Login */}
+      {user ? (
+        <>
+          {/* CLICKABLE PROFILE PREVIEW */}
+          <div
+            onClick={() => navigate(`/player-stats/${user.id}`)}
+            className="mb-8 flex items-center justify-between bg-card p-6 rounded-3xl border border-border cursor-pointer hover:border-primary/50 transition-all shadow-sm group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform">
+                <UserCircle className="w-10 h-10 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-foreground">
+                  {displayFullName}
+                </h2>
+                <p className="text-sm text-primary font-medium">
+                  Tap to view full career profile
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            My Active Matches
-          </div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
-          <TrendingUp className="w-5 h-5 text-primary mb-2" />
-          <div className="text-3xl font-bold text-foreground">0</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Runs Scored (Today)
-          </div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm col-span-2 md:col-span-1">
-          <Trophy className="w-5 h-5 text-warning mb-2" />
-          <div className="text-3xl font-bold text-foreground">0</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Wickets Taken (Today)
-          </div>
-        </div>
-      </div>
 
-      {/* Title Area */}
+          {/* FETCHED STATS GRID */}
+          <div className="grid grid-cols-3 gap-4 mb-10">
+            <StatCard
+              icon={<Trophy className="text-primary" />}
+              label="Runs"
+              value={
+                isLoadingStats
+                  ? "..."
+                  : stats?.career_runs || stats?.runs_scored || 0
+              }
+            />
+            <StatCard
+              icon={<TrendingUp className="text-destructive" />}
+              label="Wickets"
+              value={
+                isLoadingStats
+                  ? "..."
+                  : stats?.career_wickets || stats?.wickets_taken || 0
+              }
+            />
+            <StatCard
+              icon={<Activity className="text-[#0FAF9A]" />}
+              label="Matches"
+              value={
+                isLoadingStats
+                  ? "..."
+                  : stats?.career_matches || stats?.matches_played || 0
+              }
+            />
+          </div>
+        </>
+      ) : (
+        /* GUEST CTA BANNER */
+        <div className="bg-card border border-border p-8 rounded-3xl text-center shadow-sm mb-10 group hover:border-primary/40 transition-colors">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <UserCircle className="w-8 h-8 text-primary" />
+          </div>
+          <h2 className="text-2xl font-black text-foreground mb-2">
+            Track Your Career
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+            Sign in to view your detailed player stats, manage your teams, and
+            score your own live matches.
+          </p>
+          <button
+            onClick={() => navigate("/auth")}
+            className="bg-primary text-white px-8 py-3.5 rounded-full font-bold shadow-md hover:bg-primary-hover transition-all flex items-center justify-center gap-2 mx-auto"
+          >
+            <LogIn className="w-5 h-5" /> Sign In / Sign Up
+          </button>
+        </div>
+      )}
+
+      {/* LIVE MATCHES SECTION */}
       <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
         <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
-          <Zap className="w-5 h-5 text-primary" /> My Live Matches
+          <Zap className="w-5 h-5 text-primary animate-pulse" />
+          {user ? "My Live Matches" : "Global Live Matches"}
         </h2>
       </div>
 
-      {/* REAL Matches Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {matches.length === 0 && !isFetchingPage ? (
-          <div className="text-muted-foreground text-sm col-span-2 py-8 text-center bg-card rounded-xl border border-border flex flex-col items-center justify-center gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {isFetchingMatches ? (
+          <div className="text-muted-foreground text-sm col-span-2 py-8 text-center bg-card rounded-xl border border-border">
+            Loading live matches...
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="text-muted-foreground text-sm col-span-2 py-8 text-center bg-card rounded-xl border border-border flex flex-col items-center justify-center gap-2 shadow-sm">
             <Activity className="w-8 h-8 text-border mb-2" />
-            <p className="font-semibold">You have no active matches.</p>
-            <p className="text-xs">
-              Start a new match to see it here, or check the Matches tab for
-              history.
+            <p className="font-semibold text-foreground">
+              No active matches right now.
+            </p>
+            <p className="text-xs text-muted-foreground text-center px-4">
+              {user
+                ? "Start a new match or get assigned as an umpire to see it appear here live."
+                : "Check back later to see live matches from across the platform."}
             </p>
           </div>
         ) : (
           matches.map((match) => <LiveMatchCard key={match.id} match={match} />)
         )}
       </div>
-
-      {/* PAGINATION: MANUAL LOAD MORE BUTTON */}
-      {hasMore && matches.length > 0 && (
-        <div className="flex justify-center mt-6 mb-12">
-          <button
-            onClick={() => setPage((prev) => prev + 1)}
-            disabled={isFetchingPage}
-            className="flex items-center gap-2 px-6 py-3 bg-card border border-border rounded-full text-foreground hover:bg-card-hover hover:border-primary/50 transition-all font-semibold text-sm shadow-sm disabled:opacity-50"
-          >
-            {isFetchingPage ? "Loading..." : "Load More Matches"}
-            {!isFetchingPage && <ChevronDown className="w-4 h-4" />}
-          </button>
-        </div>
-      )}
     </motion.main>
   );
 };
+
+function StatCard({ icon, label, value }: any) {
+  return (
+    <div className="bg-card border border-border p-4 rounded-2xl text-center shadow-sm">
+      <div className="flex justify-center mb-2">{icon}</div>
+      <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
+        {label}
+      </div>
+      <div className="text-2xl font-black text-foreground">{value}</div>
+    </div>
+  );
+}
 
 export default Dashboard;
