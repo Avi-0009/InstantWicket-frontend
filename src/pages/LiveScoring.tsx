@@ -29,7 +29,6 @@ const LiveScoring = () => {
   const [modifier, setModifier] = useState<"WD" | "NB" | null>(null);
   const [isFreeHit, setIsFreeHit] = useState(false);
 
-  // 🔴 FIXED: Safely typed as a string so the UI doesn't crash
   const [currentEvent, setCurrentEvent] = useState<
     "4" | "6" | "FREE_HIT" | "WICKET" | null
   >(null);
@@ -73,9 +72,7 @@ const LiveScoring = () => {
       if (res.data && Object.keys(res.data).length > 0) {
         setLiveStats(res.data);
       }
-    } catch (error: any) {
-      // Silently catch polling errors if the innings hasn't started yet
-    }
+    } catch (error: any) {}
   }, [matchId]);
 
   useEffect(() => {
@@ -117,7 +114,6 @@ const LiveScoring = () => {
       ? matchData?.toss_winner_team_id === matchData?.team_a_id
       : matchData?.toss_winner_team_id === matchData?.team_b_id;
 
-  // 🔴 THE 2ND INNINGS FIX: Infers the innings by checking if the batting team swapped!
   const teamAId = matchData?.team_a_id;
   const teamBId = matchData?.team_b_id;
   const expectedFirstInningsTeamId =
@@ -444,6 +440,17 @@ const LiveScoring = () => {
     }
   };
 
+  const handleFinalizeMatch = async () => {
+    const loadingToast = toast.loading("Finalizing Match...");
+    try {
+      await api.post(`/scoring/match/${matchId}/complete`);
+      toast.success("Match Completed!", { id: loadingToast, duration: 1500 });
+      navigate(`/match/${matchId}`);
+    } catch (err) {
+      toast.error("Failed to complete match.", { id: loadingToast });
+    }
+  };
+
   const handlePlayerSelect = (player: Player) => {
     if (modalConfig.role === "Striker") setActiveStriker(player);
     if (modalConfig.role === "Non-Striker") setActiveNonStriker(player);
@@ -589,10 +596,8 @@ const LiveScoring = () => {
                   </button>
                 ) : (
                   <button
-                    onClick={() =>
-                      toast.success("Match complete API coming next!")
-                    }
-                    className="bg-destructive text-background py-4 px-6 rounded-xl font-bold w-full"
+                    onClick={handleFinalizeMatch}
+                    className="bg-destructive hover:bg-destructive/90 transition-colors text-background py-4 px-6 rounded-xl font-bold w-full tracking-wider"
                   >
                     FINALIZE MATCH
                   </button>
