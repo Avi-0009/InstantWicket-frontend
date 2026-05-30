@@ -87,9 +87,9 @@ const LiveScoring = () => {
           }
 
           if (strikerRuns >= 100 && !milestones.current[strikerId].hundred) {
-            toast.success(`💯 CENTURY! Brilliant 100 by ${strikerName}!`, {
+            toast.success(`🎉 CENTURY! Brilliant 100 by ${strikerName}!`, {
               duration: 6000,
-              icon: "🔥",
+              icon: "🏏",
             });
             milestones.current[strikerId].hundred = true;
           } else if (
@@ -97,7 +97,7 @@ const LiveScoring = () => {
             strikerRuns < 100 &&
             !milestones.current[strikerId].fifty
           ) {
-            toast.success(`🏏 HALF-CENTURY for ${strikerName}!`, {
+            toast.success(`🔥 HALF-CENTURY for ${strikerName}!`, {
               duration: 5000,
               icon: "👏",
             });
@@ -239,7 +239,6 @@ const LiveScoring = () => {
   const oversDisplay = Number(`${overs}.${ballsInOver}`);
 
   const handleStartInnings = async () => {
-    // We let the API start the innings directly. UI will ask for players afterward!
     const currentInningsNo = isPreparingSecondInnings ? 2 : 1;
     const targetToSet = isPreparingSecondInnings ? currentTotalScore + 1 : null;
 
@@ -262,7 +261,6 @@ const LiveScoring = () => {
       const res = await api.post("/scoring/start", payload);
       setIsInningsDeclared(false);
       const newInningsId =
-        res.data?.inningID ||
         res.data?.data ||
         res.data?.innings_id ||
         res.data?.id ||
@@ -284,7 +282,9 @@ const LiveScoring = () => {
 
   const handleBall = (runs: number, isWicket: boolean = false) => {
     if (!hasInningsStarted) return toast.error("Innings has not started yet!");
-    // Logic enforced here: Cannot feed balls without players assigned!
+    if (isCurrentInningsOver)
+      return toast.error("The innings is already over!");
+
     if (!activeStriker || !activeNonStriker || !activeBowler) {
       return toast.error(
         "Please assign a Striker, Non-Striker, and Bowler first!",
@@ -406,15 +406,30 @@ const LiveScoring = () => {
         battingSquad.find((p) => p.id === finalNonStrikerId) || null,
       );
 
+      // --- NEW STRICT INNINGS OVER CHECK BEFORE MODALS OPEN ---
+      const newWickets = isWicket ? currentWickets + 1 : currentWickets;
+      const isNowAllOut = newWickets >= maxWickets && maxWickets > 0;
+
+      const newLegalBalls = isLegal ? currentLegalBalls + 1 : currentLegalBalls;
+      const isNowOversDone = maxBalls > 0 && newLegalBalls >= maxBalls;
+
+      const newScore = currentTotalScore + runsFromBat + extras;
+      const isNowTargetReached =
+        isSecondInnings && targetRuns > 0 && newScore >= targetRuns;
+
+      const willInningsEndNow =
+        isNowAllOut || isNowOversDone || isNowTargetReached;
+
       if (isWicket && outPlayerId) {
-        setTimeout(
-          () =>
+        setTimeout(() => {
+          // Only pop up modal if innings is NOT over
+          if (!willInningsEndNow) {
             setModalConfig({
               isOpen: true,
               role: finalStrikerId === undefined ? "Striker" : "Non-Striker",
-            }),
-          800,
-        );
+            });
+          }
+        }, 800);
       }
 
       if (isLegal && ballsInOver === 5) {
@@ -422,7 +437,10 @@ const LiveScoring = () => {
         setActiveBowler(null);
         setTimeout(() => {
           setThisOverTimeline([]);
-          if (!isWicket) setModalConfig({ isOpen: true, role: "Bowler" });
+          // Only pop up modal for new bowler if innings is NOT over
+          if (!isWicket && !willInningsEndNow) {
+            setModalConfig({ isOpen: true, role: "Bowler" });
+          }
         }, 1500);
       }
     } catch (error: any) {
@@ -506,7 +524,9 @@ const LiveScoring = () => {
       </div>
 
       <ScoreHeader
-        battingTeam={matchData.team_a_name}
+        battingTeam={
+          isTeamABatting ? matchData.team_a_name : matchData.team_b_name
+        }
         score={currentTotalScore}
         wickets={currentWickets}
         overs={oversDisplay}

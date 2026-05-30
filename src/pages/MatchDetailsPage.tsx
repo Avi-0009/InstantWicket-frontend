@@ -11,6 +11,9 @@ interface BatterStats {
   fours: number;
   sixes: number;
   is_not_out: boolean;
+  dismissal_type?: string;
+  bowled_by_name?: string;
+  caught_by_name?: string;
 }
 
 interface BowlerStats {
@@ -139,6 +142,9 @@ export default function MatchDetailsPage() {
       fours: stats.fours || 0,
       sixes: stats.sixes || 0,
       is_not_out: stats.is_not_out ?? true,
+      dismissal_type: stats.dismissal_type,
+      bowled_by_name: stats.bowled_by_name,
+      caught_by_name: stats.caught_by_name,
     };
   });
 
@@ -272,7 +278,7 @@ export default function MatchDetailsPage() {
                   </span>
                 </div>
 
-                {/* 👇 NEW: TARGET & CHASE TRACKER 👇 */}
+                {/* TARGET & CHASE TRACKER */}
                 {liveStats.target_runs > 0 && (
                   <div className="mt-5 bg-[#0D2420] border border-[#1B3530]/70 rounded-xl p-4 shadow-sm text-left">
                     <div className="flex justify-between items-center mb-2.5 text-sm">
@@ -289,7 +295,6 @@ export default function MatchDetailsPage() {
                       </span>
                     </div>
 
-                    {/* Progress Bar */}
                     <div className="h-1.5 w-full bg-[#1B3530] rounded-full overflow-hidden mb-2.5">
                       <div
                         className="h-full bg-[#0FAF9A] transition-all duration-500 ease-in-out rounded-full"
@@ -324,7 +329,6 @@ export default function MatchDetailsPage() {
                     </div>
                   </div>
                 )}
-                {/* 👆 END TARGET TRACKER 👆 */}
 
                 <div className="grid grid-cols-2 gap-3 mt-6 text-left">
                   <div className="bg-[#0D2420] p-3.5 rounded-xl border border-[#1B3530]/50">
@@ -423,7 +427,7 @@ export default function MatchDetailsPage() {
 
                 <div className="divide-y divide-[#1B3530]/50">
                   {batters.map((batter: BatterStats) => {
-                    // 🛡️ THE BULLETPROOF NOT-OUT LOGIC
+                    // 🛡️ THE BULLETPROOF STATUS LOGIC
                     let statusText = "Yet to bat";
                     let statusClass = "text-[#9FB7B2]"; // Default grey
 
@@ -434,21 +438,44 @@ export default function MatchDetailsPage() {
                     const isActiveBatter =
                       (isStriker || isNonStriker) &&
                       liveStats?.innings_no === inningsTab;
-                    const hasBatted =
-                      isActiveBatter ||
-                      batter.balls_played > 0 ||
-                      batter.runs_scored > 0;
 
-                    if (hasBatted) {
-                      if (batter.is_not_out) {
-                        statusText = "Not out";
-                        // 👇 Your requested background color treatment 👇
-                        statusClass =
-                          "bg-[#0FAF9A]/20 text-[#0FAF9A] px-2 py-0.5 rounded-md font-bold";
+                    if (isActiveBatter) {
+                      // Player is actively on pitch
+                      statusText = "Not out";
+                      statusClass =
+                        "bg-[#0FAF9A]/20 text-[#0FAF9A] px-2 py-0.5 rounded-md font-bold text-[10px]";
+                    } else if (
+                      batter.dismissal_type &&
+                      batter.dismissal_type.trim() !== ""
+                    ) {
+                      // Player has explicit dismissal recorded
+                      const method = batter.dismissal_type.toLowerCase();
+                      if (method === "bowled") {
+                        statusText = `b ${batter.bowled_by_name || "Unknown"}`;
+                      } else if (method === "caught") {
+                        statusText = `c ${batter.caught_by_name || "Unknown"} b ${batter.bowled_by_name || "Unknown"}`;
                       } else {
-                        statusText = "Out";
-                        statusClass = "text-destructive font-bold";
+                        statusText = batter.dismissal_type;
                       }
+                      statusClass =
+                        "text-destructive font-bold capitalize text-[10px]";
+                    } else if (
+                      batter.balls_played > 0 ||
+                      batter.runs_scored > 0 ||
+                      batter.is_not_out === false
+                    ) {
+                      // Fallback: Player has batted but is not on pitch, and no dismissal string
+                      if (batter.is_not_out === false) {
+                        statusText = "Out";
+                        statusClass = "text-destructive font-bold text-[10px]";
+                      } else {
+                        statusText = "Not out (Ret/Wait)";
+                        statusClass = "text-[#0FAF9A] font-bold text-[10px]";
+                      }
+                    } else {
+                      // Hasn't batted at all
+                      statusText = "Yet to bat";
+                      statusClass = "text-[#9FB7B2] text-[10px]";
                     }
 
                     const sr =
@@ -467,12 +494,11 @@ export default function MatchDetailsPage() {
                         <div className="w-1/3 min-w-[130px] font-bold text-[#F4FFFD] flex flex-col justify-center items-start">
                           <span>{batter.player_name}</span>
                           <span
-                            className={`text-[10px] mt-1 leading-none inline-block ${statusClass}`}
+                            className={`mt-0.5 leading-tight inline-block ${statusClass}`}
                           >
                             {statusText}
                           </span>
                         </div>
-                        {/* ... rest of the batter row ... */}
                         <div className="flex-1 text-center font-bold text-[#F4FFFD]">
                           {batter.runs_scored}
                         </div>
