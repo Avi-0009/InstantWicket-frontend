@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,20 +10,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Swords,
-  Loader2, // Import a loader icon
+  Loader2,
 } from "lucide-react";
 import PageHeader from "../components/common/PageHeader";
 import { usePlayerStats } from "../hooks/usePlayerQueries";
-
-// Keep the mock Match Log for now since we don't have a specific endpoint for recent matches yet
-const mockMatchLog = Array.from({ length: 45 }, (_, i) => ({
-  id: i,
-  date: `2026-05-${String((i % 30) + 1).padStart(2, "0")}`,
-  opponent: `Team ${String.fromCharCode(65 + (i % 5))}`,
-  runs: Math.floor(Math.random() * 80),
-  wickets: Math.floor(Math.random() * 4),
-  result: Math.random() > 0.5 ? "Won" : "Lost",
-}));
+import { api } from "../Api/Auth";
 
 const StatCard = ({
   title,
@@ -56,17 +47,58 @@ const StatCard = ({
 );
 
 const PlayerStatsPage = () => {
-  const { id } = useParams<{ id: string }>(); // Get the ID from the URL
+  const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Real Matches State
+  const [recentMatches, setRecentMatches] = useState<any[]>([]);
+  const [isFetchingMatches, setIsFetchingMatches] = useState(true);
+
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Use the TanStack hook
+  // Fetch Player Profile Stats
   const { data: stats, isLoading, isError, error } = usePlayerStats(id);
 
-  // Pagination Logic (using mock data for now)
-  const totalPages = Math.ceil(mockMatchLog.length / itemsPerPage);
-  const currentMatches = mockMatchLog.slice(
+  // Fetch Actual Recent Matches (Limited to 20)
+  useEffect(() => {
+    const fetchRecentMatches = async () => {
+      if (!id) return;
+      setIsFetchingMatches(true);
+      try {
+        const res = await api.get(`/matches?limit=50`);
+        const rawMatches = res.data?.matches || res.data || [];
+
+        // Filter out matches that belong to this player
+        const playerAssociatedMatches = rawMatches.filter(
+          (m: any) =>
+            m.created_by === id ||
+            m.umpire_id === id ||
+            m.status === "completed",
+        );
+
+        // Sort by newest first
+        const sorted = playerAssociatedMatches.sort(
+          (a: any, b: any) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+
+        // Strictly enforce a maximum of 20 matches
+        setRecentMatches(sorted.slice(0, 20));
+      } catch (err) {
+        console.error("Failed to fetch recent matches:", err);
+      } finally {
+        setIsFetchingMatches(false);
+      }
+    };
+
+    fetchRecentMatches();
+  }, [id]);
+
+  // Pagination Logic calculated from actual matches
+  const totalPages = Math.ceil(recentMatches.length / itemsPerPage);
+  const currentMatches = recentMatches.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   );
@@ -108,23 +140,20 @@ const PlayerStatsPage = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-[#0FAF9A]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
-            {/* Note: We don't have the user's name in the PlayerStats model directly, 
-                 you might need to fetch the basic user profile separately or adjust your Go backend 
-                 to return the name alongside the stats. Using a placeholder for now. */}
-            <div className="w-24 h-24 rounded-full bg-[#0FAF9A]/20 border-2 border-[#0FAF9A] flex items-center justify-center text-4xl font-bold text-[#0FAF9A] shadow-[0_0_20px_rgba(15,175,154,0.3)] shrink-0">
-              P
+            <div className="w-24 h-24 rounded-full bg-[#0FAF9A]/20 border-2 border-[#0FAF9A] flex items-center justify-center text-4xl font-bold text-[#0FAF9A] shadow-[0_0_20px_rgba(15,175,154,0.3)] shrink-0 capitalize">
+              {stats.name ? stats.name.charAt(0) : "P"}
             </div>
 
             <div className="text-center md:text-left flex-1">
-              <h1 className="text-3xl md:text-4xl font-black text-[#F4FFFD] mb-2">
-                Player Name
+              <h1 className="text-3xl md:text-4xl font-black text-[#F4FFFD] mb-2 capitalize">
+                {stats.name || "Unknown Player"}
               </h1>
               <div className="flex flex-wrap justify-center md:justify-start gap-3">
-                <span className="px-3 py-1 bg-[#1B3530] text-[#9FB7B2] rounded-full text-xs font-bold flex items-center gap-1.5">
+                <span className="px-3 py-1 bg-[#1B3530] text-[#9FB7B2] rounded-full text-xs font-bold flex items-center gap-1.5 capitalize">
                   <Swords className="w-3.5 h-3.5 text-[#0FAF9A]" />{" "}
                   {stats.batting_style || "N/A"}
                 </span>
-                <span className="px-3 py-1 bg-[#1B3530] text-[#9FB7B2] rounded-full text-xs font-bold flex items-center gap-1.5">
+                <span className="px-3 py-1 bg-[#1B3530] text-[#9FB7B2] rounded-full text-xs font-bold flex items-center gap-1.5 capitalize">
                   <Target className="w-3.5 h-3.5 text-[#FF6B6B]" />{" "}
                   {stats.bowling_style || "N/A"}
                 </span>
@@ -137,7 +166,7 @@ const PlayerStatsPage = () => {
                   Total Points
                 </p>
                 <p className="text-2xl font-black text-[#0FAF9A]">
-                  {stats.career_total_points}
+                  {stats.career_total_points || 0}
                 </p>
               </div>
               <div className="text-center md:text-right">
@@ -145,7 +174,7 @@ const PlayerStatsPage = () => {
                   MVP Awards
                 </p>
                 <p className="text-2xl font-black text-[#F59E0B] flex items-center justify-center md:justify-end gap-1">
-                  {stats.career_mvps} <Award className="w-5 h-5" />
+                  {stats.career_mvps || 0} <Award className="w-5 h-5" />
                 </p>
               </div>
             </div>
@@ -182,23 +211,23 @@ const PlayerStatsPage = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <StatCard
                   title="Matches"
-                  value={stats.career_matches}
+                  value={stats.career_matches || 0}
                   icon={Trophy}
                   highlight
                 />
                 <StatCard
                   title="Total Runs"
-                  value={stats.career_runs}
+                  value={stats.career_runs || 0}
                   icon={Swords}
                 />
                 <StatCard
                   title="Total Wickets"
-                  value={stats.career_wickets}
+                  value={stats.career_wickets || 0}
                   icon={Target}
                 />
                 <StatCard
                   title="Highest Score"
-                  value={`${stats.career_highest_score}*`}
+                  value={`${stats.career_highest_score || 0}*`}
                   icon={Activity}
                 />
               </div>
@@ -208,23 +237,23 @@ const PlayerStatsPage = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <StatCard
                   title="Total Runs"
-                  value={stats.career_runs}
+                  value={stats.career_runs || 0}
                   icon={Swords}
                   highlight
                 />
                 <StatCard
                   title="Strike Rate"
-                  value={stats.strike_rate}
+                  value={stats.strike_rate || "0.0"}
                   icon={Activity}
                 />
                 <StatCard
                   title="100s / 50s"
-                  value={`${stats.career_hundreds} / ${stats.career_fifties}`}
+                  value={`${stats.career_hundreds || 0} / ${stats.career_fifties || 0}`}
                   icon={Award}
                 />
                 <StatCard
                   title="Boundaries (4s/6s)"
-                  value={`${stats.career_fours} / ${stats.career_sixes}`}
+                  value={`${stats.career_fours || 0} / ${stats.career_sixes || 0}`}
                   icon={Target}
                 />
               </div>
@@ -234,22 +263,25 @@ const PlayerStatsPage = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <StatCard
                   title="Wickets"
-                  value={stats.career_wickets}
+                  value={stats.career_wickets || 0}
                   icon={Target}
                   highlight
                 />
                 <StatCard
                   title="Economy"
-                  value={stats.economy}
+                  value={stats.economy || "0.0"}
                   icon={Activity}
                 />
                 <StatCard
                   title="Best Bowling"
-                  value={`${stats.career_best_bowling_wickets}/${stats.career_best_bowling_runs}`}
+                  value={`${stats.career_best_bowling_wickets || 0}/${stats.career_best_bowling_runs || 0}`}
                   icon={Trophy}
                 />
-                <StatCard title="Maidens" value="0" icon={Shield} />{" "}
-                {/* You might need to add maidens to your Go model later */}
+                <StatCard
+                  title="Maidens"
+                  value={(stats as any).career_maiden_overs || 0}
+                  icon={Shield}
+                />
               </div>
             )}
 
@@ -257,18 +289,18 @@ const PlayerStatsPage = () => {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <StatCard
                   title="Catches"
-                  value={stats.career_catches}
+                  value={stats.career_catches || 0}
                   icon={Shield}
                   highlight
                 />
                 <StatCard
                   title="Run Outs"
-                  value={stats.career_runouts}
+                  value={stats.career_runouts || 0}
                   icon={Target}
                 />
                 <StatCard
                   title="Stumpings"
-                  value={stats.career_stumpings}
+                  value={stats.career_stumpings || 0}
                   icon={Activity}
                 />
               </div>
@@ -276,11 +308,12 @@ const PlayerStatsPage = () => {
           </motion.div>
         </AnimatePresence>
 
-        {/* RECENT INNINGS TABLE (Still Mocked) */}
-        {/* ... (Keep the rest of your table UI exactly the same) ... */}
+        {/* REAL MATCHES TABLE */}
         <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl shadow-lg overflow-hidden flex flex-col">
           <div className="p-5 border-b border-[#1B3530]">
-            <h3 className="text-lg font-bold text-[#F4FFFD]">Recent Matches</h3>
+            <h3 className="text-lg font-bold text-[#F4FFFD]">
+              Recent Matches (Last 20)
+            </h3>
           </div>
 
           <div className="overflow-x-auto">
@@ -288,102 +321,173 @@ const PlayerStatsPage = () => {
               <thead>
                 <tr className="bg-background/50 border-b border-[#1B3530] text-[#9FB7B2] text-xs uppercase tracking-wider">
                   <th className="p-4 font-semibold">Date</th>
-                  <th className="p-4 font-semibold">Opponent</th>
-                  <th className="p-4 font-semibold text-right">Runs</th>
-                  <th className="p-4 font-semibold text-right">Wickets</th>
+                  <th className="p-4 font-semibold">Match</th>
+                  <th className="p-4 font-semibold text-center">Format</th>
+                  <th className="p-4 font-semibold text-center">Runs</th>
+                  <th className="p-4 font-semibold text-center">Wickets</th>
                   <th className="p-4 font-semibold text-center">Result</th>
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {currentMatches.map((match) => (
-                  <tr
-                    key={match.id}
-                    className="border-b border-[#1B3530]/50 hover:bg-[#122A25] transition-colors"
-                  >
-                    <td className="p-4 text-[#F4FFFD]">{match.date}</td>
-                    <td className="p-4 text-[#F4FFFD] font-medium">
-                      {match.opponent}
-                    </td>
-                    <td className="p-4 text-[#0FAF9A] font-bold text-right">
-                      {match.runs}
-                    </td>
-                    <td className="p-4 text-[#F4FFFD] font-bold text-right">
-                      {match.wickets}
-                    </td>
-                    <td className="p-4 text-center">
-                      <span
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded-md ${
-                          match.result === "Won"
-                            ? "bg-[#0FAF9A]/20 text-[#0FAF9A]"
-                            : "bg-[#FF6B6B]/20 text-[#FF6B6B]"
-                        }`}
-                      >
-                        {match.result}
-                      </span>
+                {isFetchingMatches ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-[#9FB7B2]">
+                      Loading recent matches...
                     </td>
                   </tr>
-                ))}
+                ) : currentMatches.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-[#9FB7B2]">
+                      No matches found for this player yet.
+                    </td>
+                  </tr>
+                ) : (
+                  currentMatches.map((match) => {
+                    // DATE FORMATTING
+                    const matchDate = new Date(
+                      match.created_at,
+                    ).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    });
+
+                    // 🛡️ INTELLIGENT TEAM IDENTIFICATION
+                    // We attempt to figure out which team the player played for. Defaulting to Team A.
+                    let myTeam = match.team_a_name;
+                    let oppTeam = match.team_b_name;
+                    let myTeamId = match.team_a_id;
+
+                    // If the API provides player arrays, or a specific team_id, we map them correctly
+                    if (
+                      (match.team_b_players &&
+                        match.team_b_players.some((p: any) => p.id === id)) ||
+                      match.player_team_id === match.team_b_id
+                    ) {
+                      myTeam = match.team_b_name;
+                      oppTeam = match.team_a_name;
+                      myTeamId = match.team_b_id;
+                    }
+
+                    // 🛡️ RESULT BADGE LOGIC
+                    let resultBadge = "Live";
+                    let badgeClass = "bg-[#F59E0B]/20 text-[#F59E0B]"; // Yellow for Live/Upcoming
+
+                    if (match.status === "completed") {
+                      if (match.winner_team_id) {
+                        const didWin = match.winner_team_id === myTeamId;
+                        resultBadge = didWin ? "Won" : "Lost";
+                        badgeClass = didWin
+                          ? "bg-[#0FAF9A]/20 text-[#0FAF9A]" // Green for Win
+                          : "bg-[#FF6B6B]/20 text-[#FF6B6B]"; // Red for Loss
+                      } else {
+                        resultBadge = "Draw";
+                        badgeClass = "bg-[#9FB7B2]/20 text-[#9FB7B2]"; // Grey for Draw/Tie
+                      }
+                    }
+
+                    // 🛡️ INDIVIDUAL STATS (Requires Backend Support in the match list)
+                    // If your /matches API doesn't attach player runs/wickets directly to the summary,
+                    // this will safely fallback to a dash "-" until that data is embedded.
+                    const runsScored = match.player_runs ?? "-";
+                    const wicketsTaken = match.player_wickets ?? "-";
+
+                    return (
+                      <tr
+                        key={match.id}
+                        className="border-b border-[#1B3530]/50 hover:bg-[#122A25] transition-colors"
+                      >
+                        <td className="p-4 text-[#F4FFFD] whitespace-nowrap text-xs">
+                          {matchDate}
+                        </td>
+                        <td className="p-4 font-medium text-sm">
+                          <span className="text-[#F4FFFD] font-bold">
+                            {myTeam}
+                          </span>
+                          <span className="text-[#9FB7B2] text-xs px-1.5 italic">
+                            vs
+                          </span>
+                          <span className="text-[#9FB7B2]">{oppTeam}</span>
+                        </td>
+                        <td className="p-4 text-[#0FAF9A] font-bold text-center text-xs">
+                          {match.overs_limit} Ov
+                        </td>
+                        <td className="p-4 text-[#F4FFFD] font-bold text-center">
+                          {runsScored}
+                        </td>
+                        <td className="p-4 text-[#F4FFFD] font-bold text-center">
+                          {wicketsTaken}
+                        </td>
+                        <td className="p-4 text-center">
+                          <span
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider ${badgeClass}`}
+                          >
+                            {resultBadge}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
 
           {/* PAGINATION FOOTER */}
-          <div className="p-4 border-t border-[#1B3530] flex items-center justify-between bg-background/30">
-            <p className="text-xs text-[#9FB7B2]">
-              Showing{" "}
-              <span className="font-bold text-[#F4FFFD]">
-                {(currentPage - 1) * itemsPerPage + 1}
-              </span>{" "}
-              to{" "}
-              <span className="font-bold text-[#F4FFFD]">
-                {Math.min(currentPage * itemsPerPage, mockMatchLog.length)}
-              </span>{" "}
-              of{" "}
-              <span className="font-bold text-[#F4FFFD]">
-                {mockMatchLog.length}
-              </span>{" "}
-              results
-            </p>
+          {!isFetchingMatches && recentMatches.length > 0 && (
+            <div className="p-4 border-t border-[#1B3530] flex items-center justify-between bg-background/30">
+              <p className="text-xs text-[#9FB7B2]">
+                Showing{" "}
+                <span className="font-bold text-[#F4FFFD]">
+                  {(currentPage - 1) * itemsPerPage + 1}
+                </span>{" "}
+                to{" "}
+                <span className="font-bold text-[#F4FFFD]">
+                  {Math.min(currentPage * itemsPerPage, recentMatches.length)}
+                </span>{" "}
+                of{" "}
+                <span className="font-bold text-[#F4FFFD]">
+                  {recentMatches.length}
+                </span>{" "}
+                results
+              </p>
 
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1B3530] text-[#9FB7B2] hover:bg-[#1B3530] hover:text-[#F4FFFD] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1B3530] text-[#9FB7B2] hover:bg-[#1B3530] hover:text-[#F4FFFD] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
 
-              {/* Generate Page Numbers dynamically */}
-              {[...Array(Math.min(5, totalPages))].map((_, idx) => {
-                // Logic to show a window of pages around current page
-                let pageNum = currentPage > 2 ? currentPage - 2 + idx : idx + 1;
-                if (pageNum > totalPages) return null;
+                {[...Array(totalPages)].map((_, idx) => {
+                  let pageNum = idx + 1;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-semibold transition-colors ${
+                        currentPage === pageNum
+                          ? "bg-[#0FAF9A] text-background border border-[#0FAF9A]"
+                          : "border border-transparent text-[#9FB7B2] hover:border-[#1B3530] hover:bg-[#1B3530]"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
 
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-semibold transition-colors ${
-                      currentPage === pageNum
-                        ? "bg-[#0FAF9A] text-background border border-[#0FAF9A]"
-                        : "border border-transparent text-[#9FB7B2] hover:border-[#1B3530] hover:bg-[#1B3530]"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1B3530] text-[#9FB7B2] hover:bg-[#1B3530] hover:text-[#F4FFFD] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1B3530] text-[#9FB7B2] hover:bg-[#1B3530] hover:text-[#F4FFFD] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -24,6 +24,7 @@ export interface PlayerStats {
   career_best_bowling_runs: number;
   career_mvps: number;
   career_total_points: number;
+  career_maiden_overs?: number;
 }
 
 // 1. Fetch All Stats - Stripped prefix
