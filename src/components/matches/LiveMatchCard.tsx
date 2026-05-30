@@ -1,4 +1,4 @@
-import { Play } from "lucide-react";
+import { Play, Trophy, ChevronRight, User, ShieldAlert } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 interface LiveMatchCardProps {
@@ -6,135 +6,202 @@ interface LiveMatchCardProps {
 }
 
 const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
-  const totalBalls = match.legal_balls || 0;
-  const overs = Math.floor(totalBalls / 6);
-  const balls = totalBalls % 6;
-  const oversDisplay = `${overs}.${balls}`;
+  const isCompleted = match.status === "completed";
+  const isOngoing = match.status === "ongoing";
 
-  const crr =
-    totalBalls > 0
-      ? ((match.score || 0) / (totalBalls / 6)).toFixed(2)
-      : "0.00";
+  const formatOvers = (balls: number) => {
+    const overs = Math.floor((balls || 0) / 6);
+    const remainingBalls = (balls || 0) % 6;
+    return `${overs}.${remainingBalls}`;
+  };
 
-  let rrr = "0.00";
-  let ballsLeft = 0;
-
-  if (match.target && match.overs_limit) {
-    const maxBalls = match.overs_limit * 6;
-    ballsLeft = maxBalls - totalBalls;
-    const runsNeeded = match.target - (match.score || 0);
-
-    if (ballsLeft > 0 && runsNeeded > 0) {
-      rrr = (runsNeeded / (ballsLeft / 6)).toFixed(2);
+  // Determine Match Winner Text
+  let resultText = "";
+  if (isCompleted) {
+    if (match.winner_team_id) {
+      resultText =
+        match.winner_team_id === match.team_a_id
+          ? `${match.team_a_name} won the match`
+          : `${match.team_b_name} won the match`;
+    } else {
+      resultText = "Match Tied / Drawn";
     }
   }
 
-  return (
-    <div className="bg-linear-to-br from-card to-card-hover border border-border rounded-[14px] p-4 relative cursor-pointer hover:border-primary/40 transition-colors">
-      {match.status === "ongoing" && (
-        <div className="absolute top-3 right-3 bg-destructive/15 text-destructive px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1">
-          <span className="w-1 h-1 rounded-full bg-destructive animate-pulse inline-block"></span>
-          LIVE
-        </div>
-      )}
+  // Determine Toss Text
+  const tossWinnerName =
+    match.toss_winner_team_id === match.team_a_id
+      ? match.team_a_name
+      : match.team_b_name;
+  const tossText = match.toss_winner_team_id
+    ? `${tossWinnerName} won the toss and elected to ${match.toss_decision}`
+    : "Toss not decided";
 
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-9 h-9 rounded-lg bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold uppercase">
-          {match.team_a_name ? match.team_a_name.substring(0, 3) : "TBA"}
+  return (
+    <div className="bg-linear-to-br from-card to-card-hover border border-border rounded-[14px] p-4 relative cursor-pointer hover:border-primary/40 transition-colors flex flex-col h-full">
+      {/* Match Status & Overs */}
+      <div className="flex justify-between items-center mb-4">
+        {isOngoing ? (
+          <div className="bg-destructive/15 text-destructive px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1 w-max">
+            <span className="w-1 h-1 rounded-full bg-destructive animate-pulse inline-block"></span>
+            LIVE
+          </div>
+        ) : isCompleted ? (
+          <div className="bg-primary/15 text-primary px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1 w-max">
+            <Trophy className="w-3 h-3" />
+            COMPLETED
+          </div>
+        ) : (
+          <div className="bg-muted text-muted-foreground px-2 py-0.5 rounded-md text-[11px] font-bold w-max">
+            UPCOMING
+          </div>
+        )}
+        <div className="text-xs text-muted-foreground font-medium">
+          {match.overs_limit} Overs Match
         </div>
-        <div>
-          <div className="font-semibold text-sm">
-            {match.team_a_name}{" "}
-            <span className="text-muted-foreground text-xs font-normal">v</span>{" "}
+      </div>
+
+      {/* Scores Section - Shows both teams always */}
+      <div className="flex justify-between items-center mb-4">
+        {/* Team A */}
+        <div className="flex-1">
+          <div
+            className="font-semibold text-sm truncate max-w-[120px]"
+            title={match.team_a_name}
+          >
+            {match.team_a_name}
+          </div>
+          <div className="text-2xl font-bold text-foreground mt-0.5">
+            {match.team_a_score || 0}
+            <span className="text-base text-muted-foreground font-medium">
+              /{match.team_a_wickets || 0}
+            </span>
+          </div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            ({formatOvers(match.team_a_balls)})
+          </div>
+        </div>
+
+        <div className="px-3 text-xs font-bold text-muted-foreground bg-muted/30 rounded-full py-1">
+          VS
+        </div>
+
+        {/* Team B */}
+        <div className="flex-1 text-right">
+          <div
+            className="font-semibold text-sm truncate max-w-[120px ml-auto]"
+            title={match.team_b_name}
+          >
             {match.team_b_name}
           </div>
-          <div className="text-2xl font-bold text-primary mt-0.5">
-            {match.score || 0}
-            <span className="text-base text-muted-foreground">
-              /{match.wickets || 0}
+          <div className="text-2xl font-bold text-foreground mt-0.5">
+            {match.team_b_score || 0}
+            <span className="text-base text-muted-foreground font-medium">
+              /{match.team_b_wickets || 0}
+            </span>
+          </div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            ({formatOvers(match.team_b_balls)})
+          </div>
+        </div>
+      </div>
+
+      {/* Main Result Banner */}
+      <div
+        className={`rounded-lg p-2.5 mb-3 text-xs shadow-inner font-medium text-center ${isCompleted ? "bg-primary/10 text-primary border border-primary/20" : "bg-[#0B1F1B] border border-[#1B3530] text-[#9FB7B2]"}`}
+      >
+        {isCompleted ? resultText : tossText}
+      </div>
+
+      {/* NEW: Target Chase Progress Bar (2nd Innings Only) */}
+      {isOngoing && match.target > 0 && (
+        <div className="mb-3 bg-[#0D2420] border border-[#1B3530]/70 rounded-xl p-3 shadow-sm text-left">
+          <div className="flex justify-between items-center mb-2 text-xs">
+            <span className="text-[#9FB7B2] font-medium">
+              Target: {match.target}
+            </span>
+            <span className="text-[#0FAF9A] font-bold">
+              Need {Math.max(0, match.target - (match.score || 0))} runs
+            </span>
+          </div>
+
+          <div className="h-1.5 w-full bg-[#1B3530] rounded-full overflow-hidden mb-2">
+            <div
+              className="h-full bg-[#0FAF9A] transition-all duration-500 ease-in-out rounded-full"
+              style={{
+                width: `${Math.min(100, Math.max(0, ((match.score || 0) / match.target) * 100))}%`,
+              }}
+            ></div>
+          </div>
+
+          <div className="flex justify-between items-center text-[10px] text-[#9FB7B2] font-medium">
+            <span>
+              RRR:{" "}
+              {match.overs_limit * 6 - (match.legal_balls || 0) > 0
+                ? (
+                    (Math.max(0, match.target - (match.score || 0)) /
+                      (match.overs_limit * 6 - (match.legal_balls || 0))) *
+                    6
+                  ).toFixed(2)
+                : "0.00"}
+            </span>
+            <span>
+              {Math.max(0, match.overs_limit * 6 - (match.legal_balls || 0))}{" "}
+              balls left
             </span>
           </div>
         </div>
-        <div className="ml-auto text-right">
-          <div className="text-xs font-medium text-muted-foreground">
-            {oversDisplay} ov
-          </div>
-          <div className="text-[11px] font-bold text-primary-hover mt-0.5">
-            CRR: {crr}
-          </div>
-        </div>
-      </div>
+      )}
 
-      <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-lg p-2.5 mb-3 text-xs shadow-inner">
-        <div className="flex justify-between items-center mb-1.5">
-          <span className="text-[#9FB7B2] font-medium">
-            {match.target ? `Target: ${match.target}` : "1st Innings"}
-          </span>
-          <span className="text-primary font-bold">
-            {match.target && (match.score || 0) < match.target
-              ? `Need ${match.target - (match.score || 0)} runs`
-              : match.target && (match.score || 0) >= match.target
-                ? "Target Reached!"
-                : ""}
-          </span>
-        </div>
-
-        <div className="h-1.5 bg-[#1B3530] rounded-full overflow-hidden mb-1.5">
-          <div
-            className="h-full bg-linear-to-r from-[#0FAF9A] to-[#19F0C1] rounded-full transition-all duration-500"
-            style={{
-              width: match.target
-                ? `${Math.min(((match.score || 0) / match.target) * 100, 100)}%`
-                : "0%",
-            }}
-          ></div>
-        </div>
-
-        {match.target ? (
-          <div className="flex justify-between text-[11px] text-[#9FB7B2]">
-            <span>RRR: {rrr}</span>
-            <span>{ballsLeft} balls left</span>
-          </div>
-        ) : (
-          <div className="text-[11px] text-[#9FB7B2]">
-            Setting the target...
+      {/* Metadata Section: Toss, Umpire, Creator */}
+      <div className="flex flex-col gap-1.5 text-[11px] text-muted-foreground mt-2 mb-3 bg-muted/20 p-2.5 rounded-lg border border-border/50">
+        {/* If completed, we show the toss here since the banner is taken by the match winner */}
+        {isCompleted && (
+          <div className="flex items-center gap-1.5 pb-1.5 border-b border-border/50">
+            <span className="font-semibold text-foreground/70">Toss:</span>{" "}
+            {tossText}
           </div>
         )}
-      </div>
-
-      <div className="flex justify-between items-end text-xs mt-3 border-t border-[#1B3530]/50 pt-3">
-        <div className="flex gap-6">
-          {/* Batters */}
-          <div>
-            <div className="text-[#9FB7B2] text-[10px] font-bold uppercase tracking-wider mb-1">
-              Batters
-            </div>
-            <div className="font-bold text-[#F4FFFD] flex items-center gap-1">
-              {match.striker_name || "Waiting..."}{" "}
-              <span className="text-[#0FAF9A]">*</span>
-            </div>
-            <div className="font-medium text-[#9FB7B2] mt-0.5">
-              {match.non_striker_name || "Waiting..."}
-            </div>
+        <div className="flex justify-between items-center pt-1">
+          <div className="flex items-center gap-1 truncate" title="Umpire">
+            <ShieldAlert className="w-3 h-3 text-primary/70" />
+            <span className="truncate max-w-[100px]">
+              {match.umpire_name || "Self/None"}
+            </span>
           </div>
-
-          {/* Bowler */}
-          <div>
-            <div className="text-destructive/70 text-[10px] font-bold uppercase tracking-wider mb-1">
-              Bowler
-            </div>
-            <div className="font-bold text-destructive">
-              {match.bowler_name || "Waiting..."}
-            </div>
+          <div className="flex items-center gap-1 truncate" title="Created By">
+            <User className="w-3 h-3 text-primary/70" />
+            <span className="truncate max-w-[100px]">
+              {match.creator_name || "Organizer"}
+            </span>
           </div>
         </div>
+      </div>
+
+      {/* Bottom Action Area */}
+      <div className="mt-auto pt-2 border-t border-border flex justify-between items-center">
+        {isOngoing ? (
+          <div className="text-xs font-medium text-[#0FAF9A] animate-pulse">
+            Match in progress...
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">Match final.</div>
+        )}
 
         <NavLink
           to={`/matches/${match.id}/score`}
           onClick={(e) => e.stopPropagation()}
-          className="bg-primary/10 border border-primary/20 rounded-lg px-4 py-2 font-bold text-primary flex items-center gap-1.5 hover:bg-primary hover:text-background transition-colors"
+          className="shrink-0 bg-primary/10 border border-primary/20 rounded-lg px-4 py-2 font-bold text-primary flex items-center gap-1.5 hover:bg-primary hover:text-background transition-colors text-xs"
         >
-          <Play className="w-3.5 h-3.5" fill="currentColor" /> Score
+          {isOngoing ? (
+            <>
+              <Play className="w-3.5 h-3.5" fill="currentColor" /> Score
+            </>
+          ) : (
+            <>
+              View Stats <ChevronRight className="w-3.5 h-3.5" />
+            </>
+          )}
         </NavLink>
       </div>
     </div>

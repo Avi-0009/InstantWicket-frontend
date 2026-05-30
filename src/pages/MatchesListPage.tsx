@@ -125,77 +125,129 @@ const MatchesListPage = () => {
         /* Real Matches List */
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            {filteredMatches.map((match: any) => (
-              <div
-                key={match.id}
-                onClick={() => navigate(`/match/${match.id}`)}
-                className="bg-card border border-border rounded-xl p-5 hover:border-primary/50 hover:bg-card-hover transition-all cursor-pointer shadow-sm relative overflow-hidden group"
-              >
-                {/* Status Badge */}
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
-                    {match.overs_limit} OVERS
-                  </span>
+            {filteredMatches.map((match: any) => {
+              // Calculate Dynamic Data for Each Card
+              const isCompleted = match.status === "completed";
+              const isOngoing = match.status === "ongoing";
 
-                  {match.status === "ongoing" && (
-                    <div className="bg-destructive/15 text-destructive px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 border border-destructive/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse"></span>{" "}
-                      LIVE
-                    </div>
-                  )}
-                  {(match.status === "upcoming" || !match.status) && (
-                    <div className="bg-primary/15 text-primary px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 border border-primary/20">
-                      <Calendar className="w-3 h-3" /> UPCOMING
-                    </div>
-                  )}
-                  {match.status === "completed" && (
-                    <div className="bg-border text-muted-foreground px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
-                      COMPLETED
-                    </div>
-                  )}
-                </div>
+              const formatOvers = (balls: number) => {
+                return `${Math.floor((balls || 0) / 6)}.${(balls || 0) % 6}`;
+              };
 
-                {/* Teams */}
-                <div className="space-y-3 mb-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-lg group-hover:text-primary transition-colors">
-                      {match.team_a_name}
+              let resultText = "";
+              if (isCompleted) {
+                if (match.winner_team_id) {
+                  resultText =
+                    match.winner_team_id === match.team_a_id
+                      ? `🏆 ${match.team_a_name} won the match`
+                      : `🏆 ${match.team_b_name} won the match`;
+                } else {
+                  resultText = "Match Tied / Drawn";
+                }
+              } else {
+                const tossWinnerName =
+                  match.toss_winner_team_id === match.team_a_id
+                    ? match.team_a_name
+                    : match.team_b_name;
+                resultText = match.toss_winner_team_id
+                  ? `Toss won by ${tossWinnerName}`
+                  : "Toss not decided";
+              }
+
+              return (
+                <div
+                  key={match.id}
+                  onClick={() => navigate(`/matches/${match.id}`)}
+                  className="bg-card border border-border rounded-xl p-5 hover:border-primary/50 hover:bg-card-hover transition-all cursor-pointer shadow-sm relative overflow-hidden group flex flex-col h-full"
+                >
+                  {/* Status Badge */}
+                  <div className="flex justify-between items-center mb-5">
+                    <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                      {match.overs_limit} OVERS
                     </span>
-                    <span className="font-bold text-muted-foreground text-sm">
-                      -
-                    </span>
+
+                    {isOngoing && (
+                      <div className="bg-destructive/15 text-destructive px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 border border-destructive/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse"></span>{" "}
+                        LIVE
+                      </div>
+                    )}
+                    {(match.status === "upcoming" || !match.status) && (
+                      <div className="bg-primary/15 text-primary px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 border border-primary/20">
+                        <Calendar className="w-3 h-3" /> UPCOMING
+                      </div>
+                    )}
+                    {isCompleted && (
+                      <div className="bg-border text-muted-foreground px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                        COMPLETED
+                      </div>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-lg group-hover:text-primary transition-colors">
-                      {match.team_b_name}
-                    </span>
-                    <span className="font-bold text-muted-foreground text-sm">
-                      -
-                    </span>
+
+                  {/* Teams and Real Scores */}
+                  <div className="space-y-4 mb-5">
+                    {/* Team A */}
+                    <div className="flex justify-between items-center">
+                      <span
+                        className="font-bold text-foreground text-lg group-hover:text-primary transition-colors truncate max-w-[60%]"
+                        title={match.team_a_name}
+                      >
+                        {match.team_a_name}
+                      </span>
+                      <div className="text-right flex items-baseline gap-1.5">
+                        <span className="text-lg font-bold text-foreground">
+                          {match.team_a_score || 0}
+                          <span className="text-sm text-muted-foreground font-medium">
+                            /{match.team_a_wickets || 0}
+                          </span>
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          ({formatOvers(match.team_a_balls)} ov)
+                        </span>
+                      </div>
+                    </div>
+                    {/* Team B */}
+                    <div className="flex justify-between items-center">
+                      <span
+                        className="font-bold text-foreground text-lg group-hover:text-primary transition-colors truncate max-w-[60%]"
+                        title={match.team_b_name}
+                      >
+                        {match.team_b_name}
+                      </span>
+                      <div className="text-right flex items-baseline gap-1.5">
+                        <span className="text-lg font-bold text-foreground">
+                          {match.team_b_score || 0}
+                          <span className="text-sm text-muted-foreground font-medium">
+                            /{match.team_b_wickets || 0}
+                          </span>
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          ({formatOvers(match.team_b_balls)} ov)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Result / Toss */}
+                  <div className="mt-auto pt-3 border-t border-border/50 text-xs text-muted-foreground">
+                    {isCompleted ? (
+                      <span className="text-primary font-bold uppercase tracking-wide">
+                        {resultText}
+                      </span>
+                    ) : isOngoing ? (
+                      <div className="flex flex-col gap-1.5">
+                        <span className="flex items-center gap-1.5 text-destructive font-medium">
+                          <Activity className="w-3.5 h-3.5" /> Match in progress
+                        </span>
+                        <span>{resultText}</span>
+                      </div>
+                    ) : (
+                      <span>{resultText}</span>
+                    )}
                   </div>
                 </div>
-
-                {/* Footer */}
-                <div className="pt-3 border-t border-border/50 text-xs text-muted-foreground">
-                  {match.status === "completed" && match.winner_team_id ? (
-                    <span className="text-warning font-bold flex items-center gap-1.5">
-                      <Trophy className="w-3.5 h-3.5" /> Result Available
-                    </span>
-                  ) : match.status === "ongoing" ? (
-                    <span className="flex items-center gap-1.5 text-destructive">
-                      <Activity className="w-3.5 h-3.5" /> Match in progress
-                    </span>
-                  ) : (
-                    <span>
-                      Toss won by{" "}
-                      {match.tos_winner_team_id === match.team_a_id
-                        ? match.team_a_name
-                        : match.team_b_name}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* PAGINATION: MANUAL LOAD MORE BUTTON */}

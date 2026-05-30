@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Trophy } from "lucide-react";
 import { api } from "../Api/Auth";
 
 interface BatterStats {
@@ -10,7 +10,7 @@ interface BatterStats {
   balls_played: number;
   fours: number;
   sixes: number;
-  is_not_out: boolean;
+  is_not_out?: boolean;
   dismissal_type?: string;
   bowled_by_name?: string;
   caught_by_name?: string;
@@ -85,6 +85,7 @@ export default function MatchDetailsPage() {
     );
   }
 
+  // --- DERIVED DATA CALCULATIONS ---
   const overs = liveStats ? Math.floor((liveStats.legal_balls || 0) / 6) : 0;
   const balls = liveStats ? (liveStats.legal_balls || 0) % 6 : 0;
   const crr =
@@ -121,6 +122,25 @@ export default function MatchDetailsPage() {
       ? matchData?.team_a_players
       : matchData?.team_b_players;
 
+  // Formatting Overs helper for the result banner
+  const formatOvers = (totalBalls: number) => {
+    return `${Math.floor((totalBalls || 0) / 6)}.${(totalBalls || 0) % 6}`;
+  };
+
+  // Determine Match Winner Text for Completed Matches
+  let matchResultText = "";
+  if (matchData.status === "completed") {
+    if (matchData.winner_team_id) {
+      matchResultText =
+        matchData.winner_team_id === teamAId
+          ? `${matchData.team_a_name} won the match`
+          : `${matchData.team_b_name} won the match`;
+    } else {
+      matchResultText = "Match Tied / Drawn";
+    }
+  }
+
+  // Scorecard Generation Logic
   const batters: BatterStats[] = (teamPlayers || []).map((p: any) => {
     const stats = scorecard.find((s) => s.player_id === p.id) || {};
     let runs = stats.runs_scored || 0;
@@ -141,7 +161,7 @@ export default function MatchDetailsPage() {
       balls_played: playedBalls,
       fours: stats.fours || 0,
       sixes: stats.sixes || 0,
-      is_not_out: stats.is_not_out ?? true,
+      is_not_out: stats.is_not_out, // Strictly read from the backend
       dismissal_type: stats.dismissal_type,
       bowled_by_name: stats.bowled_by_name,
       caught_by_name: stats.caught_by_name,
@@ -200,18 +220,34 @@ export default function MatchDetailsPage() {
   return (
     <div className="min-h-screen bg-background pb-8">
       {/* HEADER */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md px-4 py-4 flex items-center gap-3 border-b border-border">
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md px-4 py-3 flex items-start gap-3 border-b border-border shadow-sm">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 bg-card border border-border rounded-full text-foreground hover:bg-border transition-colors"
+          className="p-2 mt-1 bg-card border border-border rounded-full text-foreground hover:bg-border transition-colors shrink-0"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div>
-          <h1 className="text-lg font-bold text-[#F4FFFD] leading-tight">
+        <div className="flex-1 overflow-hidden">
+          <h1 className="text-lg font-bold text-[#F4FFFD] leading-tight truncate">
             {matchData.team_a_name} vs {matchData.team_b_name}
           </h1>
-          <p className="text-xs text-[#9FB7B2]">Match Details</p>
+
+          {/* NEW: Host & Umpire Display */}
+          <div className="flex items-center gap-3 mt-1.5 text-[11px] font-medium text-[#9FB7B2]">
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="text-primary/70 shrink-0">Host:</span>
+              <span className="truncate text-foreground/80">
+                {matchData.creator_name || "Organizer"}
+              </span>
+            </div>
+            <span className="text-[#1B3530] shrink-0">|</span>
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="text-primary/70 shrink-0">Umpire:</span>
+              <span className="truncate text-foreground/80">
+                {matchData.umpire_name || "Self/None"}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -242,146 +278,213 @@ export default function MatchDetailsPage() {
 
         {/* ----------------- SUMMARY TAB ----------------- */}
         {activeTab === "Summary" && (
-          <div className="bg-[#0B1F1B] border border-[#1B3530] p-5 rounded-2xl shadow-lg">
-            {!liveStats?.innings_id ? (
-              <div className="text-center text-[#9FB7B2] py-8">
-                Match has not started yet.
-              </div>
-            ) : (
-              <div className="animate-fade-in text-center">
-                <div className="text-sm font-bold text-[#9FB7B2] mb-1 uppercase tracking-wider">
-                  {liveStats.innings_no === 1
-                    ? firstInningsTeamId === teamAId
-                      ? matchData.team_a_name
-                      : matchData.team_b_name
-                    : secondInningsTeamId === teamAId
-                      ? matchData.team_a_name
-                      : matchData.team_b_name}{" "}
-                  Innings
+          <div className="flex flex-col gap-4">
+            {/* MATCH FINAL RESULT BANNER */}
+            {matchData.status === "completed" && (
+              <div className="bg-primary/10 border border-primary/30 rounded-2xl p-5 shadow-sm text-center animate-fade-in">
+                <div className="flex justify-center mb-2">
+                  <Trophy className="w-8 h-8 text-primary" />
                 </div>
-                <div className="text-5xl font-black text-[#F4FFFD] tracking-tight drop-shadow-md">
-                  {liveStats.current_score}{" "}
-                  <span className="text-2xl text-[#9FB7B2] font-semibold">
-                    / {liveStats.wickets}
-                  </span>
-                </div>
-                <div className="flex justify-center items-center gap-4 mt-2 text-sm font-medium">
-                  <span className="text-[#9FB7B2]">
-                    Overs:{" "}
-                    <span className="text-[#0FAF9A] font-bold">
-                      {overs}.{balls}
-                    </span>
-                  </span>
-                  <span className="text-[#1B3530]">|</span>
-                  <span className="text-[#9FB7B2]">
-                    CRR: <span className="text-[#0FAF9A] font-bold">{crr}</span>
-                  </span>
-                </div>
+                <h2 className="text-xl font-black text-primary mb-4 uppercase tracking-wide">
+                  {matchResultText}
+                </h2>
 
-                {/* TARGET & CHASE TRACKER */}
-                {liveStats.target_runs > 0 && (
-                  <div className="mt-5 bg-[#0D2420] border border-[#1B3530]/70 rounded-xl p-4 shadow-sm text-left">
-                    <div className="flex justify-between items-center mb-2.5 text-sm">
-                      <span className="text-[#9FB7B2] font-medium">
-                        Target: {liveStats.target_runs}
-                      </span>
-                      <span className="text-[#0FAF9A] font-bold">
-                        Need{" "}
-                        {Math.max(
-                          0,
-                          liveStats.target_runs - liveStats.current_score,
-                        )}{" "}
-                        runs
+                <div className="flex justify-center items-center gap-6 mt-4 border-t border-primary/20 pt-4">
+                  <div className="text-center flex-1">
+                    <div
+                      className="text-sm font-bold text-[#F4FFFD] truncate max-w-[120px] mx-auto"
+                      title={matchData.team_a_name}
+                    >
+                      {matchData.team_a_name}
+                    </div>
+                    <div className="text-2xl font-black text-[#0FAF9A]">
+                      {matchData.team_a_score || 0}
+                      <span className="text-sm font-medium text-[#9FB7B2]">
+                        /{matchData.team_a_wickets || 0}
                       </span>
                     </div>
-
-                    <div className="h-1.5 w-full bg-[#1B3530] rounded-full overflow-hidden mb-2.5">
-                      <div
-                        className="h-full bg-[#0FAF9A] transition-all duration-500 ease-in-out rounded-full"
-                        style={{
-                          width: `${Math.min(100, Math.max(0, (liveStats.current_score / liveStats.target_runs) * 100))}%`,
-                        }}
-                      ></div>
-                    </div>
-
-                    <div className="flex justify-between items-center text-xs text-[#9FB7B2] font-medium">
-                      <span>
-                        RRR:{" "}
-                        {matchData.overs_limit * 6 - liveStats.legal_balls > 0
-                          ? (
-                              (Math.max(
-                                0,
-                                liveStats.target_runs - liveStats.current_score,
-                              ) /
-                                (matchData.overs_limit * 6 -
-                                  liveStats.legal_balls)) *
-                              6
-                            ).toFixed(2)
-                          : "0.00"}
-                      </span>
-                      <span>
-                        {Math.max(
-                          0,
-                          matchData.overs_limit * 6 - liveStats.legal_balls,
-                        )}{" "}
-                        balls left
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-3 mt-6 text-left">
-                  <div className="bg-[#0D2420] p-3.5 rounded-xl border border-[#1B3530]/50">
-                    <div className="text-[10px] text-[#9FB7B2] font-bold uppercase tracking-wider mb-2">
-                      Batters
-                    </div>
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="font-bold text-[#F4FFFD] text-sm truncate flex items-center gap-1">
-                        {liveStats.striker_name || "Waiting..."}{" "}
-                        <span className="text-[#0FAF9A] text-lg leading-none">
-                          *
-                        </span>
-                      </div>
-                      <div className="text-[#0FAF9A] text-sm font-bold">
-                        {liveStats.striker_runs || 0}{" "}
-                        <span className="text-[#9FB7B2] text-xs font-medium">
-                          ({liveStats.striker_balls || 0})
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <div className="font-medium text-[#9FB7B2] text-sm truncate">
-                        {liveStats.non_striker_name || "Waiting..."}
-                      </div>
-                      <div className="text-[#9FB7B2] text-sm font-medium">
-                        {liveStats.non_striker_runs || 0}{" "}
-                        <span className="text-xs">
-                          ({liveStats.non_striker_balls || 0})
-                        </span>
-                      </div>
+                    <div className="text-xs text-[#9FB7B2]">
+                      ({formatOvers(matchData.team_a_balls)} ov)
                     </div>
                   </div>
 
-                  <div className="bg-destructive/10 p-3.5 rounded-xl border border-destructive/20">
-                    <div className="text-[10px] text-destructive/80 font-bold uppercase tracking-wider mb-2">
-                      Bowler
+                  <div className="text-xs font-bold text-[#9FB7B2] bg-[#1B3530] px-3 py-1 rounded-full">
+                    VS
+                  </div>
+
+                  <div className="text-center flex-1">
+                    <div
+                      className="text-sm font-bold text-[#F4FFFD] truncate max-w-[120px] mx-auto"
+                      title={matchData.team_b_name}
+                    >
+                      {matchData.team_b_name}
                     </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <div className="font-bold text-destructive text-sm truncate">
-                        {liveStats.bowler_name || "Waiting..."}
-                      </div>
-                      <div className="text-destructive text-sm font-black">
-                        {liveStats.bowler_wickets || 0}
-                        <span className="text-destructive/70 font-medium mx-0.5">
-                          -
-                        </span>
-                        {liveStats.bowler_runs || 0}
-                      </div>
+                    <div className="text-2xl font-black text-[#0FAF9A]">
+                      {matchData.team_b_score || 0}
+                      <span className="text-sm font-medium text-[#9FB7B2]">
+                        /{matchData.team_b_wickets || 0}
+                      </span>
+                    </div>
+                    <div className="text-xs text-[#9FB7B2]">
+                      ({formatOvers(matchData.team_b_balls)} ov)
                     </div>
                   </div>
                 </div>
               </div>
             )}
+
+            <div className="bg-[#0B1F1B] border border-[#1B3530] p-5 rounded-2xl shadow-lg">
+              {!liveStats?.innings_id && matchData.status !== "completed" ? (
+                <div className="text-center text-[#9FB7B2] py-8">
+                  Match has not started yet.
+                </div>
+              ) : matchData.status === "completed" && !liveStats?.innings_id ? (
+                <div className="text-center text-[#9FB7B2] py-8 text-sm">
+                  Detailed live summary data is not available for this finalized
+                  match. Check the Scoreboard tab.
+                </div>
+              ) : (
+                <div className="animate-fade-in text-center">
+                  <div className="text-sm font-bold text-[#9FB7B2] mb-1 uppercase tracking-wider">
+                    {liveStats.innings_no === 1
+                      ? firstInningsTeamId === teamAId
+                        ? matchData.team_a_name
+                        : matchData.team_b_name
+                      : secondInningsTeamId === teamAId
+                        ? matchData.team_a_name
+                        : matchData.team_b_name}{" "}
+                    Innings{" "}
+                    {matchData.status === "completed"
+                      ? "(Final Live State)"
+                      : ""}
+                  </div>
+                  <div className="text-5xl font-black text-[#F4FFFD] tracking-tight drop-shadow-md">
+                    {liveStats.current_score}{" "}
+                    <span className="text-2xl text-[#9FB7B2] font-semibold">
+                      / {liveStats.wickets}
+                    </span>
+                  </div>
+                  <div className="flex justify-center items-center gap-4 mt-2 text-sm font-medium">
+                    <span className="text-[#9FB7B2]">
+                      Overs:{" "}
+                      <span className="text-[#0FAF9A] font-bold">
+                        {overs}.{balls}
+                      </span>
+                    </span>
+                    <span className="text-[#1B3530]">|</span>
+                    <span className="text-[#9FB7B2]">
+                      CRR:{" "}
+                      <span className="text-[#0FAF9A] font-bold">{crr}</span>
+                    </span>
+                  </div>
+
+                  {liveStats.target_runs > 0 && (
+                    <div className="mt-5 bg-[#0D2420] border border-[#1B3530]/70 rounded-xl p-4 shadow-sm text-left">
+                      <div className="flex justify-between items-center mb-2.5 text-sm">
+                        <span className="text-[#9FB7B2] font-medium">
+                          Target: {liveStats.target_runs}
+                        </span>
+                        <span className="text-[#0FAF9A] font-bold">
+                          Need{" "}
+                          {Math.max(
+                            0,
+                            liveStats.target_runs - liveStats.current_score,
+                          )}{" "}
+                          runs
+                        </span>
+                      </div>
+
+                      <div className="h-1.5 w-full bg-[#1B3530] rounded-full overflow-hidden mb-2.5">
+                        <div
+                          className="h-full bg-[#0FAF9A] transition-all duration-500 ease-in-out rounded-full"
+                          style={{
+                            width: `${Math.min(100, Math.max(0, (liveStats.current_score / liveStats.target_runs) * 100))}%`,
+                          }}
+                        ></div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-xs text-[#9FB7B2] font-medium">
+                        <span>
+                          RRR:{" "}
+                          {matchData.overs_limit * 6 - liveStats.legal_balls > 0
+                            ? (
+                                (Math.max(
+                                  0,
+                                  liveStats.target_runs -
+                                    liveStats.current_score,
+                                ) /
+                                  (matchData.overs_limit * 6 -
+                                    liveStats.legal_balls)) *
+                                6
+                              ).toFixed(2)
+                            : "0.00"}
+                        </span>
+                        <span>
+                          {Math.max(
+                            0,
+                            matchData.overs_limit * 6 - liveStats.legal_balls,
+                          )}{" "}
+                          balls left
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {matchData.status !== "completed" && (
+                    <div className="grid grid-cols-2 gap-3 mt-6 text-left">
+                      <div className="bg-[#0D2420] p-3.5 rounded-xl border border-[#1B3530]/50">
+                        <div className="text-[10px] text-[#9FB7B2] font-bold uppercase tracking-wider mb-2">
+                          Batters
+                        </div>
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="font-bold text-[#F4FFFD] text-sm truncate flex items-center gap-1">
+                            {liveStats.striker_name || "Waiting..."}{" "}
+                            <span className="text-[#0FAF9A] text-lg leading-none">
+                              *
+                            </span>
+                          </div>
+                          <div className="text-[#0FAF9A] text-sm font-bold">
+                            {liveStats.striker_runs || 0}{" "}
+                            <span className="text-[#9FB7B2] text-xs font-medium">
+                              ({liveStats.striker_balls || 0})
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <div className="font-medium text-[#9FB7B2] text-sm truncate">
+                            {liveStats.non_striker_name || "Waiting..."}
+                          </div>
+                          <div className="text-[#9FB7B2] text-sm font-medium">
+                            {liveStats.non_striker_runs || 0}{" "}
+                            <span className="text-xs">
+                              ({liveStats.non_striker_balls || 0})
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-destructive/10 p-3.5 rounded-xl border border-destructive/20">
+                        <div className="text-[10px] text-destructive/80 font-bold uppercase tracking-wider mb-2">
+                          Bowler
+                        </div>
+                        <div className="flex justify-between items-center mt-1">
+                          <div className="font-bold text-destructive text-sm truncate">
+                            {liveStats.bowler_name || "Waiting..."}
+                          </div>
+                          <div className="text-destructive text-sm font-black">
+                            {liveStats.bowler_wickets || 0}
+                            <span className="text-destructive/70 font-medium mx-0.5">
+                              -
+                            </span>
+                            {liveStats.bowler_runs || 0}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -427,7 +530,6 @@ export default function MatchDetailsPage() {
 
                 <div className="divide-y divide-[#1B3530]/50">
                   {batters.map((batter: BatterStats) => {
-                    // 🛡️ THE BULLETPROOF STATUS LOGIC
                     let statusText = "Yet to bat";
                     let statusClass = "text-[#9FB7B2]"; // Default grey
 
@@ -437,44 +539,57 @@ export default function MatchDetailsPage() {
                       liveStats?.non_striker_id === batter.player_id;
                     const isActiveBatter =
                       (isStriker || isNonStriker) &&
-                      liveStats?.innings_no === inningsTab;
+                      liveStats?.innings_no === inningsTab &&
+                      matchData.status !== "completed";
+
+                    // A player has participated if they faced balls, scored runs, or have a dismissal string
+                    const hasBatted =
+                      batter.balls_played > 0 ||
+                      batter.runs_scored > 0 ||
+                      !!batter.dismissal_type;
 
                     if (isActiveBatter) {
-                      // Player is actively on pitch
+                      // 1. Currently batting on the pitch
                       statusText = "Not out";
                       statusClass =
                         "bg-[#0FAF9A]/20 text-[#0FAF9A] px-2 py-0.5 rounded-md font-bold text-[10px]";
-                    } else if (
-                      batter.dismissal_type &&
-                      batter.dismissal_type.trim() !== ""
-                    ) {
-                      // Player has explicit dismissal recorded
-                      const method = batter.dismissal_type.toLowerCase();
-                      if (method === "bowled") {
-                        statusText = `b ${batter.bowled_by_name || "Unknown"}`;
-                      } else if (method === "caught") {
-                        statusText = `c ${batter.caught_by_name || "Unknown"} b ${batter.bowled_by_name || "Unknown"}`;
+                    } else if (hasBatted) {
+                      // 2. They came to the crease
+                      // If they have a dismissal type OR the backend explicitly marked them as is_not_out = false
+                      if (
+                        batter.dismissal_type ||
+                        batter.is_not_out === false
+                      ) {
+                        if (batter.dismissal_type) {
+                          const method = batter.dismissal_type.toLowerCase();
+                          if (method === "bowled") {
+                            statusText = `b ${batter.bowled_by_name || "Unknown"}`;
+                          } else if (method === "caught") {
+                            statusText = `c ${batter.caught_by_name || "Unknown"} b ${batter.bowled_by_name || "Unknown"}`;
+                          } else if (
+                            method === "run out" ||
+                            method === "run_out"
+                          ) {
+                            statusText = `run out`;
+                          } else {
+                            statusText = batter.dismissal_type;
+                          }
+                        } else {
+                          statusText = "Out";
+                        }
+                        statusClass =
+                          "text-destructive font-bold capitalize text-[10px]";
                       } else {
-                        statusText = batter.dismissal_type;
-                      }
-                      statusClass =
-                        "text-destructive font-bold capitalize text-[10px]";
-                    } else if (
-                      batter.balls_played > 0 ||
-                      batter.runs_scored > 0 ||
-                      batter.is_not_out === false
-                    ) {
-                      // Fallback: Player has batted but is not on pitch, and no dismissal string
-                      if (batter.is_not_out === false) {
-                        statusText = "Out";
-                        statusClass = "text-destructive font-bold text-[10px]";
-                      } else {
-                        statusText = "Not out (Ret/Wait)";
+                        // They batted, but did not get out (e.g., carried the bat or retired)
+                        statusText = "Not out";
                         statusClass = "text-[#0FAF9A] font-bold text-[10px]";
                       }
                     } else {
-                      // Hasn't batted at all
-                      statusText = "Yet to bat";
+                      // 3. Never came to the crease
+                      statusText =
+                        matchData.status === "completed"
+                          ? "Did not bat"
+                          : "Yet to bat";
                       statusClass = "text-[#9FB7B2] text-[10px]";
                     }
 
