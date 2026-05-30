@@ -54,6 +54,15 @@ const PlayerStatsPage = () => {
   const [recentMatches, setRecentMatches] = useState<any[]>([]);
   const [isFetchingMatches, setIsFetchingMatches] = useState(true);
 
+  // Stats for the currently visible matches in the table
+  const [matchPlayerStats, setMatchPlayerStats] = useState<
+    Record<string, { runs: number | string; wickets: number | string }>
+  >({});
+  const [isLoadingMatchStats, setIsLoadingMatchStats] = useState(false);
+
+  // MVP Calculation State
+  const [calculatedMvps, setCalculatedMvps] = useState<number | null>(null);
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -84,7 +93,6 @@ const PlayerStatsPage = () => {
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         );
 
-        // Strictly enforce a maximum of 20 matches
         setRecentMatches(sorted.slice(0, 20));
       } catch (err) {
         console.error("Failed to fetch recent matches:", err);
@@ -102,6 +110,89 @@ const PlayerStatsPage = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   );
+
+  // Fetch Scorecards ONLY for the 5 currently visible matches
+  useEffect(() => {
+    const fetchSpecificMatchStats = async () => {
+      if (!currentMatches.length || !id) return;
+      setIsLoadingMatchStats(true);
+      const newStats: Record<string, any> = {};
+
+      await Promise.all(
+        currentMatches.map(async (match) => {
+          if (matchPlayerStats[match.id]) return;
+
+          try {
+            const res = await api.get(`/scoring/scorecard/${match.id}`);
+            const scorecard = res.data?.scorecard || [];
+            const myStats = scorecard.find((s: any) => s.player_id === id);
+
+            newStats[match.id] = {
+              runs: myStats?.runs_scored ?? "-",
+              wickets: myStats?.wickets_taken ?? "-",
+            };
+          } catch (error) {
+            newStats[match.id] = { runs: "-", wickets: "-" };
+          }
+        }),
+      );
+
+      if (Object.keys(newStats).length > 0) {
+        setMatchPlayerStats((prev) => ({ ...prev, ...newStats }));
+      }
+      setIsLoadingMatchStats(false);
+    };
+
+    fetchSpecificMatchStats();
+  }, [currentMatches, id]);
+
+  // 🏆 BACKGROUND MVP CALCULATOR 🏆
+  useEffect(() => {
+    const calculateTotalMvps = async () => {
+      if (!id || recentMatches.length === 0) {
+        if (!isFetchingMatches) setCalculatedMvps(0);
+        return;
+      }
+
+      const completedMatches = recentMatches.filter(
+        (m) => m.status === "completed",
+      );
+      if (completedMatches.length === 0) {
+        setCalculatedMvps(0);
+        return;
+      }
+
+      let mvpCount = 0;
+
+      await Promise.all(
+        completedMatches.map(async (match) => {
+          try {
+            const res = await api.get(`/scoring/scorecard/${match.id}`);
+            const scorecard = res.data?.scorecard || [];
+
+            let maxRuns = 0;
+            let playerRuns = 0;
+
+            scorecard.forEach((s: any) => {
+              if (s.runs_scored > maxRuns) maxRuns = s.runs_scored;
+              if (s.player_id === id) playerRuns = s.runs_scored;
+            });
+
+            // Player is MVP if they scored the highest in the match (and actually scored > 0)
+            if (playerRuns === maxRuns && playerRuns > 0) {
+              mvpCount++;
+            }
+          } catch (err) {
+            console.error("Failed to fetch match for MVP calculation", err);
+          }
+        }),
+      );
+
+      setCalculatedMvps(mvpCount);
+    };
+
+    calculateTotalMvps();
+  }, [recentMatches, id, isFetchingMatches]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
@@ -160,7 +251,7 @@ const PlayerStatsPage = () => {
               </div>
             </div>
 
-            <div className="flex gap-4 md:flex-col justify-center">
+            <div className="flex gap-6 md:flex-col justify-center items-center md:items-end">
               <div className="text-center md:text-right">
                 <p className="text-[#9FB7B2] text-xs font-bold uppercase">
                   Total Points
@@ -173,8 +264,13 @@ const PlayerStatsPage = () => {
                 <p className="text-[#9FB7B2] text-xs font-bold uppercase">
                   MVP Awards
                 </p>
-                <p className="text-2xl font-black text-[#F59E0B] flex items-center justify-center md:justify-end gap-1">
-                  {stats.career_mvps || 0} <Award className="w-5 h-5" />
+                <p className="text-2xl font-black text-[#F59E0B] flex items-center justify-center md:justify-end gap-1.5">
+                  {calculatedMvps === null ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    calculatedMvps
+                  )}{" "}
+                  <Award className="w-5 h-5" />
                 </p>
               </div>
             </div>
@@ -310,10 +406,13 @@ const PlayerStatsPage = () => {
 
         {/* REAL MATCHES TABLE */}
         <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl shadow-lg overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-[#1B3530]">
+          <div className="p-5 border-b border-[#1B3530] flex justify-between items-center">
             <h3 className="text-lg font-bold text-[#F4FFFD]">
               Recent Matches (Last 20)
             </h3>
+            {isLoadingMatchStats && (
+              <Loader2 className="w-4 h-4 text-[#0FAF9A] animate-spin" />
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -343,7 +442,6 @@ const PlayerStatsPage = () => {
                   </tr>
                 ) : (
                   currentMatches.map((match) => {
-                    // DATE FORMATTING
                     const matchDate = new Date(
                       match.created_at,
                     ).toLocaleDateString("en-GB", {
@@ -352,13 +450,11 @@ const PlayerStatsPage = () => {
                       year: "numeric",
                     });
 
-                    // 🛡️ INTELLIGENT TEAM IDENTIFICATION
-                    // We attempt to figure out which team the player played for. Defaulting to Team A.
+                    // Team Identification
                     let myTeam = match.team_a_name;
                     let oppTeam = match.team_b_name;
                     let myTeamId = match.team_a_id;
 
-                    // If the API provides player arrays, or a specific team_id, we map them correctly
                     if (
                       (match.team_b_players &&
                         match.team_b_players.some((p: any) => p.id === id)) ||
@@ -369,33 +465,39 @@ const PlayerStatsPage = () => {
                       myTeamId = match.team_b_id;
                     }
 
-                    // 🛡️ RESULT BADGE LOGIC
+                    // Result Badge Logic
                     let resultBadge = "Live";
-                    let badgeClass = "bg-[#F59E0B]/20 text-[#F59E0B]"; // Yellow for Live/Upcoming
+                    let badgeClass = "bg-[#F59E0B]/20 text-[#F59E0B]";
 
                     if (match.status === "completed") {
                       if (match.winner_team_id) {
                         const didWin = match.winner_team_id === myTeamId;
                         resultBadge = didWin ? "Won" : "Lost";
                         badgeClass = didWin
-                          ? "bg-[#0FAF9A]/20 text-[#0FAF9A]" // Green for Win
-                          : "bg-[#FF6B6B]/20 text-[#FF6B6B]"; // Red for Loss
+                          ? "bg-[#0FAF9A]/20 text-[#0FAF9A]"
+                          : "bg-[#FF6B6B]/20 text-[#FF6B6B]";
                       } else {
                         resultBadge = "Draw";
-                        badgeClass = "bg-[#9FB7B2]/20 text-[#9FB7B2]"; // Grey for Draw/Tie
+                        badgeClass = "bg-[#9FB7B2]/20 text-[#9FB7B2]";
                       }
                     }
 
-                    // 🛡️ INDIVIDUAL STATS (Requires Backend Support in the match list)
-                    // If your /matches API doesn't attach player runs/wickets directly to the summary,
-                    // this will safely fallback to a dash "-" until that data is embedded.
-                    const runsScored = match.player_runs ?? "-";
-                    const wicketsTaken = match.player_wickets ?? "-";
+                    const pStats = matchPlayerStats[match.id];
+                    const runsScored = pStats
+                      ? pStats.runs
+                      : isLoadingMatchStats
+                        ? "..."
+                        : "-";
+                    const wicketsTaken = pStats
+                      ? pStats.wickets
+                      : isLoadingMatchStats
+                        ? "..."
+                        : "-";
 
                     return (
                       <tr
                         key={match.id}
-                        className="border-b border-[#1B3530]/50 hover:bg-[#122A25] transition-colors"
+                        className="border-b border-[#1B3530]/50 hover:bg-[#122A25] transition-colors relative"
                       >
                         <td className="p-4 text-[#F4FFFD] whitespace-nowrap text-xs">
                           {matchDate}
@@ -412,13 +514,13 @@ const PlayerStatsPage = () => {
                         <td className="p-4 text-[#0FAF9A] font-bold text-center text-xs">
                           {match.overs_limit} Ov
                         </td>
-                        <td className="p-4 text-[#F4FFFD] font-bold text-center">
+                        <td className="p-4 text-[#F4FFFD] font-bold text-center align-middle">
                           {runsScored}
                         </td>
-                        <td className="p-4 text-[#F4FFFD] font-bold text-center">
+                        <td className="p-4 text-[#F4FFFD] font-bold text-center align-middle">
                           {wicketsTaken}
                         </td>
-                        <td className="p-4 text-center">
+                        <td className="p-4 text-center align-middle">
                           <span
                             className={`px-2.5 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider ${badgeClass}`}
                           >
