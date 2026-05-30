@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Trophy, Activity, Inbox, ChevronDown } from "lucide-react";
 import PageHeader from "../components/common/PageHeader";
-import { api } from "../Api/Auth"; // Using direct API to handle pagination state safely
+import { api } from "../Api/Auth";
 import toast from "react-hot-toast";
 
 const MatchesListPage = () => {
@@ -28,14 +28,12 @@ const MatchesListPage = () => {
         const res = await api.get(`/matches?page=${page}&limit=10`);
         const newMatches = res.data.matches || res.data || [];
 
-        // Check if we reached the end of the database
         if (newMatches.length < 10) {
           setHasMore(false);
         } else {
           setHasMore(true);
         }
 
-        // Append to existing array on page 2+, or set fresh on page 1
         setMatches((prev) =>
           page === 1 ? newMatches : [...prev, ...newMatches],
         );
@@ -52,7 +50,6 @@ const MatchesListPage = () => {
     fetchMatches();
   }, [page]);
 
-  // Filter based on the selected tab
   const filteredMatches =
     activeTab === "all"
       ? matches
@@ -126,7 +123,7 @@ const MatchesListPage = () => {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             {filteredMatches.map((match: any) => {
-              // Calculate Dynamic Data for Each Card
+              // --- DYNAMIC DATA CALCULATIONS ---
               const isCompleted = match.status === "completed";
               const isOngoing = match.status === "ongoing";
 
@@ -157,11 +154,11 @@ const MatchesListPage = () => {
               return (
                 <div
                   key={match.id}
-                  onClick={() => navigate(`/matches/${match.id}`)}
+                  onClick={() => navigate(`/match/${match.id}`)}
                   className="bg-card border border-border rounded-xl p-5 hover:border-primary/50 hover:bg-card-hover transition-all cursor-pointer shadow-sm relative overflow-hidden group flex flex-col h-full"
                 >
                   {/* Status Badge */}
-                  <div className="flex justify-between items-center mb-5">
+                  <div className="flex justify-between items-center mb-4">
                     <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
                       {match.overs_limit} OVERS
                     </span>
@@ -184,8 +181,8 @@ const MatchesListPage = () => {
                     )}
                   </div>
 
-                  {/* Teams and Real Scores */}
-                  <div className="space-y-4 mb-5">
+                  {/* Teams and Real Scores (Replacing the '-') */}
+                  <div className="space-y-4 mb-4">
                     {/* Team A */}
                     <div className="flex justify-between items-center">
                       <span
@@ -206,6 +203,7 @@ const MatchesListPage = () => {
                         </span>
                       </div>
                     </div>
+
                     {/* Team B */}
                     <div className="flex justify-between items-center">
                       <span
