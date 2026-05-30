@@ -25,6 +25,7 @@ const Dashboard = () => {
   const [isFetchingMatches, setIsFetchingMatches] = useState(true);
 
   // 1. Fetch Actual Player Stats (Only if Logged In)
+  // 1. Fetch Actual Player Stats (Only if Logged In)
   useEffect(() => {
     const fetchFullStats = async () => {
       if (!user?.id) {
@@ -32,11 +33,21 @@ const Dashboard = () => {
         return;
       }
       try {
-        const res = await api.get(`/player-stats/${user.id}`);
-        const fetchedData = res.data?.data || res.data?.stats || res.data;
+        // FIX 1: Change hyphen (-) to underscore (_) to match backend routing
+        const res = await api.get(`/player_stats/${user.id}`);
+
+        // FIX 2: Look for the exact key the backend returns ("player_stats")
+        const fetchedData =
+          res.data?.player_stats || res.data?.data || res.data;
         setStats(fetchedData);
-      } catch (e) {
-        console.error("Failed to load full stats", e);
+      } catch (e: any) {
+        // FIX 3: Gracefully handle the 404 if the user doesn't have stats yet
+        if (e.response?.status === 404) {
+          console.warn("No player stats found for this user yet (New User).");
+          setStats(null); // Safely defaults to 0 in your UI
+        } else {
+          console.error("Failed to load full stats", e);
+        }
       } finally {
         setIsLoadingStats(false);
       }
@@ -103,7 +114,7 @@ const Dashboard = () => {
         <>
           {/* CLICKABLE PROFILE PREVIEW */}
           <div
-            onClick={() => navigate(`/player-stats/${user.id}`)}
+            onClick={() => navigate(`/player_stats/${user.id}`)}
             className="mb-8 flex items-center justify-between bg-card p-6 rounded-3xl border border-border cursor-pointer hover:border-primary/50 transition-all shadow-sm group"
           >
             <div className="flex items-center gap-4">

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { CustomDropdown } from "./CustomDropdown";
 
 export interface Player {
   id: string;
@@ -39,15 +38,9 @@ export const PlayerSelectModal: React.FC<PlayerSelectModalProps> = ({
   const availablePlayers =
     squad?.filter((p) => !currentlyPlayingIds.includes(p.id)) || [];
 
-  // const handleConfirm = () => {
-  //   const player = availablePlayers.find((p) => p.id === selectedPlayerId);
-  //   if (player) {
-  //     onSelect(player);
-  //   }
-  // };
-
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    // FIX 1: Changed z-100 to z-[100] so it overlays the sticky header properly
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-card border border-border rounded-xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="bg-card-hover px-5 py-4 border-b border-border flex justify-between items-center">
@@ -66,13 +59,22 @@ export const PlayerSelectModal: React.FC<PlayerSelectModalProps> = ({
             Select from Squad
           </label>
 
-          {/* CUSTOM DROPDOWN REPLACEMENT */}
-          <CustomDropdown
-            options={availablePlayers}
+          {/* FIX 2: Native Tailwind-styled select to guarantee ID mapping works perfectly */}
+          <select
+            className="w-full bg-background text-foreground border border-border rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all appearance-none cursor-pointer"
             value={selectedPlayerId}
-            onChange={setSelectedPlayerId}
-            placeholder={`-- Choose ${role} --`}
-          />
+            onChange={(e) => setSelectedPlayerId(e.target.value)}
+          >
+            <option value="" disabled>
+              -- Choose {role} --
+            </option>
+            {availablePlayers.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} {p.is_wicket_keeper ? "(WK)" : ""}{" "}
+                {p.is_captain ? "(C)" : ""}
+              </option>
+            ))}
+          </select>
 
           {/* Action Buttons */}
           <div className="flex gap-3 mt-8">
@@ -90,7 +92,7 @@ export const PlayerSelectModal: React.FC<PlayerSelectModalProps> = ({
                 if (p) onSelect(p);
               }}
               disabled={!selectedPlayerId}
-              className="flex-1 py-3 rounded-lg text-sm font-bold bg-primary text-background disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-hover transition-colors shadow-[0_0_15px_rgba(15,175,154,0.2)]"
+              className="flex-1 py-3 rounded-lg text-sm font-bold bg-primary text-background disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors shadow-lg"
             >
               Confirm
             </button>

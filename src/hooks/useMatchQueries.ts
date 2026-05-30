@@ -1,17 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../Api/Auth";
 
-// Arrow function for the API call
-export const fetchMatchesApi = async () => {
-  const response = await api.get("/matches");
+export const fetchMatchesApi = async (page: number = 1, limit: number = 10) => {
+  const response = await api.get("/matches", {
+    params: { page, limit },
+  });
   return response.data;
 };
 
-// TanStack Query Hook for GET requests
-export const useMatches = () => {
+// 2. Add them to the hook and the queryKey
+export const useMatches = (page: number = 1, limit: number = 10) => {
   return useQuery({
-    queryKey: ["matches"], // The unique key TanStack uses to cache this data
-    queryFn: fetchMatchesApi,
+    queryKey: ["matches", page, limit],
+    queryFn: () => fetchMatchesApi(page, limit),
+    placeholderData: (previousData) => previousData, // Prevents flickering
   });
 };
 

@@ -75,7 +75,7 @@ const SettingsPage = () => {
     const fetchFullStats = async () => {
       if (!user?.id) return;
       try {
-        const res = await api.get(`/player-stats/${user.id}`);
+        const res = await api.get(`/player_stats/${user.id}`);
         // Handle potential nested API responses securely
         const fetchedData = res.data?.data || res.data?.stats || res.data;
         setPlayerStats(fetchedData);

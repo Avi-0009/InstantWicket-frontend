@@ -49,7 +49,7 @@ const PlayersListPage = () => {
   const handlePlayerClick = (player: any) => {
     // Search API returns `player_id`, but GetAll returns `id`
     const targetId = player.player_id || player.id;
-    navigate(`/player-stats/${targetId}`);
+    navigate(`/player_stats/${targetId}`);
   };
 
   return (

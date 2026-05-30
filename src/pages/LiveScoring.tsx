@@ -262,6 +262,7 @@ const LiveScoring = () => {
       const res = await api.post("/scoring/start", payload);
       setIsInningsDeclared(false);
       const newInningsId =
+        res.data?.inningID ||
         res.data?.data ||
         res.data?.innings_id ||
         res.data?.id ||
