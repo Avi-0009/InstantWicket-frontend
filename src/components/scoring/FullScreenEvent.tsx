@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 
 interface FullScreenEventProps {
-  // 🔴 MATCHES LIVESCORING EXACTLY: Now it's a simple string, not an object!
   eventType: "4" | "6" | "FREE_HIT" | "WICKET" | null;
   onComplete: () => void;
 }
@@ -11,8 +10,6 @@ export const FullScreenEvent = ({
   onComplete,
 }: FullScreenEventProps) => {
   const [isVisible, setIsVisible] = useState(false);
-
-  // Ref prevents the parent component's API polling from resetting the timer
   const onCompleteRef = useRef(onComplete);
 
   useEffect(() => {
@@ -20,59 +17,50 @@ export const FullScreenEvent = ({
   }, [onComplete]);
 
   useEffect(() => {
-    // If we receive ANY string event, show the screen
     if (eventType) {
       setIsVisible(true);
-
-      // Auto close after exactly 2 seconds
       const timer = setTimeout(() => {
-        setIsVisible(false); // Start CSS fade out
-
-        // Wait 500ms for fade to finish, then clear the state in LiveScoring
+        setIsVisible(false);
         setTimeout(() => {
           onCompleteRef.current();
         }, 500);
       }, 2000);
-
       return () => clearTimeout(timer);
     } else {
       setIsVisible(false);
     }
   }, [eventType]);
 
-  // Don't render anything if there's no event and it's not visible
   if (!eventType && !isVisible) return null;
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-500 pointer-events-none ${
-        isVisible ? "opacity-100 scale-100" : "opacity-0 scale-110"
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center pointer-events-none transition-all duration-500 ${
+        isVisible ? "opacity-100 scale-100" : "opacity-0 scale-50"
       }`}
     >
-      {/* FREE HIT TEXT */}
       {eventType === "FREE_HIT" && (
         <div className="mb-4 animate-bounce">
-          <span className="text-4xl md:text-6xl font-black italic tracking-widest text-[#0FAF9A] drop-shadow-[0_0_20px_rgba(15,175,154,0.6)]">
+          <span className="text-4xl md:text-6xl font-black italic tracking-widest text-warning drop-shadow-[0_4px_20px_rgba(245,158,11,0.6)]">
             FREE HIT!
           </span>
         </div>
       )}
 
-      {/* BOUNDARY / WICKET TEXT */}
-      <div className="transform transition-all animate-pulse">
+      <div className="transform transition-all animate-bounce">
         {eventType === "4" && (
-          <span className="text-8xl md:text-[160px] leading-none font-black italic tracking-tighter text-blue-500 drop-shadow-[0_0_40px_rgba(59,130,246,0.8)]">
-            FOUR
+          <span className="text-7xl md:text-[130px] leading-none font-black italic tracking-tighter text-blue-500 drop-shadow-[0_10px_30px_rgba(59,130,246,0.6)]">
+            FOUR! 🎉
           </span>
         )}
         {eventType === "6" && (
-          <span className="text-8xl md:text-[160px] leading-none font-black italic tracking-tighter text-orange-500 drop-shadow-[0_0_50px_rgba(249,115,22,0.8)]">
-            SIX!
+          <span className="text-7xl md:text-[130px] leading-none font-black italic tracking-tighter text-orange-500 drop-shadow-[0_10px_30px_rgba(249,115,22,0.6)]">
+            SIX! 🚀
           </span>
         )}
         {eventType === "WICKET" && (
-          <span className="text-8xl md:text-[160px] leading-none font-black italic tracking-tighter text-red-600 drop-shadow-[0_0_50px_rgba(220,38,38,0.8)]">
-            OUT!
+          <span className="text-7xl md:text-[130px] leading-none font-black italic tracking-tighter text-destructive drop-shadow-[0_10px_30px_rgba(220,38,38,0.6)]">
+            OUT! 💥
           </span>
         )}
       </div>

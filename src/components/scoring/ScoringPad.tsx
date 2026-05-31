@@ -19,20 +19,18 @@ export default function ScoringPad({
 }: ScoringPadProps) {
   return (
     <div className="space-y-4">
-      {/* Free Hit Alert */}
       {isFreeHit && (
         <div className="py-2 text-center rounded-xl font-black text-xs bg-warning/20 text-warning animate-pulse border border-warning">
           FREE HIT ACTIVE
         </div>
       )}
 
-      {/* Runs Section */}
       <div>
         <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2 px-1">
           Runs
         </div>
         <div className="grid grid-cols-3 gap-3">
-          {[0, 1, 2, 3].map((r) => (
+          {[0, 1, 2, 3, 4, 6].map((r) => (
             <button
               key={r}
               onClick={() => onScore(r)}
@@ -41,22 +39,9 @@ export default function ScoringPad({
               {r === 0 ? "•" : r}
             </button>
           ))}
-          <button
-            onClick={() => onScore(4)}
-            className="h-14 bg-card border border-primary rounded-xl text-primary text-lg font-bold shadow-[0_0_15px_rgba(15,175,154,0.15)] hover:bg-primary/10 transition-colors"
-          >
-            4
-          </button>
-          <button
-            onClick={() => onScore(6)}
-            className="h-14 bg-card border border-primary rounded-xl text-primary text-lg font-bold shadow-[0_0_15px_rgba(15,175,154,0.15)] hover:bg-primary/10 transition-colors"
-          >
-            6
-          </button>
         </div>
       </div>
 
-      {/* Extras & Wickets */}
       <div>
         <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2 px-1">
           Extras & Wickets
@@ -94,7 +79,6 @@ export default function ScoringPad({
         </div>
       </div>
 
-      {/* Footer Actions */}
       <div className="grid grid-cols-3 gap-2 pt-2">
         <button className="h-11 bg-transparent border border-border rounded-xl text-muted-foreground text-xs font-medium flex items-center justify-center gap-2 hover:bg-card transition-colors">
           <Undo2 className="w-3.5 h-3.5" /> Undo

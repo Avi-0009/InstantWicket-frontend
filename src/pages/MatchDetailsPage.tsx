@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, Trophy } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../Api/Auth";
+import { FullScreenEvent } from "../components/scoring/FullScreenEvent";
+import OverTimeline from "../components/scoring/OverTimeline";
 
 interface BatterStats {
   player_id: string;
@@ -10,6 +13,7 @@ interface BatterStats {
   balls_played: number;
   fours: number;
   sixes: number;
+  batting_status: string;
   is_out?: boolean;
   dismissal_type?: string;
   bowled_by_name?: string;
@@ -38,48 +42,88 @@ interface FielderStats {
 export default function MatchDetailsPage() {
   const { id: matchId } = useParams();
   const navigate = useNavigate();
-  const [matchData, setMatchData] = useState<any>(null);
-  const [liveStats, setLiveStats] = useState<any>(null);
-  const [scorecard, setScorecard] = useState<any[]>([]);
 
   const [activeTab, setActiveTab] = useState<"Summary" | "Scoreboard">(
     "Summary",
   );
   const [inningsTab, setInningsTab] = useState<1 | 2>(1);
 
+  // --- TANSTACK QUERIES ---
+  const { data: matchData } = useQuery({
+    queryKey: ["match", matchId],
+    queryFn: async () => {
+      const res = await api.get(`/matches/${matchId}`);
+      return res.data.match || res.data;
+    },
+    refetchInterval: 5000,
+  });
+
+  const { data: liveStats } = useQuery({
+    queryKey: ["liveStats", matchId],
+    queryFn: async () => {
+      const res = await api.get(`/scoring/live/${matchId}`);
+      return res.data;
+    },
+    refetchInterval: 3000,
+  });
+
+  const { data: scorecardResponse } = useQuery({
+    queryKey: ["scorecard", matchId],
+    queryFn: async () => {
+      const res = await api.get(`/scoring/scorecard/${matchId}`);
+      return res.data.scorecard || [];
+    },
+    refetchInterval: 3000,
+  });
+
+  const scorecard = scorecardResponse || [];
+
+  // --- TAB AUTO-SWITCH ---
   useEffect(() => {
-    const fetchRealMatchData = async () => {
-      try {
-        const matchRes = await api.get(`/matches/${matchId}`);
-        setMatchData(matchRes.data.match || matchRes.data);
-      } catch (error) {
-        console.error("Failed to fetch match details", error);
+    if (
+      liveStats &&
+      (liveStats.target_runs > 0 || liveStats.required_runs > 0) &&
+      activeTab === "Scoreboard"
+    ) {
+      setInningsTab(2);
+    }
+  }, [liveStats, activeTab]);
+
+  // --- PUBLIC CONFETTI EVENT LISTENER ---
+  const [currentEvent, setCurrentEvent] = useState<
+    "4" | "6" | "FREE_HIT" | "WICKET" | null
+  >(null);
+  const prevStats = useRef({ balls: 0, runs: 0, wickets: 0, innings_id: "" });
+
+  useEffect(() => {
+    if (liveStats && activeTab === "Summary") {
+      const currentBalls = liveStats.legal_balls || 0;
+      const currentRuns = liveStats.current_score || 0;
+      const currentWickets = liveStats.wickets || 0;
+      const p = prevStats.current;
+
+      // Only pop events if the match is actively progressing in the same innings
+      if (p.balls > 0 && liveStats.innings_id === p.innings_id) {
+        const runDiff = currentRuns - p.runs;
+        const wicketDiff = currentWickets - p.wickets;
+
+        if (wicketDiff > 0) {
+          setCurrentEvent("WICKET");
+        } else if (runDiff === 4) {
+          setCurrentEvent("4");
+        } else if (runDiff === 6) {
+          setCurrentEvent("6");
+        }
       }
 
-      try {
-        const liveRes = await api.get(`/scoring/live/${matchId}`);
-        if (liveRes.data && Object.keys(liveRes.data).length > 0) {
-          setLiveStats(liveRes.data);
-          // 🛡️ FIX 1: innings_no is missing! Use target_runs to detect 2nd innings
-          if (
-            (liveRes.data.target_runs > 0 || liveRes.data.required_runs > 0) &&
-            activeTab === "Scoreboard"
-          ) {
-            setInningsTab(2);
-          }
-        }
-      } catch (error) {}
-
-      try {
-        const scoreRes = await api.get(`/scoring/scorecard/${matchId}`);
-        if (scoreRes.data) setScorecard(scoreRes.data.scorecard || []);
-      } catch (error) {}
-    };
-
-    fetchRealMatchData();
-    const interval = setInterval(fetchRealMatchData, 3000);
-    return () => clearInterval(interval);
-  }, [matchId]);
+      prevStats.current = {
+        balls: currentBalls,
+        runs: currentRuns,
+        wickets: currentWickets,
+        innings_id: liveStats.innings_id,
+      };
+    }
+  }, [liveStats, activeTab]);
 
   if (!matchData) {
     return (
@@ -126,12 +170,10 @@ export default function MatchDetailsPage() {
       ? matchData?.team_a_players
       : matchData?.team_b_players;
 
-  // Formatting Overs helper for the result banner
   const formatOvers = (totalBalls: number) => {
     return `${Math.floor((totalBalls || 0) / 6)}.${(totalBalls || 0) % 6}`;
   };
 
-  // Determine Match Winner Text for Completed Matches
   let matchResultText = "";
   if (matchData.status === "completed") {
     if (matchData.winner_team_id) {
@@ -147,10 +189,11 @@ export default function MatchDetailsPage() {
   // Scorecard Generation Logic
   const batters: BatterStats[] = (teamPlayers || []).map((p: any) => {
     const stats =
-      scorecard.find((s) => String(s.player_id) === String(p.id)) || {};
+      scorecard.find((s: any) => String(s.player_id) === String(p.id)) || {};
     let runs = stats.runs_scored || 0;
     let playedBalls = stats.balls_played || 0;
 
+    // Keep live ticking for the active batters
     if (String(liveStats?.striker_id) === String(p.id)) {
       runs = liveStats.striker_runs || runs;
       playedBalls = liveStats.striker_balls || playedBalls;
@@ -166,10 +209,10 @@ export default function MatchDetailsPage() {
       balls_played: playedBalls,
       fours: stats.fours || 0,
       sixes: stats.sixes || 0,
-      is_out: stats.is_out, // 👈 Read is_out directly from backend
-      dismissal_type: stats.dismissal_type,
-      bowled_by_name: stats.bowled_by_name,
-      caught_by_name: stats.caught_by_name,
+      // 🔥 Just read it straight from the database!
+      batting_status:
+        stats.batting_status ||
+        (matchData?.status === "completed" ? "Did not bat" : "Yet to bat"),
     };
   });
 
@@ -180,11 +223,12 @@ export default function MatchDetailsPage() {
 
   const bowlers: BowlerStats[] = (bowlingTeamPlayers || [])
     .map((p: any) => {
-      const stats = scorecard.find((s) => s.player_id === p.id) || {};
+      const stats =
+        scorecard.find((s: any) => String(s.player_id) === String(p.id)) || {};
       let runs = stats.runs_conceded || 0;
       let wickets = stats.wickets_taken || 0;
 
-      if (liveStats?.bowler_id === p.id) {
+      if (String(liveStats?.bowler_id) === String(p.id)) {
         runs = liveStats.bowler_runs || runs;
         wickets = liveStats.bowler_wickets || wickets;
       }
@@ -204,12 +248,13 @@ export default function MatchDetailsPage() {
         b.balls_bowled > 0 ||
         b.runs_conceded > 0 ||
         b.wickets_taken > 0 ||
-        liveStats?.bowler_id === b.player_id,
+        String(liveStats?.bowler_id) === String(b.player_id),
     );
 
   const fielders: FielderStats[] = (bowlingTeamPlayers || [])
     .map((p: any) => {
-      const stats = scorecard.find((s) => s.player_id === p.id) || {};
+      const stats =
+        scorecard.find((s: any) => String(s.player_id) === String(p.id)) || {};
       return {
         player_id: p.id,
         player_name: p.name,
@@ -223,7 +268,12 @@ export default function MatchDetailsPage() {
     );
 
   return (
-    <div className="min-h-screen bg-background pb-8">
+    <div className="min-h-screen bg-background pb-8 relative">
+      <FullScreenEvent
+        eventType={currentEvent}
+        onComplete={() => setCurrentEvent(null)}
+      />
+
       {/* HEADER */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md px-4 py-3 flex items-start gap-3 border-b border-border shadow-sm">
         <button
@@ -237,7 +287,6 @@ export default function MatchDetailsPage() {
             {matchData.team_a_name} vs {matchData.team_b_name}
           </h1>
 
-          {/* NEW: Host & Umpire Display */}
           <div className="flex items-center gap-3 mt-1.5 text-[11px] font-medium text-[#9FB7B2]">
             <div className="flex items-center gap-1 min-w-0">
               <span className="text-primary/70 shrink-0">Host:</span>
@@ -284,7 +333,6 @@ export default function MatchDetailsPage() {
         {/* ----------------- SUMMARY TAB ----------------- */}
         {activeTab === "Summary" && (
           <div className="flex flex-col gap-4">
-            {/* MATCH FINAL RESULT BANNER */}
             {matchData.status === "completed" && (
               <div className="bg-primary/10 border border-primary/30 rounded-2xl p-5 shadow-sm text-center animate-fade-in">
                 <div className="flex justify-center mb-2">
@@ -351,7 +399,6 @@ export default function MatchDetailsPage() {
               ) : (
                 <div className="animate-fade-in text-center">
                   <div className="text-sm font-bold text-[#9FB7B2] mb-1 uppercase tracking-wider">
-                    {/* 🛡️ FIX 2: Use batting_team_id instead of innings_no to determine which team is batting */}
                     {liveStats.batting_team_id === firstInningsTeamId
                       ? firstInningsTeamId === teamAId
                         ? matchData.team_a_name
@@ -404,7 +451,15 @@ export default function MatchDetailsPage() {
                         <div
                           className="h-full bg-[#0FAF9A] transition-all duration-500 ease-in-out rounded-full"
                           style={{
-                            width: `${Math.min(100, Math.max(0, (liveStats.current_score / liveStats.target_runs) * 100))}%`,
+                            width: `${Math.min(
+                              100,
+                              Math.max(
+                                0,
+                                (liveStats.current_score /
+                                  liveStats.target_runs) *
+                                  100,
+                              ),
+                            )}%`,
                           }}
                         ></div>
                       </div>
@@ -491,6 +546,10 @@ export default function MatchDetailsPage() {
                 </div>
               )}
             </div>
+            {/* 🔥 SQAURE-STYLE RECENT BALLS TIMELINE (SPECTATOR SCREEN) */}
+            {matchData.status !== "completed" && (
+              <OverTimeline recentBalls={liveStats?.recent_balls || []} />
+            )}
           </div>
         )}
 
@@ -536,49 +595,15 @@ export default function MatchDetailsPage() {
 
                 <div className="divide-y divide-[#1B3530]/50">
                   {batters.map((batter: BatterStats) => {
-                    let statusText = "Yet to bat";
-                    let statusClass = "text-[#9FB7B2]"; // Default grey
+                    let statusClass = "text-[#9FB7B2]"; // Default grey for Yet to bat / Did not bat
 
-                    const isStriker =
-                      String(liveStats?.striker_id) ===
-                      String(batter.player_id);
-                    const isNonStriker =
-                      String(liveStats?.non_striker_id) ===
-                      String(batter.player_id);
-
-                    // Verify they are actively batting for the current team
-                    const isActiveBatter =
-                      (isStriker || isNonStriker) &&
-                      liveStats?.batting_team_id === currentBattingTeamId &&
-                      matchData?.status !== "completed";
-
-                    const hasBatted =
-                      batter.balls_played > 0 ||
-                      batter.runs_scored > 0 ||
-                      isActiveBatter;
-
-                    if (isActiveBatter) {
-                      // 1. Actively on the pitch -> ALWAYS Not Out
-                      statusText = "Not out";
+                    if (
+                      batter.batting_status === "Batting" ||
+                      batter.batting_status === "Not out"
+                    ) {
                       statusClass = "text-[#0FAF9A] font-bold text-[10px]";
-                    } else if (hasBatted) {
-                      // 2. They batted but left the pitch.
-                      // 🏏 THE FIX: We ONLY mark them as "Out" if your backend explicitly set is_out to TRUE!
-                      if (batter.is_out === true) {
-                        statusText = "Out";
-                        statusClass = "text-destructive font-bold text-[10px]";
-                      } else {
-                        // If they batted and is_out is false (the DB default), they carried their bat!
-                        statusText = "Not out";
-                        statusClass = "text-[#0FAF9A] font-bold text-[10px]";
-                      }
-                    } else {
-                      // 3. Never batted
-                      statusText =
-                        matchData?.status === "completed"
-                          ? "Did not bat"
-                          : "Yet to bat";
-                      statusClass = "text-[#9FB7B2] text-[10px]";
+                    } else if (batter.batting_status === "Out") {
+                      statusClass = "text-destructive font-bold text-[10px]";
                     }
 
                     const sr =
@@ -599,7 +624,8 @@ export default function MatchDetailsPage() {
                           <span
                             className={`mt-0.5 leading-tight inline-block ${statusClass}`}
                           >
-                            {statusText}
+                            {/* 🔥 Render the exact string the backend calculated */}
+                            {batter.batting_status}
                           </span>
                         </div>
                         <div className="flex-1 text-center font-bold text-[#F4FFFD]">

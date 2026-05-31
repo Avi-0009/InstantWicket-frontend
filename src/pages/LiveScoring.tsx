@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Lock, AlertOctagon, UserPlus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../store/useAuthStore";
 import { api } from "../Api/Auth";
 import toast from "react-hot-toast";
@@ -15,13 +16,13 @@ import {
 import { FullScreenEvent } from "../components/scoring/FullScreenEvent";
 import { WicketForm } from "../components/scoring/WicketForm";
 import { DeclareModal } from "../components/scoring/DeclareModal";
+import OverTimeline from "../components/scoring/OverTimeline";
 
 const LiveScoring = () => {
   const { matchId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const [matchData, setMatchData] = useState<any>(null);
   const [liveStats, setLiveStats] = useState<any>(null);
   const [hasSynced, setHasSynced] = useState(false);
 
@@ -43,13 +44,77 @@ const LiveScoring = () => {
 
   const [isDeclareModalOpen, setIsDeclareModalOpen] = useState(false);
   const [isInningsDeclared, setIsInningsDeclared] = useState(false);
-  const [thisOverTimeline, setThisOverTimeline] = useState<string[]>([]);
   const [showWicketForm, setShowWicketForm] = useState(false);
   const [pendingRuns, setPendingRuns] = useState(0);
 
   const milestones = useRef<
     Record<string, { thirty: boolean; fifty: boolean; hundred: boolean }>
   >({});
+
+  // --- TANSTACK QUERIES ---
+  const { data: matchData } = useQuery({
+    queryKey: ["match", matchId],
+    queryFn: async () => {
+      const res = await api.get(`/matches/${matchId}`);
+      return res.data.match || res.data;
+    },
+    refetchInterval: 5000,
+  });
+
+  const { data: fetchedLiveStats, refetch: refetchLiveStats } = useQuery({
+    queryKey: ["liveScoreboard", matchId],
+    queryFn: async () => {
+      const res = await api.get(`/scoring/live/${matchId}`);
+      return res.data;
+    },
+    refetchInterval: 3000,
+  });
+
+  // Sync Fetched Stats into Local State for optimistic updates & milestone tracking
+  useEffect(() => {
+    if (fetchedLiveStats && Object.keys(fetchedLiveStats).length > 0) {
+      setLiveStats(fetchedLiveStats);
+
+      const strikerId = fetchedLiveStats.striker_id;
+      const strikerRuns = fetchedLiveStats.striker_runs || 0;
+      const strikerName = fetchedLiveStats.striker_name;
+
+      if (strikerId) {
+        if (!milestones.current[strikerId]) {
+          milestones.current[strikerId] = {
+            thirty: false,
+            fifty: false,
+            hundred: false,
+          };
+        }
+
+        if (strikerRuns >= 100 && !milestones.current[strikerId].hundred) {
+          toast.success(`🎉 CENTURY! Brilliant 100 by ${strikerName}!`, {
+            duration: 6000,
+          });
+          milestones.current[strikerId].hundred = true;
+        } else if (
+          strikerRuns >= 50 &&
+          strikerRuns < 100 &&
+          !milestones.current[strikerId].fifty
+        ) {
+          toast.success(`🔥 HALF-CENTURY for ${strikerName}!`, {
+            duration: 5000,
+          });
+          milestones.current[strikerId].fifty = true;
+        } else if (
+          strikerRuns >= 30 &&
+          strikerRuns < 50 &&
+          !milestones.current[strikerId].thirty
+        ) {
+          toast.success(`Solid 30 by ${strikerName}! Keep going!`, {
+            duration: 4000,
+          });
+          milestones.current[strikerId].thirty = true;
+        }
+      }
+    }
+  }, [fetchedLiveStats]);
 
   const getBatterStats = (playerId?: string) => {
     if (!playerId || !liveStats) return { runs: 0, balls: 0 };
@@ -65,80 +130,6 @@ const LiveScoring = () => {
       };
     return { runs: 0, balls: 0 };
   };
-
-  const fetchLiveScoreboard = useCallback(async () => {
-    if (!matchId) return;
-    try {
-      const res = await api.get(`/scoring/live/${matchId}`);
-      if (res.data && Object.keys(res.data).length > 0) {
-        setLiveStats(res.data);
-
-        const strikerId = res.data.striker_id;
-        const strikerRuns = res.data.striker_runs || 0;
-        const strikerName = res.data.striker_name;
-
-        if (strikerId) {
-          if (!milestones.current[strikerId]) {
-            milestones.current[strikerId] = {
-              thirty: false,
-              fifty: false,
-              hundred: false,
-            };
-          }
-
-          if (strikerRuns >= 100 && !milestones.current[strikerId].hundred) {
-            toast.success(`🎉 CENTURY! Brilliant 100 by ${strikerName}!`, {
-              duration: 6000,
-              icon: "🏏",
-            });
-            milestones.current[strikerId].hundred = true;
-          } else if (
-            strikerRuns >= 50 &&
-            strikerRuns < 100 &&
-            !milestones.current[strikerId].fifty
-          ) {
-            toast.success(`🔥 HALF-CENTURY for ${strikerName}!`, {
-              duration: 5000,
-              icon: "👏",
-            });
-            milestones.current[strikerId].fifty = true;
-          } else if (
-            strikerRuns >= 30 &&
-            strikerRuns < 50 &&
-            !milestones.current[strikerId].thirty
-          ) {
-            toast.success(`Solid 30 by ${strikerName}! Keep going!`, {
-              duration: 4000,
-              icon: "💪",
-            });
-            milestones.current[strikerId].thirty = true;
-          }
-        }
-      }
-    } catch (error: any) {}
-  }, [matchId]);
-
-  useEffect(() => {
-    if (!matchId) return;
-    const interval = setInterval(fetchLiveScoreboard, 3000);
-    return () => clearInterval(interval);
-  }, [matchId, fetchLiveScoreboard]);
-
-  useEffect(() => {
-    const fetchMatchInfo = async () => {
-      try {
-        const matchRes = await api.get(`/matches/${matchId}`);
-        const match = matchRes.data.match || matchRes.data;
-        setMatchData(match);
-      } catch (error) {
-        console.error("Match Info Error:", error);
-      }
-    };
-    if (matchId) {
-      fetchMatchInfo();
-      fetchLiveScoreboard();
-    }
-  }, [matchId, fetchLiveScoreboard]);
 
   const teamAPlayers: Player[] = matchData?.team_a_players || [];
   const teamBPlayers: Player[] = matchData?.team_b_players || [];
@@ -378,9 +369,8 @@ const LiveScoring = () => {
         ballOutcome = `${runsFromBat + extras}nb`;
       else ballOutcome = `${runsFromBat}`;
 
-      setThisOverTimeline((prev) => [...prev, ballOutcome]);
       setModifier(null);
-      await fetchLiveScoreboard();
+      await refetchLiveStats();
 
       let shouldSwapStrikers = runsFromBat % 2 !== 0;
       if (isLegal && ballsInOver === 5)
@@ -406,13 +396,10 @@ const LiveScoring = () => {
         battingSquad.find((p) => p.id === finalNonStrikerId) || null,
       );
 
-      // --- NEW STRICT INNINGS OVER CHECK BEFORE MODALS OPEN ---
       const newWickets = isWicket ? currentWickets + 1 : currentWickets;
       const isNowAllOut = newWickets >= maxWickets && maxWickets > 0;
-
       const newLegalBalls = isLegal ? currentLegalBalls + 1 : currentLegalBalls;
       const isNowOversDone = maxBalls > 0 && newLegalBalls >= maxBalls;
-
       const newScore = currentTotalScore + runsFromBat + extras;
       const isNowTargetReached =
         isSecondInnings && targetRuns > 0 && newScore >= targetRuns;
@@ -422,7 +409,6 @@ const LiveScoring = () => {
 
       if (isWicket && outPlayerId) {
         setTimeout(() => {
-          // Only pop up modal if innings is NOT over
           if (!willInningsEndNow) {
             setModalConfig({
               isOpen: true,
@@ -436,8 +422,6 @@ const LiveScoring = () => {
         setPreviousBowlerId(activeBowler!.id);
         setActiveBowler(null);
         setTimeout(() => {
-          setThisOverTimeline([]);
-          // Only pop up modal for new bowler if innings is NOT over
           if (!isWicket && !willInningsEndNow) {
             setModalConfig({ isOpen: true, role: "Bowler" });
           }
@@ -453,7 +437,7 @@ const LiveScoring = () => {
     setIsInningsDeclared(true);
     try {
       await api.post(`/scoring/innings/${liveStats.innings_id}/complete`);
-      fetchLiveScoreboard();
+      refetchLiveStats();
     } catch (err) {
       toast.error("Failed to complete innings.");
     }
@@ -533,9 +517,6 @@ const LiveScoring = () => {
       />
 
       <div className="px-4 mt-4 space-y-4">
-        {/* ========================================== */}
-        {/* STATE 1: ACTIVE SCORING (INNINGS ONGOING)  */}
-        {/* ========================================== */}
         {!isCurrentInningsOver &&
         matchData.status !== "completed" &&
         hasInningsStarted ? (
@@ -606,40 +587,7 @@ const LiveScoring = () => {
               partnershipBalls={liveStats?.partnership_balls || 0}
             />
 
-            {liveStats?.recent_balls?.length > 0 && (
-              <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
-                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-3 flex items-center justify-between">
-                  <span>Last 15 Balls</span>
-                  <span className="text-primary font-black">
-                    {oversDisplay} Overs
-                  </span>
-                </div>
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                  {liveStats.recent_balls.map((ball: string, i: number) => {
-                    let bgColor = "bg-muted text-muted-foreground"; // Dots
-                    if (ball === "W")
-                      bgColor = "bg-destructive text-white shadow-sm";
-                    else if (ball.includes("wd") || ball.includes("nb"))
-                      bgColor = "bg-warning text-warning-foreground font-black";
-                    else if (ball === "4" || ball === "6")
-                      bgColor =
-                        "bg-primary text-primary-foreground font-black shadow-sm";
-                    else if (ball !== "0")
-                      bgColor =
-                        "bg-card text-foreground border border-primary/30"; // 1s, 2s
-
-                    return (
-                      <span
-                        key={i}
-                        className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold transition-all ${bgColor}`}
-                      >
-                        {ball}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <OverTimeline recentBalls={liveStats?.recent_balls || []} />
 
             {canUpdateScore ? (
               <div className="mt-6 animate-fade-in">
@@ -671,9 +619,6 @@ const LiveScoring = () => {
             )}
           </>
         ) : (
-          /* ========================================== */
-          /* STATE 2: BREAKS & COMPLETION SCREENS       */
-          /* ========================================== */
           <div className="mt-6 animate-fade-in">
             {!hasInningsStarted && matchData.status !== "completed" ? (
               <div className="bg-card p-6 rounded-3xl border border-border shadow-lg text-center flex items-center justify-center min-h-[200px]">
