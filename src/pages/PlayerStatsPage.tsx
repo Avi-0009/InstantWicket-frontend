@@ -50,15 +50,18 @@ const PlayerStatsPage = () => {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState("overview");
 
+  const [isLoadingMatchStats, setIsLoadingMatchStats] = useState(false);
   // Real Matches State
   const [recentMatches, setRecentMatches] = useState<any[]>([]);
   const [isFetchingMatches, setIsFetchingMatches] = useState(true);
 
   // Stats for the currently visible matches in the table
   const [matchPlayerStats, setMatchPlayerStats] = useState<
-    Record<string, { runs: number | string; wickets: number | string }>
+    Record<
+      string,
+      { runs: number | string; wickets: number | string; isMvp?: boolean }
+    >
   >({});
-  const [isLoadingMatchStats, setIsLoadingMatchStats] = useState(false);
 
   // MVP Calculation State
   const [calculatedMvps, setCalculatedMvps] = useState<number | null>(null);
@@ -70,30 +73,70 @@ const PlayerStatsPage = () => {
   // Fetch Player Profile Stats
   const { data: stats, isLoading, isError, error } = usePlayerStats(id);
 
-  // Fetch Actual Recent Matches (Limited to 20)
+  // 🚀 THE MASTER FETCH: Filters legit matches, grabs table stats, and counts MVPs simultaneously
   useEffect(() => {
-    const fetchRecentMatches = async () => {
+    const fetchAndProcessMatches = async () => {
       if (!id) return;
       setIsFetchingMatches(true);
+
       try {
+        // 1. Get raw matches
         const res = await api.get(`/matches?limit=50`);
         const rawMatches = res.data?.matches || res.data || [];
 
-        // Filter out matches that belong to this player
-        const playerAssociatedMatches = rawMatches.filter(
-          (m: any) =>
-            m.created_by === id ||
-            m.umpire_id === id ||
-            m.status === "completed",
+        const actuallyPlayedMatches: any[] = [];
+        const statsMap: Record<string, any> = {};
+        let mvpCount = 0;
+
+        // 2. Check scorecards to verify if the player actually played
+        await Promise.all(
+          rawMatches.map(async (match: any) => {
+            try {
+              const scoreRes = await api.get(`/scoring/scorecard/${match.id}`);
+              const scorecard = scoreRes.data?.scorecard || [];
+
+              // Check if our specific player exists in this match's scorecard
+              const myStats = scorecard.find((s: any) => s.player_id === id);
+
+              if (myStats) {
+                actuallyPlayedMatches.push(match);
+
+                // Check MVP Status
+                let maxRuns = -1;
+                scorecard.forEach((s: any) => {
+                  if (s.runs_scored > maxRuns) maxRuns = s.runs_scored;
+                });
+
+                const isMvp =
+                  myStats.runs_scored === maxRuns && myStats.runs_scored > 0;
+
+                if (isMvp && match.status === "completed") {
+                  mvpCount++;
+                }
+
+                // Save their specific stats for the table
+                statsMap[match.id] = {
+                  runs: myStats.runs_scored ?? "-",
+                  wickets: myStats.wickets_taken ?? "-",
+                  isMvp: isMvp,
+                };
+              }
+            } catch (err) {
+              // Ignore matches where scorecard fails to load
+            }
+          }),
         );
 
-        // Sort by newest first
-        const sorted = playerAssociatedMatches.sort(
+        // 3. Sort by newest first
+        const sorted = actuallyPlayedMatches.sort(
           (a: any, b: any) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         );
 
+        // 4. Update all state at once
         setRecentMatches(sorted.slice(0, 20));
+        setMatchPlayerStats(statsMap);
+        setCalculatedMvps(mvpCount);
       } catch (err) {
         console.error("Failed to fetch recent matches:", err);
       } finally {
@@ -101,7 +144,7 @@ const PlayerStatsPage = () => {
       }
     };
 
-    fetchRecentMatches();
+    fetchAndProcessMatches();
   }, [id]);
 
   // Pagination Logic calculated from actual matches
@@ -110,89 +153,6 @@ const PlayerStatsPage = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   );
-
-  // Fetch Scorecards ONLY for the 5 currently visible matches
-  useEffect(() => {
-    const fetchSpecificMatchStats = async () => {
-      if (!currentMatches.length || !id) return;
-      setIsLoadingMatchStats(true);
-      const newStats: Record<string, any> = {};
-
-      await Promise.all(
-        currentMatches.map(async (match) => {
-          if (matchPlayerStats[match.id]) return;
-
-          try {
-            const res = await api.get(`/scoring/scorecard/${match.id}`);
-            const scorecard = res.data?.scorecard || [];
-            const myStats = scorecard.find((s: any) => s.player_id === id);
-
-            newStats[match.id] = {
-              runs: myStats?.runs_scored ?? "-",
-              wickets: myStats?.wickets_taken ?? "-",
-            };
-          } catch (error) {
-            newStats[match.id] = { runs: "-", wickets: "-" };
-          }
-        }),
-      );
-
-      if (Object.keys(newStats).length > 0) {
-        setMatchPlayerStats((prev) => ({ ...prev, ...newStats }));
-      }
-      setIsLoadingMatchStats(false);
-    };
-
-    fetchSpecificMatchStats();
-  }, [currentMatches, id]);
-
-  // 🏆 BACKGROUND MVP CALCULATOR 🏆
-  useEffect(() => {
-    const calculateTotalMvps = async () => {
-      if (!id || recentMatches.length === 0) {
-        if (!isFetchingMatches) setCalculatedMvps(0);
-        return;
-      }
-
-      const completedMatches = recentMatches.filter(
-        (m) => m.status === "completed",
-      );
-      if (completedMatches.length === 0) {
-        setCalculatedMvps(0);
-        return;
-      }
-
-      let mvpCount = 0;
-
-      await Promise.all(
-        completedMatches.map(async (match) => {
-          try {
-            const res = await api.get(`/scoring/scorecard/${match.id}`);
-            const scorecard = res.data?.scorecard || [];
-
-            let maxRuns = 0;
-            let playerRuns = 0;
-
-            scorecard.forEach((s: any) => {
-              if (s.runs_scored > maxRuns) maxRuns = s.runs_scored;
-              if (s.player_id === id) playerRuns = s.runs_scored;
-            });
-
-            // Player is MVP if they scored the highest in the match (and actually scored > 0)
-            if (playerRuns === maxRuns && playerRuns > 0) {
-              mvpCount++;
-            }
-          } catch (err) {
-            console.error("Failed to fetch match for MVP calculation", err);
-          }
-        }),
-      );
-
-      setCalculatedMvps(mvpCount);
-    };
-
-    calculateTotalMvps();
-  }, [recentMatches, id, isFetchingMatches]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);

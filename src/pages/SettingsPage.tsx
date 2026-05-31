@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { useThemeStore } from "../store/useThemeStore";
-import { Logout, api } from "../Api/Auth";
+import { Logout } from "../Api/Auth";
+import { usePlayerStats } from "../hooks/usePlayerQueries";
 import {
   Bell,
   HelpCircle,
@@ -17,6 +18,7 @@ import {
   UserCircle,
   ShieldCheck,
   Phone,
+  Loader2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -67,24 +69,8 @@ const SettingsPage = () => {
   const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
 
-  // 1. State to hold the fetched player stats
-  const [playerStats, setPlayerStats] = useState<any>(null);
-
-  // 2. Fetch stats directly when component mounts
-  useEffect(() => {
-    const fetchFullStats = async () => {
-      if (!user?.id) return;
-      try {
-        const res = await api.get(`/player_stats/${user.id}`);
-        // Handle potential nested API responses securely
-        const fetchedData = res.data?.data || res.data?.stats || res.data;
-        setPlayerStats(fetchedData);
-      } catch (e) {
-        console.error("Failed to load full stats in settings", e);
-      }
-    };
-    fetchFullStats();
-  }, [user]);
+  // Fetch stats seamlessly using your custom TanStack hook
+  const { data: playerStats, isLoading } = usePlayerStats(user?.id);
 
   const handleLogout = async () => {
     try {
@@ -125,8 +111,11 @@ const SettingsPage = () => {
             <UserCircle className="w-16 h-16 text-primary" />
           </div>
 
-          <h2 className="text-2xl font-black text-foreground">
+          <h2 className="text-2xl font-black text-foreground flex items-center justify-center gap-2">
             {playerStats?.name || user?.name}
+            {isLoading && (
+              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+            )}
           </h2>
 
           <div className="flex items-center justify-center gap-2 mt-1 mb-6">
@@ -156,7 +145,7 @@ const SettingsPage = () => {
                   Batting Style
                 </div>
                 <div className="text-sm font-black text-foreground capitalize truncate">
-                  {playerStats?.batting_style || "N/A"}
+                  {isLoading ? "..." : playerStats?.batting_style || "N/A"}
                 </div>
               </div>
 
@@ -167,7 +156,7 @@ const SettingsPage = () => {
                   Bowling Style
                 </div>
                 <div className="text-sm font-black text-foreground capitalize truncate">
-                  {playerStats?.bowling_style || "N/A"}
+                  {isLoading ? "..." : playerStats?.bowling_style || "N/A"}
                 </div>
               </div>
             </div>

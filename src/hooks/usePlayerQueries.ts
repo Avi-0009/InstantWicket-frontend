@@ -5,6 +5,7 @@ export interface PlayerStats {
   id: string;
   user_id: string;
   name: string;
+  phone_no?: string;
   batting_style?: string;
   bowling_style?: string;
   career_matches?: number;
