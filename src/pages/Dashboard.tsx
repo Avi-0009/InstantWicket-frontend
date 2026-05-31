@@ -55,7 +55,7 @@ const Dashboard = () => {
     fetchFullStats();
   }, [user]);
 
-  // 2. Fetch Live Matches (Global for Guests, Filtered for Users)
+  // 2. Fetch Live Matches (Global for Everyone)
   useEffect(() => {
     const fetchMatches = async () => {
       setIsFetchingMatches(true);
@@ -68,17 +68,9 @@ const Dashboard = () => {
           (m: any) => m.status === "ongoing",
         );
 
-        if (user?.id) {
-          // STRICT FILTER: Only show matches where the logged-in user is Host or Umpire
-          setMatches(
-            ongoingMatches.filter(
-              (m: any) => m.created_by === user.id || m.umpire_id === user.id,
-            ),
-          );
-        } else {
-          // GUEST FILTER: Show all live matches happening right now
-          setMatches(ongoingMatches);
-        }
+        // LOGIC FIX: We now show all ongoing matches to EVERYONE,
+        // regardless of whether they are a guest, player, host, or umpire.
+        setMatches(ongoingMatches);
       } catch (error) {
         console.error("Failed to fetch matches", error);
       } finally {

@@ -1,13 +1,21 @@
 import { Play, Trophy, ChevronRight, User, ShieldAlert } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuthStore } from "../../store/useAuthStore"; // 👈 Adjust path if needed!
 
 interface LiveMatchCardProps {
   match: any;
 }
 
 const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
+  const navigate = useNavigate();
+  const { user } = useAuthStore(); // 👈 Bring in the logged-in user
+
   const isCompleted = match.status === "completed";
   const isOngoing = match.status === "ongoing";
+
+  // 🛡️ AUTHORIZATION CHECK: Are they the host or the umpire?
+  const isAuthorizedToScore =
+    user && (match.created_by === user.id || match.umpire_id === user.id);
 
   const formatOvers = (balls: number) => {
     const overs = Math.floor((balls || 0) / 6);
@@ -38,7 +46,10 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
     : "Toss not decided";
 
   return (
-    <div className="bg-linear-to-br from-card to-card-hover border border-border rounded-[14px] p-4 relative cursor-pointer hover:border-primary/40 transition-colors flex flex-col h-full">
+    <div
+      onClick={() => navigate(`/match/${match.id}`)}
+      className="bg-linear-to-br from-card to-card-hover border border-border rounded-[14px] p-4 relative cursor-pointer hover:border-primary/40 transition-colors flex flex-col h-full group"
+    >
       {/* Match Status & Overs */}
       <div className="flex justify-between items-center mb-4">
         {isOngoing ? (
@@ -113,7 +124,7 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
         {isCompleted ? resultText : tossText}
       </div>
 
-      {/* NEW: Target Chase Progress Bar (2nd Innings Only) */}
+      {/* Target Chase Progress Bar (2nd Innings Only) */}
       {isOngoing && match.target > 0 && (
         <div className="mb-3 bg-[#0D2420] border border-[#1B3530]/70 rounded-xl p-3 shadow-sm text-left">
           <div className="flex justify-between items-center mb-2 text-xs">
@@ -155,7 +166,6 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
 
       {/* Metadata Section: Toss, Umpire, Creator */}
       <div className="flex flex-col gap-1.5 text-[11px] text-muted-foreground mt-2 mb-3 bg-muted/20 p-2.5 rounded-lg border border-border/50">
-        {/* If completed, we show the toss here since the banner is taken by the match winner */}
         {isCompleted && (
           <div className="flex items-center gap-1.5 pb-1.5 border-b border-border/50">
             <span className="font-semibold text-foreground/70">Toss:</span>{" "}
@@ -188,21 +198,21 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
           <div className="text-xs text-muted-foreground">Match final.</div>
         )}
 
-        <NavLink
-          to={`/matches/${match.id}/score`}
-          onClick={(e) => e.stopPropagation()}
-          className="shrink-0 bg-primary/10 border border-primary/20 rounded-lg px-4 py-2 font-bold text-primary flex items-center gap-1.5 hover:bg-primary hover:text-background transition-colors text-xs"
-        >
-          {isOngoing ? (
-            <>
-              <Play className="w-3.5 h-3.5" fill="currentColor" /> Score
-            </>
-          ) : (
-            <>
-              View Stats <ChevronRight className="w-3.5 h-3.5" />
-            </>
-          )}
-        </NavLink>
+        {/* 🏏 THE FIX: Conditional rendering for the Action Button */}
+        {isOngoing && isAuthorizedToScore ? (
+          <NavLink
+            to={`/matches/${match.id}/score`}
+            onClick={(e) => e.stopPropagation()} // Prevents the outer card click from firing
+            className="shrink-0 bg-primary/10 border border-primary/20 rounded-lg px-4 py-2 font-bold text-primary flex items-center gap-1.5 hover:bg-primary hover:text-background transition-colors text-xs relative z-10"
+          >
+            <Play className="w-3.5 h-3.5" fill="currentColor" /> Score
+          </NavLink>
+        ) : (
+          <div className="shrink-0 text-muted-foreground text-xs font-bold flex items-center gap-1">
+            {isOngoing ? "View Match" : "View Stats"}{" "}
+            <ChevronRight className="w-3.5 h-3.5" />
+          </div>
+        )}
       </div>
     </div>
   );

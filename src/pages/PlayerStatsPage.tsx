@@ -74,9 +74,14 @@ const PlayerStatsPage = () => {
   const { data: stats, isLoading, isError, error } = usePlayerStats(id);
 
   // 🚀 THE MASTER FETCH: Filters legit matches, grabs table stats, and counts MVPs simultaneously
+  // 🚀 THE MASTER FETCH: Filters legit matches, grabs table stats, and counts MVPs simultaneously
   useEffect(() => {
+    // 🛡️ THE FIX: The URL 'id' might be a user.id, but scorecards use player_id.
+    // Once usePlayerStats finishes loading, stats.id holds the TRUE player_id!
+    const resolvedPlayerId = stats?.id || id;
+
     const fetchAndProcessMatches = async () => {
-      if (!id) return;
+      if (!resolvedPlayerId) return;
       setIsFetchingMatches(true);
 
       try {
@@ -95,8 +100,12 @@ const PlayerStatsPage = () => {
               const scoreRes = await api.get(`/scoring/scorecard/${match.id}`);
               const scorecard = scoreRes.data?.scorecard || [];
 
-              // Check if our specific player exists in this match's scorecard
-              const myStats = scorecard.find((s: any) => s.player_id === id);
+              // 🛡️ MATCH CHECK: Check against both the resolved Player ID and URL ID just to be safe
+              const myStats = scorecard.find(
+                (s: any) =>
+                  String(s.player_id) === String(resolvedPlayerId) ||
+                  String(s.player_id) === String(id),
+              );
 
               if (myStats) {
                 actuallyPlayedMatches.push(match);
@@ -109,14 +118,29 @@ const PlayerStatsPage = () => {
 
                 const isMvp =
                   myStats.runs_scored === maxRuns && myStats.runs_scored > 0;
-
                 if (isMvp && match.status === "completed") {
                   mvpCount++;
                 }
 
+                // 🏏 RESTORED DNB / NOT OUT LOGIC
+                const hasBatted =
+                  myStats.balls_played > 0 ||
+                  myStats.runs_scored > 0 ||
+                  !!myStats.dismissal_type;
+                let runsDisplay: string | number = "-";
+
+                if (!hasBatted && match.status === "completed") {
+                  runsDisplay = "DNB";
+                } else if (!hasBatted && match.status !== "completed") {
+                  runsDisplay = "-";
+                } else {
+                  runsDisplay = myStats.runs_scored || 0;
+                  if (myStats.is_not_out) runsDisplay = `${runsDisplay}*`;
+                }
+
                 // Save their specific stats for the table
                 statsMap[match.id] = {
-                  runs: myStats.runs_scored ?? "-",
+                  runs: runsDisplay,
                   wickets: myStats.wickets_taken ?? "-",
                   isMvp: isMvp,
                 };
@@ -144,8 +168,11 @@ const PlayerStatsPage = () => {
       }
     };
 
-    fetchAndProcessMatches();
-  }, [id]);
+    // Wait until `usePlayerStats` is done loading so `stats?.id` is available
+    if (!isLoading) {
+      fetchAndProcessMatches();
+    }
+  }, [id, stats?.id, isLoading]);
 
   // Pagination Logic calculated from actual matches
   const totalPages = Math.ceil(recentMatches.length / itemsPerPage);
@@ -415,10 +442,16 @@ const PlayerStatsPage = () => {
                     let oppTeam = match.team_b_name;
                     let myTeamId = match.team_a_id;
 
+                    const resolvedPlayerId = stats?.id || id;
+
                     if (
                       (match.team_b_players &&
-                        match.team_b_players.some((p: any) => p.id === id)) ||
-                      match.player_team_id === match.team_b_id
+                        match.team_b_players.some(
+                          (p: any) =>
+                            String(p.id) === String(resolvedPlayerId) ||
+                            String(p.id) === String(id),
+                        )) ||
+                      String(match.player_team_id) === String(match.team_b_id)
                     ) {
                       myTeam = match.team_b_name;
                       oppTeam = match.team_a_name;
