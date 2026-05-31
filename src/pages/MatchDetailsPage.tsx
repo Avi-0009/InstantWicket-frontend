@@ -10,7 +10,7 @@ interface BatterStats {
   balls_played: number;
   fours: number;
   sixes: number;
-  is_not_out?: boolean;
+  is_out?: boolean;
   dismissal_type?: string;
   bowled_by_name?: string;
   caught_by_name?: string;
@@ -60,7 +60,11 @@ export default function MatchDetailsPage() {
         const liveRes = await api.get(`/scoring/live/${matchId}`);
         if (liveRes.data && Object.keys(liveRes.data).length > 0) {
           setLiveStats(liveRes.data);
-          if (liveRes.data.innings_no === 2 && activeTab === "Scoreboard") {
+          // 🛡️ FIX 1: innings_no is missing! Use target_runs to detect 2nd innings
+          if (
+            (liveRes.data.target_runs > 0 || liveRes.data.required_runs > 0) &&
+            activeTab === "Scoreboard"
+          ) {
             setInningsTab(2);
           }
         }
@@ -142,14 +146,15 @@ export default function MatchDetailsPage() {
 
   // Scorecard Generation Logic
   const batters: BatterStats[] = (teamPlayers || []).map((p: any) => {
-    const stats = scorecard.find((s) => s.player_id === p.id) || {};
+    const stats =
+      scorecard.find((s) => String(s.player_id) === String(p.id)) || {};
     let runs = stats.runs_scored || 0;
     let playedBalls = stats.balls_played || 0;
 
-    if (liveStats?.striker_id === p.id) {
+    if (String(liveStats?.striker_id) === String(p.id)) {
       runs = liveStats.striker_runs || runs;
       playedBalls = liveStats.striker_balls || playedBalls;
-    } else if (liveStats?.non_striker_id === p.id) {
+    } else if (String(liveStats?.non_striker_id) === String(p.id)) {
       runs = liveStats.non_striker_runs || runs;
       playedBalls = liveStats.non_striker_balls || playedBalls;
     }
@@ -161,7 +166,7 @@ export default function MatchDetailsPage() {
       balls_played: playedBalls,
       fours: stats.fours || 0,
       sixes: stats.sixes || 0,
-      is_not_out: stats.is_not_out, // Strictly read from the backend
+      is_out: stats.is_out, // 👈 Read is_out directly from backend
       dismissal_type: stats.dismissal_type,
       bowled_by_name: stats.bowled_by_name,
       caught_by_name: stats.caught_by_name,
@@ -346,7 +351,8 @@ export default function MatchDetailsPage() {
               ) : (
                 <div className="animate-fade-in text-center">
                   <div className="text-sm font-bold text-[#9FB7B2] mb-1 uppercase tracking-wider">
-                    {liveStats.innings_no === 1
+                    {/* 🛡️ FIX 2: Use batting_team_id instead of innings_no to determine which team is batting */}
+                    {liveStats.batting_team_id === firstInningsTeamId
                       ? firstInningsTeamId === teamAId
                         ? matchData.team_a_name
                         : matchData.team_b_name
@@ -534,60 +540,42 @@ export default function MatchDetailsPage() {
                     let statusClass = "text-[#9FB7B2]"; // Default grey
 
                     const isStriker =
-                      liveStats?.striker_id === batter.player_id;
+                      String(liveStats?.striker_id) ===
+                      String(batter.player_id);
                     const isNonStriker =
-                      liveStats?.non_striker_id === batter.player_id;
+                      String(liveStats?.non_striker_id) ===
+                      String(batter.player_id);
+
+                    // Verify they are actively batting for the current team
                     const isActiveBatter =
                       (isStriker || isNonStriker) &&
-                      liveStats?.innings_no === inningsTab &&
-                      matchData.status !== "completed";
+                      liveStats?.batting_team_id === currentBattingTeamId &&
+                      matchData?.status !== "completed";
 
-                    // A player has participated if they faced balls, scored runs, or have a dismissal string
                     const hasBatted =
                       batter.balls_played > 0 ||
                       batter.runs_scored > 0 ||
-                      !!batter.dismissal_type;
+                      isActiveBatter;
 
                     if (isActiveBatter) {
-                      // 1. Currently batting on the pitch
+                      // 1. Actively on the pitch -> ALWAYS Not Out
                       statusText = "Not out";
-                      statusClass =
-                        "bg-[#0FAF9A]/20 text-[#0FAF9A] px-2 py-0.5 rounded-md font-bold text-[10px]";
+                      statusClass = "text-[#0FAF9A] font-bold text-[10px]";
                     } else if (hasBatted) {
-                      // 2. They came to the crease
-                      // If they have a dismissal type OR the backend explicitly marked them as is_not_out = false
-                      if (
-                        batter.dismissal_type ||
-                        batter.is_not_out === false
-                      ) {
-                        if (batter.dismissal_type) {
-                          const method = batter.dismissal_type.toLowerCase();
-                          if (method === "bowled") {
-                            statusText = `b ${batter.bowled_by_name || "Unknown"}`;
-                          } else if (method === "caught") {
-                            statusText = `c ${batter.caught_by_name || "Unknown"} b ${batter.bowled_by_name || "Unknown"}`;
-                          } else if (
-                            method === "run out" ||
-                            method === "run_out"
-                          ) {
-                            statusText = `run out`;
-                          } else {
-                            statusText = batter.dismissal_type;
-                          }
-                        } else {
-                          statusText = "Out";
-                        }
-                        statusClass =
-                          "text-destructive font-bold capitalize text-[10px]";
+                      // 2. They batted but left the pitch.
+                      // 🏏 THE FIX: We ONLY mark them as "Out" if your backend explicitly set is_out to TRUE!
+                      if (batter.is_out === true) {
+                        statusText = "Out";
+                        statusClass = "text-destructive font-bold text-[10px]";
                       } else {
-                        // They batted, but did not get out (e.g., carried the bat or retired)
+                        // If they batted and is_out is false (the DB default), they carried their bat!
                         statusText = "Not out";
                         statusClass = "text-[#0FAF9A] font-bold text-[10px]";
                       }
                     } else {
-                      // 3. Never came to the crease
+                      // 3. Never batted
                       statusText =
-                        matchData.status === "completed"
+                        matchData?.status === "completed"
                           ? "Did not bat"
                           : "Yet to bat";
                       statusClass = "text-[#9FB7B2] text-[10px]";
