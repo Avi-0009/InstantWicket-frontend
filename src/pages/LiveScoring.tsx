@@ -51,7 +51,7 @@ interface LiveStats {
 interface ScorecardItem {
   player_id: string;
   is_out: boolean;
-  team_id?: string; // Backend might provide this
+  team_id?: string;
   batting_team_id?: string;
   innings_id?: string;
   balls_played?: number;
@@ -74,8 +74,8 @@ interface BallPayload {
   wicket_type?: string;
   out_player_id?: string;
   fielder_id?: string;
-  partnership_runs?: number; // 🔥 ADDED FOR BACKEND STORAGE
-  partnership_balls?: number; // 🔥 ADDED FOR BACKEND STORAGE
+  partnership_runs?: number;
+  partnership_balls?: number;
 }
 
 interface ApiError {
@@ -235,7 +235,6 @@ const LiveScoring = () => {
       ? teamAPlayers.length
       : teamBPlayers.length;
 
-  // 🔥 SOLO BATTING LOGIC: If true, max wickets equals total batters (All must get out)
   const maxWickets = matchData?.allow_solo_batting
     ? activeBattersCount
     : Math.max(1, activeBattersCount - 1);
@@ -267,45 +266,46 @@ const LiveScoring = () => {
   const battingSquad: Player[] = isTeamABatting ? teamAPlayers : teamBPlayers;
   const bowlingSquad: Player[] = isTeamABatting ? teamBPlayers : teamAPlayers;
 
-  // 🔥 CHECK: Is Solo Batting currently happening right now? (Last man standing)
   const isSoloBattingActive =
     matchData?.allow_solo_batting && currentWickets >= maxWickets - 1;
 
-  // 🔥 CHECK: Find the common player(s) (exists in both squads)
   const commonPlayerIds = teamAPlayers
     .filter((a) => teamBPlayers.some((b) => String(b.id) === String(a.id)))
     .map((p) => p.id);
   const wicketsRemaining = maxWickets - currentWickets;
 
-  // 🔥 SMART HELPER: Find the scorecard entry for the CURRENT innings to avoid 1st/2nd innings collision
+  // 🔥 FIX 1: Smart Helper for Common Player Innings Isolation
   const getPlayerCurrentInningsStats = (playerId: string) => {
     const allEntries = scorecard.filter(
       (s: ScorecardItem) => String(s.player_id) === String(playerId),
     );
     if (allEntries.length === 0) return null;
 
-    // 1. Try to match by explicit backend IDs first
+    // 1. Match by explicit backend IDs
     const exactMatch = allEntries.find(
       (s: ScorecardItem) =>
-        (s.team_id && String(s.team_id) === String(currentBattingTeamId)) ||
+        (s.innings_id &&
+          String(s.innings_id) === String(liveStats?.innings_id)) ||
         (s.batting_team_id &&
           String(s.batting_team_id) === String(currentBattingTeamId)) ||
-        (s.innings_id &&
-          String(s.innings_id) === String(liveStats?.innings_id)),
+        (s.team_id && String(s.team_id) === String(currentBattingTeamId)),
     );
     if (exactMatch) return exactMatch;
 
-    // 2. Fallback: If no explicit IDs are provided by backend, assume index-based entry for Common Players
+    // 2. Common Player Fallback
     if (commonPlayerIds.includes(playerId)) {
-      return isSecondInnings ? allEntries[1] : allEntries[0];
+      if (isSecondInnings) {
+        // If it's the 2nd innings, but they only have 1 entry, that entry belongs to the 1st innings.
+        // Therefore, return null so they have a clean slate for the 2nd innings!
+        return allEntries.length > 1 ? allEntries[1] : null;
+      }
+      return allEntries[0];
     }
     return allEntries[0];
   };
 
-  // --- DROPDOWN OPTIONS LOGIC ---
   const batterOptions = battingSquad
     .filter((p) => {
-      // 🔥 FIX: Check if they got out in THIS innings specifically!
       const stats = getPlayerCurrentInningsStats(p.id);
       return stats?.is_out !== true;
     })
@@ -319,11 +319,9 @@ const LiveScoring = () => {
         String(p.id) !== String(activeNonStriker?.id),
     )
     .filter((p) => {
-      // 🔥 FIX: Common Player Bowling Constraints
       if (commonPlayerIds.includes(p.id)) {
         if (wicketsRemaining <= 2) {
           const stats = getPlayerCurrentInningsStats(p.id);
-          // If they haven't faced a ball or scored a run, they haven't batted yet.
           if (!stats || (stats.balls_played === 0 && stats.runs_scored === 0)) {
             return false;
           }
@@ -425,7 +423,6 @@ const LiveScoring = () => {
     if (isCurrentInningsOver)
       return toast.error("The innings is already over!");
 
-    // 🔥 If Solo Batting is active, we don't require a Non-Striker
     if (
       !activeStriker ||
       (!isSoloBattingActive && !activeNonStriker) ||
@@ -501,7 +498,6 @@ const LiveScoring = () => {
       setEventQueue((prev) => [...prev, ...newEvents]);
     }
 
-    // 🔥 Calculate the running Partnership Score to pass to the backend
     const currentPartnershipRuns =
       (liveStats.partnership_runs || 0) + runsFromBat + extras;
     const currentPartnershipBalls =
@@ -519,7 +515,6 @@ const LiveScoring = () => {
       runs_from_bat: runsFromBat,
       extras: extras,
       is_wicket: isWicket,
-      // Pass the partnership directly so the backend can store it
       partnership_runs: isWicket ? 0 : currentPartnershipRuns,
       partnership_balls: isWicket ? 0 : currentPartnershipBalls,
     };
@@ -535,16 +530,21 @@ const LiveScoring = () => {
       setModifier(null);
       await refetchLiveStats();
 
-      // 🔥 SOLO BATTING RULE: Do not rotate strike if solo batting!
+      // Check if Solo Batting is actively starting ON THIS EXACT WICKET
+      const isNowSoloBatting =
+        matchData?.allow_solo_batting &&
+        currentWickets + (isWicket ? 1 : 0) >= maxWickets - 1;
+
       let shouldSwapStrikers = runsFromBat % 2 !== 0;
       if (isLegal && ballsInOver === 5)
         shouldSwapStrikers = !shouldSwapStrikers;
-      if (isSoloBattingActive) shouldSwapStrikers = false; // Lock striker
+
+      if (isNowSoloBatting) shouldSwapStrikers = false; // Lock striker
 
       let finalStrikerId = activeStriker?.id;
       let finalNonStrikerId = activeNonStriker?.id;
 
-      if (shouldSwapStrikers && !isSoloBattingActive) {
+      if (shouldSwapStrikers && !isNowSoloBatting) {
         finalStrikerId = activeNonStriker?.id;
         finalNonStrikerId = activeStriker?.id;
       }
@@ -552,6 +552,14 @@ const LiveScoring = () => {
       if (isWicket && outPlayerId) {
         if (finalStrikerId === outPlayerId) finalStrikerId = undefined;
         if (finalNonStrikerId === outPlayerId) finalNonStrikerId = undefined;
+      }
+
+      // 🔥 FIX 2: If we just hit Solo Batting, force whoever is left to be the Striker!
+      if (isNowSoloBatting) {
+        if (!finalStrikerId && finalNonStrikerId) {
+          finalStrikerId = finalNonStrikerId;
+        }
+        finalNonStrikerId = undefined; // Wipe non-striker completely
       }
 
       setActiveStriker(
@@ -668,7 +676,6 @@ const LiveScoring = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {/* 🔥 If solo batting, striker takes full width */}
                   <div
                     className={`min-w-0 ${isSoloBattingActive ? "col-span-2" : ""}`}
                   >
@@ -689,7 +696,6 @@ const LiveScoring = () => {
                     />
                   </div>
 
-                  {/* 🔥 Hide Non-Striker entirely if Solo Batting is happening */}
                   {!isSoloBattingActive && (
                     <div className="min-w-0">
                       <div className="text-[10px] text-[#9FB7B2] uppercase tracking-wider mb-1 px-1 truncate">
@@ -775,9 +781,15 @@ const LiveScoring = () => {
               <div className="mt-6 animate-fade-in">
                 {showWicketForm ? (
                   <WicketForm
-                    bowlingSquad={bowlingSquad}
+                    // 🔥 EXCLUDE COMMON PLAYERS WHO ARE CURRENTLY BATTING
+                    availableFielders={bowlingSquad.filter(
+                      (p) =>
+                        String(p.id) !== String(activeStriker?.id) &&
+                        String(p.id) !== String(activeNonStriker?.id),
+                    )}
                     onSubmit={handleWicketSubmit}
                     onCancel={() => setShowWicketForm(false)}
+                    isSoloBattingActive={isSoloBattingActive} // Hides non-striker for run outs
                   />
                 ) : (
                   <ScoringPad

@@ -1,69 +1,117 @@
 import { useState } from "react";
-import { type Player } from "./PlayerSelectModal";
-import { UserMinus } from "lucide-react";
+import CustomDropdown from "./CustomDropdown";
+import { UserMinus, X } from "lucide-react";
+
+export interface Player {
+  id: string;
+  name: string;
+}
 
 interface WicketFormProps {
-  bowlingSquad: Player[];
+  availableFielders: Player[];
   onSubmit: (
     wicketType: string,
-    outBatter: "striker" | "non_striker",
+    outBatterRole: "striker" | "non_striker",
     fielderId: string | null,
   ) => void;
   onCancel: () => void;
+  isSoloBattingActive?: boolean;
 }
 
 const WICKET_TYPES = [
-  { id: "bowled", label: "Bowled" },
-  { id: "caught", label: "Caught" },
-  { id: "run_out", label: "Run Out" },
-  { id: "lbw", label: "LBW" },
-  { id: "stumped", label: "Stumped" },
-  { id: "hit_wicket", label: "Hit Wicket" },
+  {
+    id: "bowled",
+    label: "Bowled",
+    needsFielder: false,
+    canOutNonStriker: false,
+  },
+  {
+    id: "caught",
+    label: "Caught",
+    needsFielder: true,
+    canOutNonStriker: false,
+  },
+  {
+    id: "run_out",
+    label: "Run Out",
+    needsFielder: true,
+    canOutNonStriker: true,
+  },
+  { id: "lbw", label: "LBW", needsFielder: false, canOutNonStriker: false },
+  {
+    id: "stumped",
+    label: "Stumped",
+    needsFielder: true,
+    canOutNonStriker: false,
+  },
+  {
+    id: "hit_wicket",
+    label: "Hit Wicket",
+    needsFielder: false,
+    canOutNonStriker: false,
+  },
 ];
 
 export const WicketForm = ({
-  bowlingSquad,
+  availableFielders,
   onSubmit,
   onCancel,
+  isSoloBattingActive = false,
 }: WicketFormProps) => {
-  const [wicketType, setWicketType] = useState<string>("bowled");
+  const [wicketType, setWicketType] = useState<string>("");
   const [outBatter, setOutBatter] = useState<"striker" | "non_striker">(
     "striker",
   );
   const [fielderId, setFielderId] = useState<string>("");
 
-  const needsFielder = ["caught", "run_out", "stumped"].includes(wicketType);
+  const selectedTypeConfig = WICKET_TYPES.find((w) => w.id === wicketType);
+  const needsFielder = selectedTypeConfig?.needsFielder;
+  const canOutNonStriker = selectedTypeConfig?.canOutNonStriker;
 
   const handleSubmit = () => {
-    onSubmit(
-      wicketType,
-      outBatter,
-      needsFielder && fielderId ? fielderId : null,
-    );
+    if (!wicketType) return;
+    if (needsFielder && !fielderId) return;
+
+    // If Solo Batting is active, it must ALWAYS be the striker who gets out
+    const finalRole = isSoloBattingActive ? "striker" : outBatter;
+
+    onSubmit(wicketType, finalRole, needsFielder ? fielderId : null);
   };
 
   return (
-    <div className="bg-card border border-destructive/50 rounded-2xl p-5 shadow-lg animate-fade-in">
-      <div className="flex items-center gap-2 text-destructive mb-4 font-bold">
-        <UserMinus className="w-5 h-5" />
-        <h3 className="text-lg">Wicket Details</h3>
+    <div className="bg-destructive/10 border border-destructive/30 rounded-3xl p-5 animate-fade-in text-left">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 text-destructive font-black text-lg uppercase tracking-wider">
+          <UserMinus className="w-5 h-5" />
+          Dismissal
+        </div>
+        <button
+          onClick={onCancel}
+          className="p-1.5 bg-background border border-border rounded-full text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {/* 1. Select Wicket Type */}
         <div>
-          <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2 block">
+          <label className="text-[10px] font-bold text-destructive/80 uppercase tracking-widest mb-2 block">
             How out?
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {WICKET_TYPES.map((type) => (
               <button
                 key={type.id}
-                onClick={() => setWicketType(type.id)}
-                className={`py-2 rounded-lg text-xs font-bold border transition-colors ${
+                onClick={() => {
+                  setWicketType(type.id);
+                  setFielderId("");
+                  setOutBatter("striker");
+                }}
+                className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all border ${
                   wicketType === type.id
-                    ? "bg-destructive text-background border-destructive shadow-[0_0_10px_rgba(255,107,107,0.3)]"
-                    : "bg-background border-border text-foreground hover:bg-border"
+                    ? "bg-destructive text-background border-destructive shadow-md scale-[0.98]"
+                    : "bg-background border-border text-foreground hover:border-destructive/50"
                 }`}
               >
                 {type.label}
@@ -72,29 +120,29 @@ export const WicketForm = ({
           </div>
         </div>
 
-        {/* 2. Select Who is Out (Crucial for Run Outs) */}
-        {wicketType === "run_out" && (
-          <div className="animate-fade-in">
-            <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2 block">
-              Who is out?
+        {/* 2. Select Who is Out (Only for Run Outs, Hidden during Solo Batting) */}
+        {wicketType && canOutNonStriker && !isSoloBattingActive && (
+          <div className="animate-in slide-in-from-top-2 duration-200">
+            <label className="text-[10px] font-bold text-destructive/80 uppercase tracking-widest mb-2 block">
+              Who was dismissed?
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 p-1 bg-background border border-border rounded-xl">
               <button
                 onClick={() => setOutBatter("striker")}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold border ${
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
                   outBatter === "striker"
-                    ? "bg-primary text-background border-primary"
-                    : "bg-background border-border"
+                    ? "bg-destructive/20 text-destructive"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Striker
               </button>
               <button
                 onClick={() => setOutBatter("non_striker")}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold border ${
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
                   outBatter === "non_striker"
-                    ? "bg-primary text-background border-primary"
-                    : "bg-background border-border"
+                    ? "bg-destructive/20 text-destructive"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Non-Striker
@@ -104,42 +152,32 @@ export const WicketForm = ({
         )}
 
         {/* 3. Select Fielder (If applicable) */}
-        {needsFielder && (
-          <div className="animate-fade-in">
-            <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-2 block">
+        {wicketType && needsFielder && (
+          <div className="animate-in slide-in-from-top-2 duration-200 relative z-50">
+            <label className="text-[10px] font-bold text-destructive/80 uppercase tracking-widest mb-2 block">
               Fielder / Assistant
             </label>
-            <select
+            <CustomDropdown
+              placeholder="Choose Fielder..."
               value={fielderId}
-              onChange={(e) => setFielderId(e.target.value)}
-              className="w-full bg-background border border-border text-foreground rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:border-primary"
-            >
-              <option value="">-- Select Fielder --</option>
-              {bowlingSquad.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.name}
-                </option>
-              ))}
-            </select>
+              options={availableFielders.map((f) => ({
+                id: f.id,
+                name: f.name,
+              }))}
+              onChange={(val) => setFielderId(val)}
+              direction="up"
+            />
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-3 bg-background border border-border text-foreground rounded-xl font-bold text-sm"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={needsFielder && !fielderId} // Force fielder selection if needed
-            className="flex-1 py-3 bg-destructive hover:bg-destructive/90 text-background rounded-xl font-bold text-sm disabled:opacity-50"
-          >
-            Confirm Wicket
-          </button>
-        </div>
+        {/* Action Button */}
+        <button
+          onClick={handleSubmit}
+          disabled={!wicketType || (needsFielder && !fielderId)}
+          className="w-full bg-destructive text-background font-black py-4 rounded-xl text-sm tracking-wider uppercase transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed shadow-lg"
+        >
+          Confirm Wicket
+        </button>
       </div>
     </div>
   );
