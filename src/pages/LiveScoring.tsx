@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Lock, AlertOctagon, UserPlus } from "lucide-react";
+import { ChevronLeft, Lock, AlertOctagon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../store/useAuthStore";
 import { api } from "../Api/Auth";
@@ -9,33 +9,92 @@ import toast from "react-hot-toast";
 import ScoreHeader from "../components/scoring/ScoreHeader";
 import PlayerStats from "../components/scoring/PlayerStats";
 import ScoringPad from "../components/scoring/ScoringPad";
-import {
-  PlayerSelectModal,
-  type Player,
-} from "../components/scoring/PlayerSelectModal";
+import CustomDropdown from "../components/scoring/CustomDropdown";
 import { FullScreenEvent } from "../components/scoring/FullScreenEvent";
 import { WicketForm } from "../components/scoring/WicketForm";
 import { DeclareModal } from "../components/scoring/DeclareModal";
 import OverTimeline from "../components/scoring/OverTimeline";
 
+// --- STRICT TYPESCRIPT INTERFACES ---
+export interface Player {
+  id: string;
+  name: string;
+}
+
+interface LiveStats {
+  innings_id: string;
+  innings_no: number;
+  batting_team_id: string;
+  bowling_team_id: string;
+  legal_balls: number;
+  current_score: number;
+  wickets: number;
+  striker_id?: string;
+  striker_runs?: number;
+  striker_balls?: number;
+  striker_name?: string;
+  non_striker_id?: string;
+  non_striker_runs?: number;
+  non_striker_balls?: number;
+  non_striker_name?: string;
+  bowler_id?: string;
+  bowler_runs?: number;
+  bowler_wickets?: number;
+  bowler_name?: string;
+  partnership_runs?: number;
+  partnership_balls?: number;
+  target_runs: number;
+  required_runs: number;
+  recent_balls?: string[];
+}
+
+interface ScorecardItem {
+  player_id: string;
+  is_out: boolean;
+}
+
+interface BallPayload {
+  match_id: string;
+  innings_id: string;
+  over_number: number;
+  ball_number: number;
+  striker_id?: string;
+  non_striker_id?: string;
+  bowler_id?: string;
+  is_legal_ball: boolean;
+  runs_from_bat: number;
+  extras: number;
+  is_wicket: boolean;
+  extra_type?: string;
+  wicket_type?: string;
+  out_player_id?: string;
+  fielder_id?: string;
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+}
+
 const LiveScoring = () => {
-  const { matchId } = useParams();
+  const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const [liveStats, setLiveStats] = useState<any>(null);
+  const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
   const [hasSynced, setHasSynced] = useState(false);
 
   const [modifier, setModifier] = useState<"WD" | "NB" | null>(null);
   const [isFreeHit, setIsFreeHit] = useState(false);
-  const [currentEvent, setCurrentEvent] = useState<
-    "4" | "6" | "FREE_HIT" | "WICKET" | null
-  >(null);
 
-  const [modalConfig, setModalConfig] = useState<{
-    isOpen: boolean;
-    role: "Striker" | "Non-Striker" | "Bowler" | null;
-  }>({ isOpen: false, role: null });
+  // 🔥 THE EVENT QUEUE: Handles sequential confetti (e.g. Free Hit -> 6)
+  const [eventQueue, setEventQueue] = useState<
+    ("4" | "6" | "FREE_HIT" | "WICKET")[]
+  >([]);
+  const currentEvent = eventQueue[0] || null;
 
   const [activeStriker, setActiveStriker] = useState<Player | null>(null);
   const [activeNonStriker, setActiveNonStriker] = useState<Player | null>(null);
@@ -65,12 +124,21 @@ const LiveScoring = () => {
     queryKey: ["liveScoreboard", matchId],
     queryFn: async () => {
       const res = await api.get(`/scoring/live/${matchId}`);
-      return res.data;
+      return res.data as LiveStats;
     },
     refetchInterval: 3000,
   });
 
-  // Sync Fetched Stats into Local State for optimistic updates & milestone tracking
+  // 🔥 Fetch Scorecard so we know who is already OUT
+  const { data: scorecard = [] } = useQuery({
+    queryKey: ["scorecard", matchId],
+    queryFn: async () => {
+      const res = await api.get(`/scoring/scorecard/${matchId}`);
+      return (res.data.scorecard || []) as ScorecardItem[];
+    },
+    refetchInterval: 3000,
+  });
+
   useEffect(() => {
     if (fetchedLiveStats && Object.keys(fetchedLiveStats).length > 0) {
       setLiveStats(fetchedLiveStats);
@@ -190,6 +258,21 @@ const LiveScoring = () => {
   const battingSquad: Player[] = isTeamABatting ? teamAPlayers : teamBPlayers;
   const bowlingSquad: Player[] = isTeamABatting ? teamBPlayers : teamAPlayers;
 
+  // --- DROPDOWN OPTIONS LOGIC ---
+  const batterOptions = battingSquad
+    .filter((p) => {
+      // Filter out players who are explicitly OUT in the scorecard
+      const stats = scorecard.find(
+        (s: ScorecardItem) => String(s.player_id) === String(p.id),
+      );
+      return stats?.is_out !== true;
+    })
+    .map((p) => ({ id: p.id, name: p.name }));
+
+  const bowlerOptions = bowlingSquad
+    .filter((p) => String(p.id) !== String(previousBowlerId))
+    .map((p) => ({ id: p.id, name: p.name }));
+
   useEffect(() => {
     if (liveStats && matchData && !isPreparingSecondInnings && !hasSynced) {
       if (liveStats.striker_id)
@@ -256,18 +339,22 @@ const LiveScoring = () => {
         res.data?.innings_id ||
         res.data?.id ||
         "active-innings";
-      setLiveStats((prev: any) => ({
-        ...prev,
-        innings_id: newInningsId,
-        innings_no: currentInningsNo,
-        batting_team_id: payload.batting_team_id,
-        bowling_team_id: payload.bowling_team_id,
-        legal_balls: 0,
-        current_score: 0,
-        wickets: 0,
-      }));
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to start innings");
+      setLiveStats(
+        (prev) =>
+          ({
+            ...(prev || {}),
+            innings_id: newInningsId,
+            innings_no: currentInningsNo,
+            batting_team_id: payload.batting_team_id,
+            bowling_team_id: payload.bowling_team_id,
+            legal_balls: 0,
+            current_score: 0,
+            wickets: 0,
+          }) as LiveStats,
+      );
+    } catch (error) {
+      const err = error as ApiError;
+      toast.error(err.response?.data?.error || "Failed to start innings");
     }
   };
 
@@ -288,7 +375,7 @@ const LiveScoring = () => {
       setShowWicketForm(true);
       return;
     }
-    executeBallApi(runs, false, null, null, null);
+    executeBallApi(runs, false, undefined, undefined, undefined);
   };
 
   const handleWicketSubmit = (
@@ -302,8 +389,8 @@ const LiveScoring = () => {
       pendingRuns,
       true,
       wicketType,
-      exactOutPlayerId || null,
-      fielderId,
+      exactOutPlayerId || undefined,
+      fielderId || undefined,
     );
     setShowWicketForm(false);
   };
@@ -311,14 +398,18 @@ const LiveScoring = () => {
   const executeBallApi = async (
     runs: number,
     isWicket: boolean,
-    wicketType: string | null,
-    outPlayerId: string | null,
-    fielderId: string | null,
+    wicketType?: string,
+    outPlayerId?: string,
+    fielderId?: string,
   ) => {
+    if (!liveStats || !matchId) return;
+
     let isLegal = true,
       runsFromBat = runs,
       extras = 0,
-      extraType: string | null = null;
+      extraType: string | undefined = undefined;
+
+    const newEvents: ("4" | "6" | "FREE_HIT" | "WICKET")[] = [];
 
     if (modifier === "WD") {
       isLegal = false;
@@ -330,17 +421,22 @@ const LiveScoring = () => {
       runsFromBat = runs;
       extras = 1;
       extraType = "no_ball";
-      setCurrentEvent("FREE_HIT");
+      newEvents.push("FREE_HIT");
       setIsFreeHit(true);
     } else {
       if (isFreeHit) setIsFreeHit(false);
     }
 
-    if (!modifier && runsFromBat === 4) setCurrentEvent("4");
-    if (!modifier && runsFromBat === 6) setCurrentEvent("6");
-    if (isWicket) setCurrentEvent("WICKET");
+    if (runsFromBat === 4) newEvents.push("4");
+    if (runsFromBat === 6) newEvents.push("6");
+    if (isWicket) newEvents.push("WICKET");
 
-    const payload: any = {
+    // Queue up the double confetti if needed!
+    if (newEvents.length > 0) {
+      setEventQueue((prev) => [...prev, ...newEvents]);
+    }
+
+    const payload: BallPayload = {
       match_id: matchId,
       innings_id: liveStats.innings_id,
       over_number: overs,
@@ -361,13 +457,6 @@ const LiveScoring = () => {
 
     try {
       await api.post("/scoring/ball", payload);
-
-      let ballOutcome = "";
-      if (isWicket) ballOutcome = "W";
-      else if (extraType === "wide") ballOutcome = `${extras}wd`;
-      else if (extraType === "no_ball")
-        ballOutcome = `${runsFromBat + extras}nb`;
-      else ballOutcome = `${runsFromBat}`;
 
       setModifier(null);
       await refetchLiveStats();
@@ -396,49 +485,24 @@ const LiveScoring = () => {
         battingSquad.find((p) => p.id === finalNonStrikerId) || null,
       );
 
-      const newWickets = isWicket ? currentWickets + 1 : currentWickets;
-      const isNowAllOut = newWickets >= maxWickets && maxWickets > 0;
-      const newLegalBalls = isLegal ? currentLegalBalls + 1 : currentLegalBalls;
-      const isNowOversDone = maxBalls > 0 && newLegalBalls >= maxBalls;
-      const newScore = currentTotalScore + runsFromBat + extras;
-      const isNowTargetReached =
-        isSecondInnings && targetRuns > 0 && newScore >= targetRuns;
-
-      const willInningsEndNow =
-        isNowAllOut || isNowOversDone || isNowTargetReached;
-
-      if (isWicket && outPlayerId) {
-        setTimeout(() => {
-          if (!willInningsEndNow) {
-            setModalConfig({
-              isOpen: true,
-              role: finalStrikerId === undefined ? "Striker" : "Non-Striker",
-            });
-          }
-        }, 800);
-      }
-
       if (isLegal && ballsInOver === 5) {
         setPreviousBowlerId(activeBowler!.id);
         setActiveBowler(null);
-        setTimeout(() => {
-          if (!isWicket && !willInningsEndNow) {
-            setModalConfig({ isOpen: true, role: "Bowler" });
-          }
-        }, 1500);
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to record ball");
+    } catch (error) {
+      const err = error as ApiError;
+      toast.error(err.response?.data?.error || "Failed to record ball");
     }
   };
 
   const confirmDeclare = async () => {
+    if (!liveStats) return;
     setIsDeclareModalOpen(false);
     setIsInningsDeclared(true);
     try {
       await api.post(`/scoring/innings/${liveStats.innings_id}/complete`);
       refetchLiveStats();
-    } catch (err) {
+    } catch (error) {
       toast.error("Failed to complete innings.");
     }
   };
@@ -447,16 +511,9 @@ const LiveScoring = () => {
     try {
       await api.post(`/scoring/match/${matchId}/complete`);
       navigate(`/match/${matchId}`);
-    } catch (err) {
+    } catch (error) {
       toast.error("Failed to complete match.");
     }
-  };
-
-  const handlePlayerSelect = (player: Player) => {
-    if (modalConfig.role === "Striker") setActiveStriker(player);
-    if (modalConfig.role === "Non-Striker") setActiveNonStriker(player);
-    if (modalConfig.role === "Bowler") setActiveBowler(player);
-    setModalConfig({ isOpen: false, role: null });
   };
 
   if (!matchData)
@@ -475,7 +532,8 @@ const LiveScoring = () => {
     <div className="min-h-screen bg-background pb-8 relative">
       <FullScreenEvent
         eventType={currentEvent}
-        onComplete={() => setCurrentEvent(null)}
+        // Slice the queue to play the next event if there is one
+        onComplete={() => setEventQueue((prev) => prev.slice(1))}
       />
 
       <DeclareModal
@@ -521,38 +579,68 @@ const LiveScoring = () => {
         matchData.status !== "completed" &&
         hasInningsStarted ? (
           <>
+            {/* 🔥 INLINE PLAYER SELECTION (Fixed Layout) */}
             {showPlayerSelection && (
-              <div className="mb-2">
-                <div className="flex gap-2 mb-2 animate-fade-in">
-                  <button
-                    onClick={() =>
-                      setModalConfig({ isOpen: true, role: "Striker" })
-                    }
-                    className={`flex-1 py-2 border rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${!activeStriker ? "bg-primary border-primary text-background animate-pulse" : "bg-card border-border text-primary"}`}
-                  >
-                    <UserPlus className="w-3 h-3" />{" "}
-                    {activeStriker ? activeStriker.name : "Pick Striker"}
-                  </button>
-                  <button
-                    onClick={() =>
-                      setModalConfig({ isOpen: true, role: "Non-Striker" })
-                    }
-                    className={`flex-1 py-2 border rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${!activeNonStriker ? "bg-primary border-primary text-background animate-pulse" : "bg-card border-border text-primary"}`}
-                  >
-                    <UserPlus className="w-3 h-3" />{" "}
-                    {activeNonStriker
-                      ? activeNonStriker.name
-                      : "Pick Non-Striker"}
-                  </button>
-                  <button
-                    onClick={() =>
-                      setModalConfig({ isOpen: true, role: "Bowler" })
-                    }
-                    className={`flex-1 py-2 border rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${!activeBowler ? "bg-destructive border-destructive text-background animate-pulse" : "bg-card border-border text-destructive"}`}
-                  >
-                    <UserPlus className="w-3 h-3" />{" "}
-                    {activeBowler ? activeBowler.name : "Pick Bowler"}
-                  </button>
+              <div className="mb-4 bg-[#0B1F1B] p-3.5 rounded-2xl border border-[#1B3530] shadow-sm animate-fade-in text-left">
+                <div className="text-[10px] text-[#9FB7B2] font-semibold uppercase tracking-wider mb-3 px-1">
+                  Active Players
+                </div>
+                {/* Changed gap-4 to gap-3 for a slightly tighter fit on mobile */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Added min-w-0 to force grid constraints */}
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-[#9FB7B2] uppercase tracking-wider mb-1 px-1">
+                      Striker
+                    </div>
+                    <CustomDropdown
+                      placeholder="Select..."
+                      value={activeStriker?.id || ""}
+                      options={batterOptions.filter(
+                        (o) => o.id !== activeNonStriker?.id,
+                      )}
+                      onChange={(val) =>
+                        setActiveStriker(
+                          battingSquad.find((p) => p.id === val) || null,
+                        )
+                      }
+                    />
+                  </div>
+
+                  {/* Added min-w-0 to force grid constraints */}
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-[#9FB7B2] uppercase tracking-wider mb-1 px-1 truncate">
+                      Non-Striker
+                    </div>
+                    <CustomDropdown
+                      placeholder="Select..."
+                      value={activeNonStriker?.id || ""}
+                      options={batterOptions.filter(
+                        (o) => o.id !== activeStriker?.id,
+                      )}
+                      onChange={(val) =>
+                        setActiveNonStriker(
+                          battingSquad.find((p) => p.id === val) || null,
+                        )
+                      }
+                    />
+                  </div>
+
+                  {/* Added min-w-0 to force grid constraints */}
+                  <div className="col-span-2 min-w-0">
+                    <div className="text-[10px] text-destructive/80 uppercase tracking-wider mb-1 px-1">
+                      Bowler
+                    </div>
+                    <CustomDropdown
+                      placeholder="Select Bowler..."
+                      value={activeBowler?.id || ""}
+                      options={bowlerOptions}
+                      onChange={(val) =>
+                        setActiveBowler(
+                          bowlingSquad.find((p) => p.id === val) || null,
+                        )
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -604,10 +692,8 @@ const LiveScoring = () => {
                     setModifier={setModifier}
                     isFreeHit={isFreeHit}
                     onComplete={() => setIsDeclareModalOpen(true)}
-                    onRetire={() => {
-                      setActiveStriker(null);
-                      setModalConfig({ isOpen: true, role: "Striker" });
-                    }}
+                    // Instant Retiring Dropdown fix - unsets striker to re-select
+                    onRetire={() => setActiveStriker(null)}
                   />
                 )}
               </div>
@@ -668,22 +754,6 @@ const LiveScoring = () => {
           </div>
         )}
       </div>
-
-      <PlayerSelectModal
-        isOpen={modalConfig.isOpen}
-        role={modalConfig.role}
-        squad={modalConfig.role === "Bowler" ? bowlingSquad : battingSquad}
-        currentlyPlayingIds={
-          [
-            activeStriker?.id,
-            activeNonStriker?.id,
-            activeBowler?.id,
-            modalConfig.role === "Bowler" ? previousBowlerId : null,
-          ].filter(Boolean) as string[]
-        }
-        onSelect={handlePlayerSelect}
-        onClose={() => setModalConfig({ isOpen: false, role: null })}
-      />
     </div>
   );
 };

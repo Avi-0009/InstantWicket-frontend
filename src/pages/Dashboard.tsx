@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Trophy,
@@ -13,72 +12,85 @@ import { useAuthStore } from "../store/useAuthStore";
 import { useNavigate } from "react-router-dom";
 import { api } from "../Api/Auth";
 import LiveMatchCard from "../components/matches/LiveMatchCard";
+import { useQuery } from "@tanstack/react-query";
+
+// --- STRICT TYPESCRIPT INTERFACES ---
+interface PlayerStats {
+  name?: string;
+  career_runs?: number;
+  runs_scored?: number;
+  career_wickets?: number;
+  wickets_taken?: number;
+  career_matches?: number;
+  matches_played?: number;
+}
+
+interface Match {
+  id: string;
+  status: string;
+  team_a_name: string;
+  team_b_name: string;
+  team_a_score: number;
+  team_b_score: number;
+  team_a_wickets: number;
+  team_b_wickets: number;
+  team_a_balls: number;
+  team_b_balls: number;
+  overs_limit: number;
+  [key: string]: unknown; // Allows passing any other required fields into LiveMatchCard
+}
+
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+}
 
 const Dashboard = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  const [stats, setStats] = useState<any>(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-
-  const [matches, setMatches] = useState<any[]>([]);
-  const [isFetchingMatches, setIsFetchingMatches] = useState(true);
-
   // 1. Fetch Actual Player Stats (Only if Logged In)
-  // 1. Fetch Actual Player Stats (Only if Logged In)
-  useEffect(() => {
-    const fetchFullStats = async () => {
-      if (!user?.id) {
-        setIsLoadingStats(false);
-        return;
-      }
-      try {
-        // FIX 1: Change hyphen (-) to underscore (_) to match backend routing
-        const res = await api.get(`/player_stats/${user.id}`);
-
-        // FIX 2: Look for the exact key the backend returns ("player_stats")
-        const fetchedData =
-          res.data?.player_stats || res.data?.data || res.data;
-        setStats(fetchedData);
-      } catch (e: any) {
-        // FIX 3: Gracefully handle the 404 if the user doesn't have stats yet
-        if (e.response?.status === 404) {
-          console.warn("No player stats found for this user yet (New User).");
-          setStats(null); // Safely defaults to 0 in your UI
-        } else {
-          console.error("Failed to load full stats", e);
+  const { data: stats, isLoading: isLoadingStats } =
+    useQuery<PlayerStats | null>({
+      queryKey: ["playerStats", user?.id],
+      queryFn: async () => {
+        try {
+          const res = await api.get(`/player_stats/${user?.id}`);
+          return (res.data?.player_stats ||
+            res.data?.data ||
+            res.data) as PlayerStats;
+        } catch (e: unknown) {
+          const error = e as { response?: { status?: number } };
+          // Gracefully handle the 404 if the user doesn't have stats yet
+          if (error.response?.status === 404) {
+            console.warn("No player stats found for this user yet (New User).");
+            return null;
+          }
+          throw e;
         }
-      } finally {
-        setIsLoadingStats(false);
-      }
-    };
-    fetchFullStats();
-  }, [user]);
+      },
+      // Only run this query if we have a valid logged-in user
+      enabled: !!user?.id,
+      // Refetch stats every 15 seconds in case a match finishes
+      refetchInterval: 15000,
+    });
 
   // 2. Fetch Live Matches (Global for Everyone)
-  useEffect(() => {
-    const fetchMatches = async () => {
-      setIsFetchingMatches(true);
-      try {
-        const res = await api.get(`/matches?limit=50`);
-        const rawMatches = res.data.matches || res.data || [];
+  const { data: matches = [], isLoading: isFetchingMatches } = useQuery<
+    Match[]
+  >({
+    queryKey: ["globalLiveMatches"],
+    queryFn: async () => {
+      const res = await api.get(`/matches?limit=50`);
+      const rawMatches = (res.data.matches || res.data || []) as Match[];
 
-        // Base Filter: Must be ONGOING
-        const ongoingMatches = rawMatches.filter(
-          (m: any) => m.status === "ongoing",
-        );
-
-        // LOGIC FIX: We now show all ongoing matches to EVERYONE,
-        // regardless of whether they are a guest, player, host, or umpire.
-        setMatches(ongoingMatches);
-      } catch (error) {
-        console.error("Failed to fetch matches", error);
-      } finally {
-        setIsFetchingMatches(false);
-      }
-    };
-    fetchMatches();
-  }, [user]);
+      // Base Filter: Must be ONGOING
+      return rawMatches.filter((m) => m.status === "ongoing");
+    },
+    // 🔥 MAGIC HAPPENS HERE: Automatically poll the server every 5 seconds for live scores!
+    refetchInterval: 5000,
+  });
 
   const displayFullName = stats?.name || user?.name || "Player";
 
@@ -204,6 +216,7 @@ const Dashboard = () => {
             </p>
           </div>
         ) : (
+          // @ts-ignore - Assuming LiveMatchCard expects exactly what we are giving it
           matches.map((match) => <LiveMatchCard key={match.id} match={match} />)
         )}
       </div>
@@ -211,7 +224,7 @@ const Dashboard = () => {
   );
 };
 
-function StatCard({ icon, label, value }: any) {
+function StatCard({ icon, label, value }: StatCardProps) {
   return (
     <div className="bg-card border border-border p-4 rounded-2xl text-center shadow-sm">
       <div className="flex justify-center mb-2">{icon}</div>

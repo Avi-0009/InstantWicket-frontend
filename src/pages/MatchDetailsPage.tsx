@@ -89,10 +89,12 @@ export default function MatchDetailsPage() {
     }
   }, [liveStats, activeTab]);
 
-  // --- PUBLIC CONFETTI EVENT LISTENER ---
-  const [currentEvent, setCurrentEvent] = useState<
-    "4" | "6" | "FREE_HIT" | "WICKET" | null
-  >(null);
+  // --- PUBLIC CONFETTI EVENT QUEUE ---
+  const [eventQueue, setEventQueue] = useState<
+    ("4" | "6" | "FREE_HIT" | "WICKET")[]
+  >([]);
+  const currentEvent = eventQueue[0] || null;
+
   const prevStats = useRef({ balls: 0, runs: 0, wickets: 0, innings_id: "" });
 
   useEffect(() => {
@@ -106,13 +108,31 @@ export default function MatchDetailsPage() {
       if (p.balls > 0 && liveStats.innings_id === p.innings_id) {
         const runDiff = currentRuns - p.runs;
         const wicketDiff = currentWickets - p.wickets;
+        const lastBall =
+          liveStats.recent_balls?.[liveStats.recent_balls.length - 1] || "";
+
+        const newEvents: ("4" | "6" | "FREE_HIT" | "WICKET")[] = [];
 
         if (wicketDiff > 0) {
-          setCurrentEvent("WICKET");
-        } else if (runDiff === 4) {
-          setCurrentEvent("4");
-        } else if (runDiff === 6) {
-          setCurrentEvent("6");
+          newEvents.push("WICKET");
+        } else if (lastBall) {
+          // 1. Push FREE HIT if it was a No Ball
+          if (lastBall.includes("nb")) {
+            newEvents.push("FREE_HIT");
+          }
+
+          // 2. Safely push the boundary using the exact Run Difference!
+          // (Because 4 runs + 1 nb = 5 run diff, 6 runs + 1 nb = 7 run diff)
+          if (runDiff === 4 || (lastBall.includes("nb") && runDiff === 5)) {
+            newEvents.push("4");
+          }
+          if (runDiff === 6 || (lastBall.includes("nb") && runDiff === 7)) {
+            newEvents.push("6");
+          }
+        }
+
+        if (newEvents.length > 0) {
+          setEventQueue((prev) => [...prev, ...newEvents]);
         }
       }
 
@@ -209,7 +229,6 @@ export default function MatchDetailsPage() {
       balls_played: playedBalls,
       fours: stats.fours || 0,
       sixes: stats.sixes || 0,
-      // 🔥 Just read it straight from the database!
       batting_status:
         stats.batting_status ||
         (matchData?.status === "completed" ? "Did not bat" : "Yet to bat"),
@@ -271,7 +290,8 @@ export default function MatchDetailsPage() {
     <div className="min-h-screen bg-background pb-8 relative">
       <FullScreenEvent
         eventType={currentEvent}
-        onComplete={() => setCurrentEvent(null)}
+        // Pops the first event off the array so the next one can play!
+        onComplete={() => setEventQueue((prev) => prev.slice(1))}
       />
 
       {/* HEADER */}
@@ -492,47 +512,59 @@ export default function MatchDetailsPage() {
                   )}
 
                   {matchData.status !== "completed" && (
-                    <div className="grid grid-cols-2 gap-3 mt-6 text-left">
-                      <div className="bg-[#0D2420] p-3.5 rounded-xl border border-[#1B3530]/50">
-                        <div className="text-[10px] text-[#9FB7B2] font-bold uppercase tracking-wider mb-2">
-                          Batters
+                    <div className="flex flex-col gap-3 mt-6 text-left">
+                      {/* ROW 1: STRIKER & NON-STRIKER */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Striker */}
+                        <div className="bg-[#0D2420] p-3.5 rounded-xl border border-[#1B3530]/50 shadow-sm">
+                          <div className="text-[10px] text-[#9FB7B2] font-bold uppercase tracking-wider mb-2">
+                            Striker
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <div className="font-bold text-[#F4FFFD] text-sm truncate flex items-center gap-1">
+                              {liveStats.striker_name || "Waiting..."}{" "}
+                              <span className="text-[#0FAF9A] text-lg leading-none">
+                                *
+                              </span>
+                            </div>
+                            <div className="text-[#0FAF9A] text-sm font-bold shrink-0 ml-2">
+                              {liveStats.striker_runs || 0}{" "}
+                              <span className="text-[#9FB7B2] text-xs font-medium">
+                                ({liveStats.striker_balls || 0})
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="font-bold text-[#F4FFFD] text-sm truncate flex items-center gap-1">
-                            {liveStats.striker_name || "Waiting..."}{" "}
-                            <span className="text-[#0FAF9A] text-lg leading-none">
-                              *
-                            </span>
+
+                        {/* Non-Striker */}
+                        <div className="bg-[#0D2420] p-3.5 rounded-xl border border-[#1B3530]/50 shadow-sm">
+                          <div className="text-[10px] text-[#9FB7B2] font-bold uppercase tracking-wider mb-2">
+                            Non-Striker
                           </div>
-                          <div className="text-[#0FAF9A] text-sm font-bold">
-                            {liveStats.striker_runs || 0}{" "}
-                            <span className="text-[#9FB7B2] text-xs font-medium">
-                              ({liveStats.striker_balls || 0})
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <div className="font-medium text-[#9FB7B2] text-sm truncate">
-                            {liveStats.non_striker_name || "Waiting..."}
-                          </div>
-                          <div className="text-[#9FB7B2] text-sm font-medium">
-                            {liveStats.non_striker_runs || 0}{" "}
-                            <span className="text-xs">
-                              ({liveStats.non_striker_balls || 0})
-                            </span>
+                          <div className="flex justify-between items-center">
+                            <div className="font-medium text-[#9FB7B2] text-sm truncate">
+                              {liveStats.non_striker_name || "Waiting..."}
+                            </div>
+                            <div className="text-[#9FB7B2] text-sm font-medium shrink-0 ml-2">
+                              {liveStats.non_striker_runs || 0}{" "}
+                              <span className="text-xs">
+                                ({liveStats.non_striker_balls || 0})
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      <div className="bg-destructive/10 p-3.5 rounded-xl border border-destructive/20">
+                      {/* ROW 2: BOWLER */}
+                      <div className="bg-destructive/10 p-3.5 rounded-xl border border-destructive/20 shadow-sm">
                         <div className="text-[10px] text-destructive/80 font-bold uppercase tracking-wider mb-2">
                           Bowler
                         </div>
-                        <div className="flex justify-between items-center mt-1">
+                        <div className="flex justify-between items-center">
                           <div className="font-bold text-destructive text-sm truncate">
                             {liveStats.bowler_name || "Waiting..."}
                           </div>
-                          <div className="text-destructive text-sm font-black">
+                          <div className="text-destructive text-sm font-black shrink-0 ml-2">
                             {liveStats.bowler_wickets || 0}
                             <span className="text-destructive/70 font-medium mx-0.5">
                               -
@@ -585,7 +617,7 @@ export default function MatchDetailsPage() {
             <div className="overflow-x-auto no-scrollbar">
               <div className="bg-[#0B1F1B] rounded-xl border border-[#1B3530] overflow-hidden shadow-md min-w-[500px]">
                 <div className="bg-[#1B3530]/50 p-2.5 flex items-center text-[11px] text-[#9FB7B2] font-bold uppercase tracking-wider">
-                  <div className="w-1/3 min-w-[130px]">Batter</div>
+                  <div className="w-1/3 min-w-[130px]">Batsman</div>
                   <div className="flex-1 text-center">R</div>
                   <div className="flex-1 text-center">B</div>
                   <div className="flex-1 text-center">4s</div>

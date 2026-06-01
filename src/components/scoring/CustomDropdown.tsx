@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 
-interface Option {
+export interface Option {
   id: string;
   name: string;
   is_captain?: boolean;
@@ -14,12 +14,13 @@ interface Props {
   placeholder: string;
 }
 
-export const CustomDropdown: React.FC<Props> = ({
+// Changed to default export so it matches LiveScoring.tsx imports perfectly
+export default function CustomDropdown({
   options,
   value,
   onChange,
   placeholder,
-}) => {
+}: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -45,17 +46,19 @@ export const CustomDropdown: React.FC<Props> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex justify-between items-center bg-card border border-border text-foreground rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+        className="w-full flex justify-between items-center bg-[#0D2420] border border-[#1B3530] text-[#F4FFFD] rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#0FAF9A] transition-all"
       >
         <span
-          className={
-            selectedPlayer ? "text-foreground" : "text-muted-foreground"
-          }
+          className={`truncate pr-2 ${
+            selectedPlayer
+              ? "text-[#F4FFFD] font-bold"
+              : "text-[#9FB7B2] font-medium"
+          }`}
         >
           {selectedPlayer ? selectedPlayer.name : placeholder}
         </span>
         <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-3.5 h-3.5 text-[#9FB7B2] transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -71,9 +74,10 @@ export const CustomDropdown: React.FC<Props> = ({
 
       {/* Dropdown Menu (Scrollable) */}
       {isOpen && (
-        <div className="absolute z-100 w-full mt-2 bg-card border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto">
+        // Changed z-100 to z-[100] so it perfectly floats above your dashboard
+        <div className="absolute z-[100] w-full mt-2 bg-[#0B1F1B] border border-[#1B3530] rounded-lg shadow-2xl max-h-60 overflow-y-auto no-scrollbar">
           {options.length === 0 ? (
-            <div className="px-4 py-3 text-muted-foreground text-sm italic">
+            <div className="px-4 py-3 text-[#9FB7B2] text-sm italic">
               No players available
             </div>
           ) : (
@@ -85,18 +89,20 @@ export const CustomDropdown: React.FC<Props> = ({
                   onChange(player.id);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-4 py-3 text-sm hover:bg-card-hover transition-colors border-b border-border last:border-b-0 
+                className={`w-full text-left px-4 py-3 text-sm transition-colors border-b border-[#1B3530]/50 last:border-b-0 
                   ${
                     value === player.id
-                      ? "bg-primary/20 text-primary"
-                      : "text-foreground"
+                      ? "bg-[#0FAF9A]/20 text-[#0FAF9A] font-bold"
+                      : "text-[#F4FFFD] hover:bg-[#1B3530]"
                   }`}
               >
                 {player.name}
-                <span className="text-xs opacity-70">
-                  {player.is_captain ? " (C)" : ""}
-                  {player.is_wicket_keeper ? " (WK)" : ""}
-                </span>
+                {(player.is_captain || player.is_wicket_keeper) && (
+                  <span className="text-[10px] ml-2 text-[#0FAF9A] font-black">
+                    {player.is_captain ? "(C) " : ""}
+                    {player.is_wicket_keeper ? "(WK)" : ""}
+                  </span>
+                )}
               </button>
             ))
           )}
@@ -104,4 +110,4 @@ export const CustomDropdown: React.FC<Props> = ({
       )}
     </div>
   );
-};
+}
