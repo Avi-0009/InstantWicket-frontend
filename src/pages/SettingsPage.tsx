@@ -81,26 +81,26 @@ const SettingsPage = () => {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
-    batting_style: "Right-hand bat",
-    bowling_style: "Right-arm medium",
+    batting_style: "Right Hand Bat",
+    bowling_style: "Right Arm Medium",
   });
 
   // Dropdown options for playing styles
   const battingOptions = [
-    { id: "Right-hand bat", name: "Right-hand bat" },
-    { id: "Left-hand bat", name: "Left-hand bat" },
+    { id: "Right Hand Bat", name: "Right Hand Bat" },
+    { id: "Left Hand Bat", name: "Left Hand Bat" },
   ];
 
   const bowlingOptions = [
     { id: "None", name: "None" },
-    { id: "Right-arm fast", name: "Right-arm fast" },
-    { id: "Right-arm medium", name: "Right-arm medium" },
-    { id: "Right-arm offbreak", name: "Right-arm offbreak" },
-    { id: "Right-arm legbreak", name: "Right-arm legbreak" },
-    { id: "Left-arm fast", name: "Left-arm fast" },
-    { id: "Left-arm medium", name: "Left-arm medium" },
-    { id: "Left-arm orthodox", name: "Left-arm orthodox" },
-    { id: "Left-arm chinaman", name: "Left-arm chinaman" },
+    { id: "Right Arm Fast", name: "Right Arm Fast" },
+    { id: "Right Arm Medium", name: "Right Arm Medium" },
+    { id: "Right Arm Offbreak", name: "Right Arm Offbreak" },
+    { id: "Right Arm Legbreak", name: "Right Arm Legbreak" },
+    { id: "Left Arm Fast", name: "Left Arm Fast" },
+    { id: "Left Arm Medium", name: "Left Arm Medium" },
+    { id: "Left Arm Orthodox", name: "Left Arm Orthodox" },
+    { id: "Left Arm Chinaman", name: "Left Arm Chinaman" },
   ];
 
   // Sync form data once playerStats are loaded
@@ -109,8 +109,8 @@ const SettingsPage = () => {
       setFormData({
         name: playerStats?.name || user?.name || "",
         phone: playerStats?.phone_no || user?.phone_no || user?.phone || "",
-        batting_style: playerStats?.batting_style || "Right-hand bat",
-        bowling_style: playerStats?.bowling_style || "Right-arm medium",
+        batting_style: playerStats?.batting_style || "Right Hand Bat",
+        bowling_style: playerStats?.bowling_style || "Right Arm Medium",
       });
     }
   }, [playerStats, user]);
@@ -346,8 +346,8 @@ const SettingsPage = () => {
                 />
               </div>
 
-              {/* 🔥 REPLACED WITH CUSTOM DROPDOWNS */}
-              <div className="relative z-50">
+              {/* 🔥 REMOVED the hardcoded relative z-50/z-40 wrappers */}
+              <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
                   Batting Style
                 </label>
@@ -361,7 +361,7 @@ const SettingsPage = () => {
                 />
               </div>
 
-              <div className="relative z-40">
+              <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
                   Bowling Style
                 </label>
@@ -372,6 +372,7 @@ const SettingsPage = () => {
                   onChange={(val) =>
                     setFormData({ ...formData, bowling_style: val })
                   }
+                  direction="up"
                 />
               </div>
 

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../Api/Auth";
 import { FullScreenEvent } from "../components/scoring/FullScreenEvent";
 import OverTimeline from "../components/scoring/OverTimeline";
+import MatchAnalytics from "../components/scoring/MatchAnalytics";
 
 interface BatterStats {
   player_id: string;
@@ -581,6 +582,11 @@ export default function MatchDetailsPage() {
             {/* 🔥 SQAURE-STYLE RECENT BALLS TIMELINE (SPECTATOR SCREEN) */}
             {matchData.status !== "completed" && (
               <OverTimeline recentBalls={liveStats?.recent_balls || []} />
+            )}
+
+            {/* 👇 UPDATED TO PASS ACTUAL DATA 👇 */}
+            {matchData.status === "completed" && (
+              <MatchAnalytics matchData={matchData} scorecard={scorecard} />
             )}
           </div>
         )}
