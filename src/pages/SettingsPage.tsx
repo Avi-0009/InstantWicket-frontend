@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { useThemeStore } from "../store/useThemeStore";
-import { Logout } from "../Api/Auth";
+import { Logout, api } from "../Api/Auth";
 import { usePlayerStats } from "../hooks/usePlayerQueries";
+import CustomDropdown from "../components/scoring/CustomDropdown";
 import {
   Bell,
   HelpCircle,
@@ -19,6 +20,8 @@ import {
   ShieldCheck,
   Phone,
   Loader2,
+  Edit2,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -65,12 +68,52 @@ const SettingsMenuItem = ({
 );
 
 const SettingsPage = () => {
-  const { user, logout } = useAuthStore();
+  const { user, logout, setUser } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
 
   // Fetch stats seamlessly using your custom TanStack hook
-  const { data: playerStats, isLoading } = usePlayerStats(user?.id);
+  const { data: playerStats, isLoading, refetch } = usePlayerStats(user?.id);
+
+  // --- EDIT PROFILE STATE ---
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    batting_style: "Right-hand bat",
+    bowling_style: "Right-arm medium",
+  });
+
+  // Dropdown options for playing styles
+  const battingOptions = [
+    { id: "Right-hand bat", name: "Right-hand bat" },
+    { id: "Left-hand bat", name: "Left-hand bat" },
+  ];
+
+  const bowlingOptions = [
+    { id: "None", name: "None" },
+    { id: "Right-arm fast", name: "Right-arm fast" },
+    { id: "Right-arm medium", name: "Right-arm medium" },
+    { id: "Right-arm offbreak", name: "Right-arm offbreak" },
+    { id: "Right-arm legbreak", name: "Right-arm legbreak" },
+    { id: "Left-arm fast", name: "Left-arm fast" },
+    { id: "Left-arm medium", name: "Left-arm medium" },
+    { id: "Left-arm orthodox", name: "Left-arm orthodox" },
+    { id: "Left-arm chinaman", name: "Left-arm chinaman" },
+  ];
+
+  // Sync form data once playerStats are loaded
+  useEffect(() => {
+    if (user || playerStats) {
+      setFormData({
+        name: playerStats?.name || user?.name || "",
+        phone: playerStats?.phone_no || user?.phone_no || user?.phone || "",
+        batting_style: playerStats?.batting_style || "Right-hand bat",
+        bowling_style: playerStats?.bowling_style || "Right-arm medium",
+      });
+    }
+  }, [playerStats, user]);
 
   const handleLogout = async () => {
     try {
@@ -85,10 +128,40 @@ const SettingsPage = () => {
     }
   };
 
+  // 🔥 HERE IS THE FUNCTION IMPLEMENTATION
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      // 1. Only send the fields we want to update
+      await api.put("/auth/profile", formData);
+
+      // 2. Merge existing user data with the NEW changes
+      const updatedUser = {
+        ...user,
+        ...formData,
+        phone_no: formData.phone, // Ensure the store uses the correct field name
+      };
+
+      // 3. Update the global store
+      if (setUser && user) {
+        setUser(updatedUser as any);
+      }
+
+      await refetch();
+      toast.success("Profile updated!");
+      setIsEditModalOpen(false);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to update profile");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (!user) return null;
 
   return (
-    <main className="p-4 md:p-6 max-w-2xl mx-auto w-full animate-fade-in pb-24 bg-background min-h-screen transition-colors duration-200">
+    <main className="p-4 md:p-6 max-w-2xl mx-auto w-full animate-fade-in pb-24 bg-background min-h-screen transition-colors duration-200 relative">
       {/* HEADER */}
       <div className="flex items-center gap-3 mb-8">
         <button
@@ -107,6 +180,15 @@ const SettingsPage = () => {
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -ml-10 -mb-10"></div>
 
         <div className="relative z-10">
+          {/* Edit Button */}
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="absolute top-0 right-0 p-2.5 bg-primary/10 text-primary rounded-full hover:bg-primary/20 transition-colors shadow-sm"
+            title="Edit Profile"
+          >
+            <Edit2 className="w-5 h-5" />
+          </button>
+
           <div className="w-24 h-24 bg-primary/10 border-2 border-primary/20 rounded-full mx-auto flex items-center justify-center mb-4 shadow-inner">
             <UserCircle className="w-16 h-16 text-primary" />
           </div>
@@ -169,14 +251,8 @@ const SettingsPage = () => {
         <SettingsMenuItem
           icon={User}
           label="Personal Information"
-          onClick={() => {}}
+          onClick={() => setIsEditModalOpen(true)}
         />
-        {/* <SettingsMenuItem
-          icon={Shield}
-          label="Privacy & Security"
-          onClick={() => {}}
-          hideBorder={true}
-        /> */}
       </SettingsSection>
 
       <SettingsSection title="Preferences">
@@ -211,28 +287,7 @@ const SettingsPage = () => {
             />
           </button>
         </div>
-
-        {/* <SettingsMenuItem
-          icon={Bell}
-          label="Push Notifications"
-          onClick={() => {}}
-          hideBorder={true}
-        /> */}
       </SettingsSection>
-
-      {/* <SettingsSection title="Support">
-        <SettingsMenuItem
-          icon={HelpCircle}
-          label="Help Center"
-          onClick={() => {}}
-        />
-        <SettingsMenuItem
-          icon={Info}
-          label="About InstantWicket"
-          onClick={() => {}}
-          hideBorder={true}
-        />
-      </SettingsSection> */}
 
       {/* LOGOUT */}
       <div className="mt-8">
@@ -244,6 +299,93 @@ const SettingsPage = () => {
           Log Out
         </button>
       </div>
+
+      {/* 🔥 EDIT PROFILE MODAL */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
+            <button
+              onClick={() => setIsEditModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground bg-background rounded-full transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h2 className="text-xl font-black text-foreground mb-6">
+              Edit Profile
+            </h2>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-primary"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  placeholder="+91 9876543210"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* 🔥 REPLACED WITH CUSTOM DROPDOWNS */}
+              <div className="relative z-50">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                  Batting Style
+                </label>
+                <CustomDropdown
+                  placeholder="Select Batting Style"
+                  value={formData.batting_style}
+                  options={battingOptions}
+                  onChange={(val) =>
+                    setFormData({ ...formData, batting_style: val })
+                  }
+                />
+              </div>
+
+              <div className="relative z-40">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                  Bowling Style
+                </label>
+                <CustomDropdown
+                  placeholder="Select Bowling Style"
+                  value={formData.bowling_style}
+                  options={bowlingOptions}
+                  onChange={(val) =>
+                    setFormData({ ...formData, bowling_style: val })
+                  }
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-primary text-primary-foreground font-black py-4 rounded-xl mt-4 hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

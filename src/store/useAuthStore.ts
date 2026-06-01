@@ -19,6 +19,7 @@ interface AuthState {
   isGuest: boolean;
   login: (userData: User, token: string) => void;
   logout: () => void;
+  setUser: (user: User) => void; // 🔥 Replaced 'any' with 'User' for strict typing
   continueAsGuest: () => void;
 }
 
@@ -49,6 +50,11 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isGuest: false,
         });
+      },
+
+      // 🔥 HERE IS THE MISSING IMPLEMENTATION
+      setUser: (user) => {
+        set({ user });
       },
     }),
     {
