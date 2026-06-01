@@ -10,13 +10,13 @@ export interface PlayerStats {
   bowling_style?: string;
   career_matches?: number;
   career_runs?: number;
+  strike_rate?: number;
   career_wickets?: number;
   career_catches: number;
   career_runouts: number;
   career_stumpings: number;
   career_fours: number;
   career_sixes: number;
-  strike_rate: number;
   economy: number;
   career_highest_score: number;
   career_fifties: number;

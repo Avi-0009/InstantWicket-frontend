@@ -128,7 +128,6 @@ const SettingsPage = () => {
     }
   };
 
-  // 🔥 HERE IS THE FUNCTION IMPLEMENTATION
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -221,7 +220,7 @@ const SettingsPage = () => {
             </div>
 
             {/* Playing Styles */}
-            <div className="flex justify-center gap-4">
+            <div className="flex justify-center gap-4 mb-6">
               <div className="flex-1 max-w-[140px]">
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                   Batting Style
@@ -239,6 +238,44 @@ const SettingsPage = () => {
                 </div>
                 <div className="text-sm font-black text-foreground capitalize truncate">
                   {isLoading ? "..." : playerStats?.bowling_style || "N/A"}
+                </div>
+              </div>
+            </div>
+
+            {/* 🔥 NEW: Career Stats Grid */}
+            <div className="bg-background/50 rounded-2xl p-4 border border-border/50 shadow-inner mt-4">
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div>
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                    Matches
+                  </div>
+                  <div className="text-sm font-black text-foreground">
+                    {playerStats?.career_matches || 0}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                    Runs
+                  </div>
+                  <div className="text-sm font-black text-foreground">
+                    {playerStats?.career_runs || 0}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                    SR
+                  </div>
+                  <div className="text-sm font-black text-primary">
+                    {playerStats?.strike_rate?.toFixed(1) || "0.0"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                    ECO
+                  </div>
+                  <div className="text-sm font-black text-destructive">
+                    {playerStats?.economy?.toFixed(1) || "0.0"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -346,7 +383,6 @@ const SettingsPage = () => {
                 />
               </div>
 
-              {/* 🔥 REMOVED the hardcoded relative z-50/z-40 wrappers */}
               <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
                   Batting Style
