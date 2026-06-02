@@ -13,14 +13,15 @@ interface WicketFormProps {
     wicketType: string,
     outBatterRole: "striker" | "non_striker",
     fielderId: string | null,
-    runsCompleted: number, // 🔥 Added this
+    runsCompleted: number, // 🔥 Added to track runs on run-out
   ) => void;
   onCancel: () => void;
   isSoloBattingActive?: boolean;
-  modifier: "WD" | "NB" | null; // 🔥 Pass modifiers to enforce rules
-  isFreeHit: boolean; // 🔥 Pass Free Hit state
+  modifier: "WD" | "NB" | "BYE" | "LB" | null; // 🔥 Added for rules
+  isFreeHit: boolean; // 🔥 Added for rules
 }
 
+// 🔥 Rule definitions added here
 const WICKET_TYPES = [
   {
     id: "bowled",
@@ -95,9 +96,7 @@ export const WicketForm = ({
     if (!wicketType) return;
     if (needsFielder && !fielderId) return;
 
-    // If Solo Batting is active, it must ALWAYS be the striker who gets out
     const finalRole = isSoloBattingActive ? "striker" : outBatter;
-
     onSubmit(
       wicketType,
       finalRole,
@@ -129,16 +128,29 @@ export const WicketForm = ({
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {WICKET_TYPES.map((type) => {
-              // 🔥 CRICKET RULE ENFORCEMENT
-              const isInvalidOnFreeHit =
-                (isFreeHit || modifier === "NB") && !type.validOnFreeHit;
-              const isInvalidOnWide = modifier === "WD" && !type.validOnWD;
-              const isDisabled = isInvalidOnFreeHit || isInvalidOnWide;
+              // 🔥 LOGIC: Check if button should be disabled based on current modifier/free hit
+              const isDisabled =
+                isFreeHit || modifier === "NB"
+                  ? !type.validOnFreeHit
+                  : modifier === "WD" || modifier === "BYE" || modifier === "LB"
+                    ? type.id !== "run_out" &&
+                      type.id !== "stumped" &&
+                      type.id !== "hit_wicket"
+                    : false;
+
+              let isStrictlyDisabled = isDisabled;
+              // Stumping is invalid off a Bye or Leg Bye (Run out must be used)
+              if (
+                (modifier === "BYE" || modifier === "LB") &&
+                type.id === "stumped"
+              ) {
+                isStrictlyDisabled = true;
+              }
 
               return (
                 <button
                   key={type.id}
-                  disabled={isDisabled}
+                  disabled={isStrictlyDisabled}
                   onClick={() => {
                     setWicketType(type.id);
                     setFielderId("");
@@ -146,8 +158,8 @@ export const WicketForm = ({
                     setRunsCompleted(0);
                   }}
                   className={`py-2.5 px-2 rounded-xl text-xs font-bold transition-all border ${
-                    isDisabled
-                      ? "bg-background border-border/50 text-muted-foreground/30 opacity-40 blur-[0.5px] cursor-not-allowed" // Blurred and disabled!
+                    isStrictlyDisabled
+                      ? "opacity-30 blur-[0.5px] cursor-not-allowed bg-background/50 border-border/50"
                       : wicketType === type.id
                         ? "bg-destructive text-background border-destructive shadow-md scale-[0.98]"
                         : "bg-background border-border text-foreground hover:border-destructive/50"
@@ -160,21 +172,21 @@ export const WicketForm = ({
           </div>
         </div>
 
-        {/* 2. Run Out Runs Completed */}
+        {/* 2. 🔥 NEW LOGIC: Run Out Runs Completed (Using your existing UI style) */}
         {wicketType === "run_out" && (
           <div className="animate-in slide-in-from-top-2 duration-200">
             <label className="text-[10px] font-bold text-destructive/80 uppercase tracking-widest mb-2 block">
               Runs completed before wicket?
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 p-1 bg-background border border-border rounded-xl">
               {[0, 1, 2, 3].map((run) => (
                 <button
                   key={run}
                   onClick={() => setRunsCompleted(run)}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors border ${
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
                     runsCompleted === run
-                      ? "bg-destructive text-background border-destructive"
-                      : "bg-background border-border text-foreground hover:border-destructive/50"
+                      ? "bg-destructive/20 text-destructive"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {run === 0 ? "Dot (0)" : run}
@@ -184,7 +196,7 @@ export const WicketForm = ({
           </div>
         )}
 
-        {/* 3. Select Who is Out (Only for Run Outs, Hidden during Solo Batting) */}
+        {/* 3. Select Who is Out */}
         {wicketType && canOutNonStriker && !isSoloBattingActive && (
           <div className="animate-in slide-in-from-top-2 duration-200">
             <label className="text-[10px] font-bold text-destructive/80 uppercase tracking-widest mb-2 block">
@@ -215,7 +227,7 @@ export const WicketForm = ({
           </div>
         )}
 
-        {/* 4. Select Fielder (If applicable) */}
+        {/* 4. Select Fielder */}
         {wicketType && needsFielder && (
           <div className="animate-in slide-in-from-top-2 duration-200 relative z-50">
             <label className="text-[10px] font-bold text-destructive/80 uppercase tracking-widest mb-2 block">

@@ -94,7 +94,6 @@ const LiveScoring = () => {
   const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
   const [hasSynced, setHasSynced] = useState(false);
 
-  const [modifier, setModifier] = useState<"WD" | "NB" | null>(null);
   const [isFreeHit, setIsFreeHit] = useState(false);
 
   const [eventQueue, setEventQueue] = useState<
@@ -111,6 +110,9 @@ const LiveScoring = () => {
   const [isInningsDeclared, setIsInningsDeclared] = useState(false);
   const [showWicketForm, setShowWicketForm] = useState(false);
   const [pendingRuns, setPendingRuns] = useState(0);
+  const [modifier, setModifier] = useState<"WD" | "NB" | "BYE" | "LB" | null>(
+    null,
+  );
   const [isCooldown, setIsCooldown] = useState(false);
 
   const milestones = useRef<
@@ -442,18 +444,30 @@ const LiveScoring = () => {
     executeBallApi(runs, false, undefined, undefined, undefined);
   };
 
+  const handleUndo = async () => {
+    if (!liveStats || isCooldown) return;
+    setIsCooldown(true);
+    try {
+      await api.post(`/scoring/undo/${matchId}`);
+      await refetchLiveStats();
+      toast.success("Last ball undone!");
+    } catch (error) {
+      toast.error("Failed to undo ball.");
+    } finally {
+      setTimeout(() => setIsCooldown(false), 500);
+    }
+  };
+
   const handleWicketSubmit = (
     wicketType: string,
     outBatterRole: "striker" | "non_striker",
     fielderId: string | null,
-    runsCompleted: number, // 🔥 Grab the runs completed from Run Out
+    runsCompleted: number, // 🔥 Receive the runs here
   ) => {
     const exactOutPlayerId =
       outBatterRole === "striker" ? activeStriker?.id : activeNonStriker?.id;
-
-    // Pass runsCompleted into the executeBallApi!
     executeBallApi(
-      runsCompleted,
+      runsCompleted, // 🔥 Pass runsCompleted instead of pendingRuns
       true,
       wicketType,
       exactOutPlayerId || undefined,
@@ -493,6 +507,16 @@ const LiveScoring = () => {
       extraType = "no_ball";
       newEvents.push("FREE_HIT");
       setIsFreeHit(true);
+    } else if (modifier === "BYE") {
+      isLegal = true;
+      runsFromBat = 0;
+      extras = runs;
+      extraType = "bye";
+    } else if (modifier === "LB") {
+      isLegal = true;
+      runsFromBat = 0;
+      extras = runs;
+      extraType = "leg_bye";
     } else {
       if (isFreeHit) setIsFreeHit(false);
     }
@@ -796,7 +820,6 @@ const LiveScoring = () => {
                     onSubmit={handleWicketSubmit}
                     onCancel={() => setShowWicketForm(false)}
                     isSoloBattingActive={isSoloBattingActive}
-                    // 🔥 Pass Modifiers
                     modifier={modifier}
                     isFreeHit={isFreeHit}
                   />
@@ -808,7 +831,7 @@ const LiveScoring = () => {
                     isFreeHit={isFreeHit}
                     onComplete={() => setIsDeclareModalOpen(true)}
                     onRetire={() => setActiveStriker(null)}
-                    // 🔥 Pass Cooldown
+                    onUndo={handleUndo}
                     isCooldown={isCooldown}
                   />
                 )}

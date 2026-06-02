@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 interface OverTimelineProps {
   recentBalls: string[];
 }
@@ -5,13 +7,24 @@ interface OverTimelineProps {
 export default function OverTimeline({ recentBalls }: OverTimelineProps) {
   // Ensure we only ever show the most recent 15 balls
   const displayBalls = (recentBalls || []).slice(-15);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to the newest ball on the right
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [recentBalls]);
 
   return (
     <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-4 shadow-lg w-full mt-5 mb-1 animate-fade-in">
       <div className="text-[10px] text-[#9FB7B2] font-semibold uppercase tracking-wider mb-3 px-1">
         This Over / Recent
       </div>
-      <div className="flex gap-2 items-center overflow-x-auto no-scrollbar min-h-11 px-1 pb-1">
+      <div
+        ref={scrollRef}
+        className="flex gap-2 items-center overflow-x-auto no-scrollbar min-h-11 px-1 pb-1 scroll-smooth"
+      >
         {displayBalls.length === 0 ? (
           <span className="text-xs text-[#9FB7B2] italic">
             Waiting for first ball...
@@ -30,8 +43,13 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
               bgColor =
                 "bg-destructive text-white border-destructive shadow-sm";
             }
-            // 🟡 Extras (Wides, No Balls like "1wd", "7nb", etc.)
-            else if (b.includes("wd") || b.includes("nb")) {
+            // 🟡 Extras (Wides, No Balls, Byes, Leg Byes)
+            else if (
+              b.includes("wd") ||
+              b.includes("nb") ||
+              b.includes("b") ||
+              b.includes("lb")
+            ) {
               bgColor =
                 "bg-warning text-warning-foreground border-warning font-black shadow-sm";
             }
@@ -41,10 +59,17 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
                 "bg-[#0FAF9A] text-[#0B1F1B] border-[#0FAF9A] font-black shadow-sm";
             }
 
+            // Identify the ball just delivered
+            const isLatest = idx === displayBalls.length - 1;
+
             return (
               <div
                 key={idx}
-                className={`w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold transition-all shrink-0 ${bgColor}`}
+                className={`w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold transition-all shrink-0 ${bgColor} ${
+                  isLatest
+                    ? "ring-2 ring-primary ring-offset-2 ring-offset-[#0B1F1B] scale-110"
+                    : "opacity-80"
+                }`}
               >
                 {text}
               </div>
