@@ -157,12 +157,25 @@ export default function MatchDetailsPage() {
   // --- DERIVED DATA CALCULATIONS ---
   const overs = liveStats ? Math.floor((liveStats.legal_balls || 0) / 6) : 0;
   const balls = liveStats ? (liveStats.legal_balls || 0) % 6 : 0;
+
+  const totalTeamRuns = liveStats?.current_score || 0;
+  const totalTeamBalls = liveStats?.legal_balls || 0;
+
+  // 🔥 Formula: RR = (6 * R_t) / B_t
   const crr =
-    liveStats?.legal_balls > 0
-      ? ((liveStats.current_score || 0) / (liveStats.legal_balls / 6)).toFixed(
-          2,
-        )
+    totalTeamBalls > 0
+      ? ((6 * totalTeamRuns) / totalTeamBalls).toFixed(2)
       : "0.00";
+
+  const targetRuns = liveStats?.target_runs || 0;
+  const runsNeeded = Math.max(0, targetRuns - totalTeamRuns);
+  const ballsLeft = matchData
+    ? Math.max(0, matchData.overs_limit * 6 - totalTeamBalls)
+    : 0;
+
+  // 🔥 Required Run Rate (same formula)
+  const rrr =
+    ballsLeft > 0 ? ((6 * runsNeeded) / ballsLeft).toFixed(2) : "0.00";
 
   const teamAId = matchData?.team_a_id;
   const teamBId = matchData?.team_b_id;
@@ -485,29 +498,10 @@ export default function MatchDetailsPage() {
                         ></div>
                       </div>
 
+                      {/* Update your RRR JSX to just use the new variable */}
                       <div className="flex justify-between items-center text-xs text-[#9FB7B2] font-medium">
-                        <span>
-                          RRR:{" "}
-                          {matchData.overs_limit * 6 - liveStats.legal_balls > 0
-                            ? (
-                                (Math.max(
-                                  0,
-                                  liveStats.target_runs -
-                                    liveStats.current_score,
-                                ) /
-                                  (matchData.overs_limit * 6 -
-                                    liveStats.legal_balls)) *
-                                6
-                              ).toFixed(2)
-                            : "0.00"}
-                        </span>
-                        <span>
-                          {Math.max(
-                            0,
-                            matchData.overs_limit * 6 - liveStats.legal_balls,
-                          )}{" "}
-                          balls left
-                        </span>
+                        <span>RRR: {rrr}</span>
+                        <span>{ballsLeft} balls left</span>
                       </div>
                     </div>
                   )}
@@ -644,13 +638,13 @@ export default function MatchDetailsPage() {
                       statusClass = "text-destructive font-bold text-[10px]";
                     }
 
+                    const batterRuns = batter.runs_scored || 0;
+                    const batterBalls = batter.balls_played || 0;
+
                     const sr =
-                      batter.balls_played > 0
-                        ? (
-                            (batter.runs_scored / batter.balls_played) *
-                            100
-                          ).toFixed(1)
-                        : "0.0";
+                      batterBalls > 0
+                        ? ((batterRuns / batterBalls) * 100).toFixed(2)
+                        : "0.00";
 
                     return (
                       <div
@@ -712,13 +706,13 @@ export default function MatchDetailsPage() {
                         const bOvers = Math.floor(bowler.balls_bowled / 6);
                         const bBalls = bowler.balls_bowled % 6;
                         const displayOvers = `${bOvers}.${bBalls}`;
+                        const bowlerRuns = bowler.runs_conceded || 0;
+                        const bowlerBalls = bowler.balls_bowled || 0;
+
                         const ecoCalc =
-                          bowler.balls_bowled > 0
-                            ? (
-                                (bowler.runs_conceded / bowler.balls_bowled) *
-                                6
-                              ).toFixed(1)
-                            : "0.0";
+                          bowlerBalls > 0
+                            ? ((6 * bowlerRuns) / bowlerBalls).toFixed(2)
+                            : "0.00";
 
                         return (
                           <div

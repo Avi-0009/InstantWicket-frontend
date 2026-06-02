@@ -111,6 +111,7 @@ const LiveScoring = () => {
   const [isInningsDeclared, setIsInningsDeclared] = useState(false);
   const [showWicketForm, setShowWicketForm] = useState(false);
   const [pendingRuns, setPendingRuns] = useState(0);
+  const [isCooldown, setIsCooldown] = useState(false);
 
   const milestones = useRef<
     Record<string, { thirty: boolean; fifty: boolean; hundred: boolean }>
@@ -445,11 +446,14 @@ const LiveScoring = () => {
     wicketType: string,
     outBatterRole: "striker" | "non_striker",
     fielderId: string | null,
+    runsCompleted: number, // 🔥 Grab the runs completed from Run Out
   ) => {
     const exactOutPlayerId =
       outBatterRole === "striker" ? activeStriker?.id : activeNonStriker?.id;
+
+    // Pass runsCompleted into the executeBallApi!
     executeBallApi(
-      pendingRuns,
+      runsCompleted,
       true,
       wicketType,
       exactOutPlayerId || undefined,
@@ -466,6 +470,9 @@ const LiveScoring = () => {
     fielderId?: string,
   ) => {
     if (!liveStats || !matchId) return;
+
+    setIsCooldown(true);
+    setTimeout(() => setIsCooldown(false), 3000);
 
     let isLegal = true,
       runsFromBat = runs,
@@ -781,7 +788,6 @@ const LiveScoring = () => {
               <div className="mt-6 animate-fade-in">
                 {showWicketForm ? (
                   <WicketForm
-                    // 🔥 EXCLUDE COMMON PLAYERS WHO ARE CURRENTLY BATTING
                     availableFielders={bowlingSquad.filter(
                       (p) =>
                         String(p.id) !== String(activeStriker?.id) &&
@@ -789,7 +795,10 @@ const LiveScoring = () => {
                     )}
                     onSubmit={handleWicketSubmit}
                     onCancel={() => setShowWicketForm(false)}
-                    isSoloBattingActive={isSoloBattingActive} // Hides non-striker for run outs
+                    isSoloBattingActive={isSoloBattingActive}
+                    // 🔥 Pass Modifiers
+                    modifier={modifier}
+                    isFreeHit={isFreeHit}
                   />
                 ) : (
                   <ScoringPad
@@ -799,6 +808,8 @@ const LiveScoring = () => {
                     isFreeHit={isFreeHit}
                     onComplete={() => setIsDeclareModalOpen(true)}
                     onRetire={() => setActiveStriker(null)}
+                    // 🔥 Pass Cooldown
+                    isCooldown={isCooldown}
                   />
                 )}
               </div>

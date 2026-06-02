@@ -15,6 +15,7 @@ import {
 import PageHeader from "../components/common/PageHeader";
 import { usePlayerStats } from "../hooks/usePlayerQueries";
 import { api } from "../Api/Auth";
+import PlayerAnalytics from "../components/scoring/PlayerAnalytics";
 
 const StatCard = ({
   title,
@@ -390,6 +391,13 @@ const PlayerStatsPage = () => {
             )}
           </motion.div>
         </AnimatePresence>
+
+        {/* 🔥 NEW: PLAYER VISUAL ANALYTICS (Auto-refreshes via TanStack) */}
+        {stats && (
+          <div className="mb-8">
+            <PlayerAnalytics stats={stats} />
+          </div>
+        )}
 
         {/* REAL MATCHES TABLE */}
         <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl shadow-lg overflow-hidden flex flex-col">
