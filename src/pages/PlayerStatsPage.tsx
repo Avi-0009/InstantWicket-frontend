@@ -111,14 +111,32 @@ const PlayerStatsPage = () => {
               if (myStats) {
                 actuallyPlayedMatches.push(match);
 
-                // Check MVP Status
-                let maxRuns = -1;
+                // 🏆 PROPER SINGLE MVP CALCULATION
+                let bestPlayerId = null;
+                let maxMatchPoints = -1;
+
                 scorecard.forEach((s: any) => {
-                  if (s.runs_scored > maxRuns) maxRuns = s.runs_scored;
+                  // Calculate fantasy-style points: 1 pt per run, 20 per wicket, 10 per catch
+                  const runs = s.runs_scored || 0;
+                  const wickets = s.wickets_taken || 0;
+                  const catches = s.catches || 0;
+
+                  const playerPoints = runs + wickets * 20 + catches * 10;
+
+                  // Strict check: Only one player can hold the "bestPlayerId"
+                  // In case of an exact points tie, the first one evaluated keeps it
+                  // (You can also add a tie-breaker here if you want)
+                  if (playerPoints > maxMatchPoints) {
+                    maxMatchPoints = playerPoints;
+                    bestPlayerId = s.player_id;
+                  }
                 });
 
+                // Check if the current player we are looking at IS the single best player
                 const isMvp =
-                  myStats.runs_scored === maxRuns && myStats.runs_scored > 0;
+                  String(myStats.player_id) === String(bestPlayerId) &&
+                  maxMatchPoints > 0;
+
                 if (isMvp && match.status === "completed") {
                   mvpCount++;
                 }

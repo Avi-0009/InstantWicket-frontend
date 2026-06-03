@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Lock, AlertOctagon } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import {
+  ChevronLeft,
+  Lock,
+  AlertOctagon,
+  RotateCcw,
+  UserX,
+} from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../store/useAuthStore";
 import { api } from "../Api/Auth";
 import toast from "react-hot-toast";
@@ -15,7 +21,6 @@ import { WicketForm } from "../components/scoring/WicketForm";
 import { DeclareModal } from "../components/scoring/DeclareModal";
 import OverTimeline from "../components/scoring/OverTimeline";
 
-// --- STRICT TYPESCRIPT INTERFACES ---
 export interface Player {
   id: string;
   name: string;
@@ -79,14 +84,13 @@ interface BallPayload {
 }
 
 interface ApiError {
-  response?: {
-    data?: {
-      error?: string;
-    };
-  };
+  response?: { data?: { error?: string } };
 }
 
 const LiveScoring = () => {
+  // 🔥 MOVED HERE: Hooks must be inside the component!
+  const queryClient = useQueryClient();
+
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -94,7 +98,11 @@ const LiveScoring = () => {
   const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
   const [hasSynced, setHasSynced] = useState(false);
 
+  const [modifier, setModifier] = useState<"WD" | "NB" | "BYE" | "LB" | null>(
+    null,
+  );
   const [isFreeHit, setIsFreeHit] = useState(false);
+  const [isCooldown, setIsCooldown] = useState(false);
 
   const [eventQueue, setEventQueue] = useState<
     ("4" | "6" | "FREE_HIT" | "WICKET")[]
@@ -109,17 +117,12 @@ const LiveScoring = () => {
   const [isDeclareModalOpen, setIsDeclareModalOpen] = useState(false);
   const [isInningsDeclared, setIsInningsDeclared] = useState(false);
   const [showWicketForm, setShowWicketForm] = useState(false);
-  const [pendingRuns, setPendingRuns] = useState(0);
-  const [modifier, setModifier] = useState<"WD" | "NB" | "BYE" | "LB" | null>(
-    null,
-  );
-  const [isCooldown, setIsCooldown] = useState(false);
+  const [showRetireForm, setShowRetireForm] = useState(false);
 
   const milestones = useRef<
     Record<string, { thirty: boolean; fifty: boolean; hundred: boolean }>
   >({});
 
-  // --- TANSTACK QUERIES ---
   const { data: matchData } = useQuery({
     queryKey: ["match", matchId],
     queryFn: async () => {
@@ -150,42 +153,33 @@ const LiveScoring = () => {
   useEffect(() => {
     if (fetchedLiveStats && Object.keys(fetchedLiveStats).length > 0) {
       setLiveStats(fetchedLiveStats);
-
       const strikerId = fetchedLiveStats.striker_id;
       const strikerRuns = fetchedLiveStats.striker_runs || 0;
       const strikerName = fetchedLiveStats.striker_name;
 
       if (strikerId) {
-        if (!milestones.current[strikerId]) {
+        if (!milestones.current[strikerId])
           milestones.current[strikerId] = {
             thirty: false,
             fifty: false,
             hundred: false,
           };
-        }
-
         if (strikerRuns >= 100 && !milestones.current[strikerId].hundred) {
-          toast.success(`🎉 CENTURY! Brilliant 100 by ${strikerName}!`, {
-            duration: 6000,
-          });
+          toast.success(`🎉 CENTURY! 100 by ${strikerName}!`);
           milestones.current[strikerId].hundred = true;
         } else if (
           strikerRuns >= 50 &&
           strikerRuns < 100 &&
           !milestones.current[strikerId].fifty
         ) {
-          toast.success(`🔥 HALF-CENTURY for ${strikerName}!`, {
-            duration: 5000,
-          });
+          toast.success(`🔥 HALF-CENTURY for ${strikerName}!`);
           milestones.current[strikerId].fifty = true;
         } else if (
           strikerRuns >= 30 &&
           strikerRuns < 50 &&
           !milestones.current[strikerId].thirty
         ) {
-          toast.success(`Solid 30 by ${strikerName}! Keep going!`, {
-            duration: 4000,
-          });
+          toast.success(`Solid 30 by ${strikerName}!`);
           milestones.current[strikerId].thirty = true;
         }
       }
@@ -237,7 +231,6 @@ const LiveScoring = () => {
     : tossWinnerBatting
       ? teamAPlayers.length
       : teamBPlayers.length;
-
   const maxWickets = matchData?.allow_solo_batting
     ? activeBattersCount
     : Math.max(1, activeBattersCount - 1);
@@ -268,7 +261,6 @@ const LiveScoring = () => {
 
   const battingSquad: Player[] = isTeamABatting ? teamAPlayers : teamBPlayers;
   const bowlingSquad: Player[] = isTeamABatting ? teamBPlayers : teamAPlayers;
-
   const isSoloBattingActive =
     matchData?.allow_solo_batting && currentWickets >= maxWickets - 1;
 
@@ -277,14 +269,11 @@ const LiveScoring = () => {
     .map((p) => p.id);
   const wicketsRemaining = maxWickets - currentWickets;
 
-  // 🔥 FIX 1: Smart Helper for Common Player Innings Isolation
   const getPlayerCurrentInningsStats = (playerId: string) => {
     const allEntries = scorecard.filter(
       (s: ScorecardItem) => String(s.player_id) === String(playerId),
     );
     if (allEntries.length === 0) return null;
-
-    // 1. Match by explicit backend IDs
     const exactMatch = allEntries.find(
       (s: ScorecardItem) =>
         (s.innings_id &&
@@ -294,26 +283,19 @@ const LiveScoring = () => {
         (s.team_id && String(s.team_id) === String(currentBattingTeamId)),
     );
     if (exactMatch) return exactMatch;
-
-    // 2. Common Player Fallback
     if (commonPlayerIds.includes(playerId)) {
-      if (isSecondInnings) {
-        // If it's the 2nd innings, but they only have 1 entry, that entry belongs to the 1st innings.
-        // Therefore, return null so they have a clean slate for the 2nd innings!
-        return allEntries.length > 1 ? allEntries[1] : null;
-      }
-      return allEntries[0];
+      return isSecondInnings
+        ? allEntries.length > 1
+          ? allEntries[1]
+          : null
+        : allEntries[0];
     }
     return allEntries[0];
   };
 
   const batterOptions = battingSquad
-    .filter((p) => {
-      const stats = getPlayerCurrentInningsStats(p.id);
-      return stats?.is_out !== true;
-    })
+    .filter((p) => getPlayerCurrentInningsStats(p.id)?.is_out !== true)
     .map((p) => ({ id: p.id, name: p.name }));
-
   const bowlerOptions = bowlingSquad
     .filter((p) => String(p.id) !== String(previousBowlerId))
     .filter(
@@ -322,13 +304,10 @@ const LiveScoring = () => {
         String(p.id) !== String(activeNonStriker?.id),
     )
     .filter((p) => {
-      if (commonPlayerIds.includes(p.id)) {
-        if (wicketsRemaining <= 2) {
-          const stats = getPlayerCurrentInningsStats(p.id);
-          if (!stats || (stats.balls_played === 0 && stats.runs_scored === 0)) {
-            return false;
-          }
-        }
+      if (commonPlayerIds.includes(p.id) && wicketsRemaining <= 2) {
+        const stats = getPlayerCurrentInningsStats(p.id);
+        if (!stats || (stats.balls_played === 0 && stats.runs_scored === 0))
+          return false;
       }
       return true;
     })
@@ -376,7 +355,6 @@ const LiveScoring = () => {
   const handleStartInnings = async () => {
     const currentInningsNo = isPreparingSecondInnings ? 2 : 1;
     const targetToSet = isPreparingSecondInnings ? currentTotalScore + 1 : null;
-
     const payload = {
       match_id: matchId,
       batting_team_id: isTeamABatting
@@ -391,7 +369,6 @@ const LiveScoring = () => {
       innings_no: currentInningsNo,
       target_runs: targetToSet,
     };
-
     try {
       const res = await api.post("/scoring/start", payload);
       setIsInningsDeclared(false);
@@ -416,8 +393,27 @@ const LiveScoring = () => {
           }) as LiveStats,
       );
     } catch (error) {
-      const err = error as ApiError;
-      toast.error(err.response?.data?.error || "Failed to start innings");
+      toast.error("Failed to start innings");
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!liveStats || isCooldown || !matchId) return;
+    setIsCooldown(true);
+    try {
+      // 🔥 FIX: Add the empty {} payload to the POST request
+      await api.post(`/scoring/undo/${matchId}`, {});
+
+      setIsInningsDeclared(false);
+      await refetchLiveStats();
+      await queryClient.invalidateQueries({ queryKey: ["scorecard", matchId] });
+      await queryClient.invalidateQueries({ queryKey: ["match", matchId] });
+
+      toast.success("Last ball undone!");
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to undo ball.");
+    } finally {
+      setTimeout(() => setIsCooldown(false), 500);
     }
   };
 
@@ -425,49 +421,32 @@ const LiveScoring = () => {
     if (!hasInningsStarted) return toast.error("Innings has not started yet!");
     if (isCurrentInningsOver)
       return toast.error("The innings is already over!");
-
     if (
       !activeStriker ||
       (!isSoloBattingActive && !activeNonStriker) ||
       !activeBowler
-    ) {
+    )
       return toast.error("Please assign active players first!", {
         duration: 2000,
       });
-    }
 
     if (isWicket) {
-      setPendingRuns(runs);
       setShowWicketForm(true);
       return;
     }
     executeBallApi(runs, false, undefined, undefined, undefined);
   };
 
-  const handleUndo = async () => {
-    if (!liveStats || isCooldown) return;
-    setIsCooldown(true);
-    try {
-      await api.post(`/scoring/undo/${matchId}`);
-      await refetchLiveStats();
-      toast.success("Last ball undone!");
-    } catch (error) {
-      toast.error("Failed to undo ball.");
-    } finally {
-      setTimeout(() => setIsCooldown(false), 500);
-    }
-  };
-
   const handleWicketSubmit = (
     wicketType: string,
     outBatterRole: "striker" | "non_striker",
     fielderId: string | null,
-    runsCompleted: number, // 🔥 Receive the runs here
+    runsCompleted: number,
   ) => {
     const exactOutPlayerId =
       outBatterRole === "striker" ? activeStriker?.id : activeNonStriker?.id;
     executeBallApi(
-      runsCompleted, // 🔥 Pass runsCompleted instead of pendingRuns
+      runsCompleted,
       true,
       wicketType,
       exactOutPlayerId || undefined,
@@ -484,15 +463,13 @@ const LiveScoring = () => {
     fielderId?: string,
   ) => {
     if (!liveStats || !matchId) return;
-
     setIsCooldown(true);
-    setTimeout(() => setIsCooldown(false), 3000);
+    setTimeout(() => setIsCooldown(false), 1500);
 
     let isLegal = true,
       runsFromBat = runs,
       extras = 0,
       extraType: string | undefined = undefined;
-
     const newEvents: ("4" | "6" | "FREE_HIT" | "WICKET")[] = [];
 
     if (modifier === "WD") {
@@ -525,9 +502,7 @@ const LiveScoring = () => {
     if (runsFromBat === 6) newEvents.push("6");
     if (isWicket) newEvents.push("WICKET");
 
-    if (newEvents.length > 0) {
-      setEventQueue((prev) => [...prev, ...newEvents]);
-    }
+    if (newEvents.length > 0) setEventQueue((prev) => [...prev, ...newEvents]);
 
     const currentPartnershipRuns =
       (liveStats.partnership_runs || 0) + runsFromBat + extras;
@@ -557,20 +532,16 @@ const LiveScoring = () => {
 
     try {
       await api.post("/scoring/ball", payload);
-
       setModifier(null);
       await refetchLiveStats();
 
-      // Check if Solo Batting is actively starting ON THIS EXACT WICKET
       const isNowSoloBatting =
         matchData?.allow_solo_batting &&
         currentWickets + (isWicket ? 1 : 0) >= maxWickets - 1;
-
       let shouldSwapStrikers = runsFromBat % 2 !== 0;
       if (isLegal && ballsInOver === 5)
         shouldSwapStrikers = !shouldSwapStrikers;
-
-      if (isNowSoloBatting) shouldSwapStrikers = false; // Lock striker
+      if (isNowSoloBatting) shouldSwapStrikers = false;
 
       let finalStrikerId = activeStriker?.id;
       let finalNonStrikerId = activeNonStriker?.id;
@@ -579,18 +550,15 @@ const LiveScoring = () => {
         finalStrikerId = activeNonStriker?.id;
         finalNonStrikerId = activeStriker?.id;
       }
-
       if (isWicket && outPlayerId) {
         if (finalStrikerId === outPlayerId) finalStrikerId = undefined;
         if (finalNonStrikerId === outPlayerId) finalNonStrikerId = undefined;
       }
-
-      // 🔥 FIX 2: If we just hit Solo Batting, force whoever is left to be the Striker!
       if (isNowSoloBatting) {
         if (!finalStrikerId && finalNonStrikerId) {
           finalStrikerId = finalNonStrikerId;
         }
-        finalNonStrikerId = undefined; // Wipe non-striker completely
+        finalNonStrikerId = undefined;
       }
 
       setActiveStriker(
@@ -605,8 +573,7 @@ const LiveScoring = () => {
         setActiveBowler(null);
       }
     } catch (error) {
-      const err = error as ApiError;
-      toast.error(err.response?.data?.error || "Failed to record ball");
+      toast.error("Failed to record ball");
     }
   };
 
@@ -705,7 +672,6 @@ const LiveScoring = () => {
                     </div>
                   )}
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
                   <div
                     className={`min-w-0 ${isSoloBattingActive ? "col-span-2" : ""}`}
@@ -726,7 +692,6 @@ const LiveScoring = () => {
                       }
                     />
                   </div>
-
                   {!isSoloBattingActive && (
                     <div className="min-w-0">
                       <div className="text-[10px] text-[#9FB7B2] uppercase tracking-wider mb-1 px-1 truncate">
@@ -746,7 +711,6 @@ const LiveScoring = () => {
                       />
                     </div>
                   )}
-
                   <div className="col-span-2 min-w-0">
                     <div className="text-[10px] text-destructive/80 uppercase tracking-wider mb-1 px-1">
                       Bowler
@@ -823,6 +787,40 @@ const LiveScoring = () => {
                     modifier={modifier}
                     isFreeHit={isFreeHit}
                   />
+                ) : showRetireForm ? (
+                  <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-5 shadow-lg animate-fade-in text-center">
+                    <h3 className="text-sm font-black text-[#F4FFFD] uppercase tracking-wider flex items-center justify-center gap-2 mb-4">
+                      <UserX className="w-5 h-5 text-[#9FB7B2]" /> Retire Batter
+                    </h3>
+                    <div className="flex gap-3 mb-4">
+                      <button
+                        onClick={() => {
+                          setActiveStriker(null);
+                          setShowRetireForm(false);
+                        }}
+                        className="flex-1 py-4 rounded-xl bg-[#0FAF9A]/10 text-[#0FAF9A] border border-[#0FAF9A]/30 font-bold uppercase tracking-wider text-xs active:scale-95 transition-transform hover:bg-[#0FAF9A]/20"
+                      >
+                        Striker
+                      </button>
+                      {!isSoloBattingActive && (
+                        <button
+                          onClick={() => {
+                            setActiveNonStriker(null);
+                            setShowRetireForm(false);
+                          }}
+                          className="flex-1 py-4 rounded-xl bg-[#0FAF9A]/10 text-[#0FAF9A] border border-[#0FAF9A]/30 font-bold uppercase tracking-wider text-xs active:scale-95 transition-transform hover:bg-[#0FAF9A]/20"
+                        >
+                          Non-Striker
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setShowRetireForm(false)}
+                      className="w-full py-3 rounded-xl bg-background border border-border text-[#9FB7B2] font-bold uppercase tracking-wider text-xs active:scale-95 transition-transform hover:bg-border/50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 ) : (
                   <ScoringPad
                     onScore={handleBall}
@@ -830,7 +828,7 @@ const LiveScoring = () => {
                     setModifier={setModifier}
                     isFreeHit={isFreeHit}
                     onComplete={() => setIsDeclareModalOpen(true)}
-                    onRetire={() => setActiveStriker(null)}
+                    onRetire={() => setShowRetireForm(true)}
                     onUndo={handleUndo}
                     isCooldown={isCooldown}
                   />
@@ -859,9 +857,18 @@ const LiveScoring = () => {
                 <h2 className="text-3xl font-black text-primary mb-3 uppercase tracking-widest">
                   Match Over
                 </h2>
-                <p className="text-muted-foreground font-medium">
+                <p className="text-muted-foreground font-medium mb-6">
                   This match has been finalized and stats are saved.
                 </p>
+                {canUpdateScore && (
+                  <button
+                    onClick={handleUndo}
+                    disabled={isCooldown}
+                    className="bg-background border border-border text-muted-foreground hover:text-foreground py-4 px-8 rounded-2xl font-bold text-sm w-full shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+                  >
+                    <RotateCcw className="w-4 h-4" /> UNDO LAST BALL
+                  </button>
+                )}
               </div>
             ) : (
               <div className="bg-card p-8 rounded-3xl border-2 border-warning/50 text-center shadow-xl flex flex-col items-center justify-center min-h-[200px]">
@@ -871,23 +878,32 @@ const LiveScoring = () => {
                 <p className="text-muted-foreground mb-8 font-medium">
                   Players are resting. Click below when ready to resume.
                 </p>
-
-                {canUpdateScore &&
-                  (!isSecondInnings ? (
+                {canUpdateScore && (
+                  <div className="flex flex-col gap-3 w-full">
+                    {!isSecondInnings ? (
+                      <button
+                        onClick={handleStartInnings}
+                        className="bg-primary text-background py-5 px-8 rounded-2xl font-black text-lg w-full shadow-lg transition-transform active:scale-95"
+                      >
+                        START 2ND INNINGS
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleFinalizeMatch}
+                        className="bg-destructive hover:bg-destructive/90 transition-all text-background py-5 px-8 rounded-2xl font-black text-lg w-full shadow-lg active:scale-95"
+                      >
+                        FINALIZE MATCH
+                      </button>
+                    )}
                     <button
-                      onClick={handleStartInnings}
-                      className="bg-primary text-background py-5 px-8 rounded-2xl font-black text-lg w-full shadow-lg transition-transform active:scale-95"
+                      onClick={handleUndo}
+                      disabled={isCooldown}
+                      className="bg-background border border-border text-muted-foreground hover:text-foreground py-4 px-8 rounded-2xl font-bold text-sm w-full shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
                     >
-                      START 2ND INNINGS
+                      <RotateCcw className="w-4 h-4" /> UNDO LAST BALL
                     </button>
-                  ) : (
-                    <button
-                      onClick={handleFinalizeMatch}
-                      className="bg-destructive hover:bg-destructive/90 transition-all text-background py-5 px-8 rounded-2xl font-black text-lg w-full shadow-lg active:scale-95"
-                    >
-                      FINALIZE MATCH
-                    </button>
-                  ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

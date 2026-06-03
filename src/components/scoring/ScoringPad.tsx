@@ -8,7 +8,7 @@ interface ScoringPadProps {
   onComplete: () => void;
   onRetire: () => void;
   onUndo: () => void;
-  isCooldown: boolean; // 🔥 Added for debounce lock
+  isCooldown: boolean;
 }
 
 export default function ScoringPad({
@@ -21,9 +21,11 @@ export default function ScoringPad({
   onUndo,
   isCooldown,
 }: ScoringPadProps) {
-  // 🔥 Limit runs if WD is selected. Removed 5 entirely.
+  // 🔥 FIX: 6 runs removed for BYE and LB as well
   const availableRuns =
-    modifier === "WD" ? [0, 1, 2, 3, 4] : [0, 1, 2, 3, 4, 6];
+    modifier === "WD" || modifier === "BYE" || modifier === "LB"
+      ? [0, 1, 2, 3, 4]
+      : [0, 1, 2, 3, 4, 6];
 
   const handleScore = (run: number) => {
     if (isCooldown) return;
@@ -32,7 +34,7 @@ export default function ScoringPad({
 
   const handleWicket = () => {
     if (isCooldown) return;
-    onScore(0, true); // Opens wicket form
+    onScore(0, true);
   };
 
   const handleModifier = (type: "WD" | "NB" | "BYE" | "LB") => {
@@ -44,7 +46,6 @@ export default function ScoringPad({
     <div
       className={`bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-4 shadow-sm transition-all duration-200 ${isCooldown ? "opacity-50 pointer-events-none grayscale-[20%]" : ""}`}
     >
-      {/* Modifiers & Extras Row */}
       <div className="grid grid-cols-4 gap-2 mb-4">
         {["WD", "NB", "BYE", "LB"].map((mod) => (
           <button
@@ -68,7 +69,6 @@ export default function ScoringPad({
         </div>
       )}
 
-      {/* Main Runs Grid */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         {availableRuns.map((run) => (
           <button
@@ -87,7 +87,6 @@ export default function ScoringPad({
         ))}
       </div>
 
-      {/* Action Row */}
       <div className="grid grid-cols-4 gap-2">
         <button
           onClick={handleWicket}
