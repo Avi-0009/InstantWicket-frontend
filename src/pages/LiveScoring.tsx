@@ -401,14 +401,13 @@ const LiveScoring = () => {
     if (!liveStats || isCooldown || !matchId) return;
     setIsCooldown(true);
     try {
-      // 🔥 FIX: Add the empty {} payload to the POST request
       await api.post(`/scoring/undo/${matchId}`, {});
 
       setIsInningsDeclared(false);
       await refetchLiveStats();
       await queryClient.invalidateQueries({ queryKey: ["scorecard", matchId] });
       await queryClient.invalidateQueries({ queryKey: ["match", matchId] });
-
+      setHasSynced(false);
       toast.success("Last ball undone!");
     } catch (error: any) {
       toast.error(error.response?.data?.error || "Failed to undo ball.");
