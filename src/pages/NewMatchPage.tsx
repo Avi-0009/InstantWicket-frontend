@@ -706,7 +706,7 @@ const NewMatchPage = () => {
         </div>
       )}
 
-      <div className="relative w-full bg-[#1b3530]/30 border-2 border-border rounded-3xl p-4 overflow-hidden mt-6 shadow-inner z-0">
+      <div className="relative w-full bg-border/30 border-2 border-border rounded-3xl p-4 overflow-hidden mt-6 shadow-inner z-0">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/4 h-[90%] border-2 border-border/50 rounded-[100px] pointer-events-none z-0" />
 
         <div className="flex gap-4 relative z-10">

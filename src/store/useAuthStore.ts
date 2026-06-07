@@ -7,6 +7,7 @@ export interface User {
   name: string;
   phone_no?: string;
   phone?: string;
+  avatar?: string;
   batting_style?: string;
   bowling_style?: string;
   player_stats?: PlayerStats;

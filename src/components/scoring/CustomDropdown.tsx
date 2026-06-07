@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export interface Option {
   id: string;
@@ -79,7 +79,7 @@ export default function CustomDropdown({
 
       {isOpen && (
         <div
-          className={`absolute z-[100] w-full ${positionClasses} bg-card border border-border rounded-lg shadow-2xl overflow-y-auto no-scrollbar`}
+          className={`absolute z-100 w-full ${positionClasses} bg-card border border-border rounded-lg shadow-2xl overflow-y-auto no-scrollbar`}
           style={{ maxHeight: "35vh" }}
         >
           {options.length === 0 ? (

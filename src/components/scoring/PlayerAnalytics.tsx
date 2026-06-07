@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -160,7 +160,7 @@ const PlayerAnalytics = ({ stats }: Props) => {
           <h4 className="text-muted-foreground text-[11px] uppercase tracking-widest font-bold text-center mb-4">
             Skill Attributes
           </h4>
-          <div className="h-[220px] w-full">
+          <div className="h-55 w-full">
             <Radar data={radarData} options={radarOptions} />
           </div>
         </div>
@@ -170,7 +170,7 @@ const PlayerAnalytics = ({ stats }: Props) => {
           <h4 className="text-muted-foreground text-[11px] uppercase tracking-widest font-bold text-center mb-4">
             Run Scoring Breakdown
           </h4>
-          <div className="h-[220px] w-full flex justify-center">
+          <div className="h-55 w-full flex justify-center">
             <PolarArea data={polarData} options={polarOptions} />
           </div>
         </div>

@@ -62,7 +62,7 @@ const MainLayout = () => {
       <nav className="hidden md:flex sticky top-0 z-50 bg-card/85 backdrop-blur-md border-b border-border px-5 h-16 items-center justify-between">
         <div className="flex items-center gap-2">
           <Trophy className="w-5 h-5 text-primary" />
-          <span className="text-base font-bold bg-gradient-to-br from-primary to-primary-hover text-transparent bg-clip-text">
+          <span className="text-base font-bold bg-linear-to-br from-primary to-primary-hover text-transparent bg-clip-text">
             InstantWicket
           </span>
         </div>

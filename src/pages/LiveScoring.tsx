@@ -660,9 +660,9 @@ const LiveScoring = () => {
         hasInningsStarted ? (
           <>
             {showPlayerSelection && (
-              <div className="mb-4 bg-[#0B1F1B] p-3.5 rounded-2xl border border-[#1B3530] shadow-sm animate-fade-in text-left">
+              <div className="mb-4 bg-card p-3.5 rounded-2xl border border-border shadow-sm animate-fade-in text-left">
                 <div className="flex justify-between items-center mb-3 px-1">
-                  <div className="text-[10px] text-[#9FB7B2] font-semibold uppercase tracking-wider">
+                  <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
                     Active Players
                   </div>
                   {isSoloBattingActive && (
@@ -675,7 +675,7 @@ const LiveScoring = () => {
                   <div
                     className={`min-w-0 ${isSoloBattingActive ? "col-span-2" : ""}`}
                   >
-                    <div className="text-[10px] text-[#9FB7B2] uppercase tracking-wider mb-1 px-1">
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 px-1">
                       Striker
                     </div>
                     <CustomDropdown
@@ -693,7 +693,7 @@ const LiveScoring = () => {
                   </div>
                   {!isSoloBattingActive && (
                     <div className="min-w-0">
-                      <div className="text-[10px] text-[#9FB7B2] uppercase tracking-wider mb-1 px-1 truncate">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 px-1 truncate">
                         Non-Striker
                       </div>
                       <CustomDropdown
@@ -787,9 +787,10 @@ const LiveScoring = () => {
                     isFreeHit={isFreeHit}
                   />
                 ) : showRetireForm ? (
-                  <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-5 shadow-lg animate-fade-in text-center">
-                    <h3 className="text-sm font-black text-[#F4FFFD] uppercase tracking-wider flex items-center justify-center gap-2 mb-4">
-                      <UserX className="w-5 h-5 text-[#9FB7B2]" /> Retire Batter
+                  <div className="bg-card border border-border rounded-2xl p-5 shadow-lg animate-fade-in text-center">
+                    <h3 className="text-sm font-black text-foreground uppercase tracking-wider flex items-center justify-center gap-2 mb-4">
+                      <UserX className="w-5 h-5 text-muted-foreground" /> Retire
+                      Batter
                     </h3>
                     <div className="flex gap-3 mb-4">
                       <button
@@ -797,7 +798,7 @@ const LiveScoring = () => {
                           setActiveStriker(null);
                           setShowRetireForm(false);
                         }}
-                        className="flex-1 py-4 rounded-xl bg-[#0FAF9A]/10 text-[#0FAF9A] border border-[#0FAF9A]/30 font-bold uppercase tracking-wider text-xs active:scale-95 transition-transform hover:bg-[#0FAF9A]/20"
+                        className="flex-1 py-4 rounded-xl bg-primary/10 text-primary border border-primary/30 font-bold uppercase tracking-wider text-xs active:scale-95 transition-transform hover:bg-primary/20"
                       >
                         Striker
                       </button>
@@ -807,7 +808,7 @@ const LiveScoring = () => {
                             setActiveNonStriker(null);
                             setShowRetireForm(false);
                           }}
-                          className="flex-1 py-4 rounded-xl bg-[#0FAF9A]/10 text-[#0FAF9A] border border-[#0FAF9A]/30 font-bold uppercase tracking-wider text-xs active:scale-95 transition-transform hover:bg-[#0FAF9A]/20"
+                          className="flex-1 py-4 rounded-xl bg-primary/10 text-primary border border-primary/30 font-bold uppercase tracking-wider text-xs active:scale-95 transition-transform hover:bg-primary/20"
                         >
                           Non-Striker
                         </button>
@@ -815,7 +816,7 @@ const LiveScoring = () => {
                     </div>
                     <button
                       onClick={() => setShowRetireForm(false)}
-                      className="w-full py-3 rounded-xl bg-background border border-border text-[#9FB7B2] font-bold uppercase tracking-wider text-xs active:scale-95 transition-transform hover:bg-border/50"
+                      className="w-full py-3 rounded-xl bg-background border border-border text-muted-foreground font-bold uppercase tracking-wider text-xs active:scale-95 transition-transform hover:bg-border/50"
                     >
                       Cancel
                     </button>

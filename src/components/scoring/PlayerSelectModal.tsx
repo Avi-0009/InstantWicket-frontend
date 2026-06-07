@@ -40,7 +40,7 @@ export const PlayerSelectModal: React.FC<PlayerSelectModalProps> = ({
 
   return (
     // FIX 1: Changed z-100 to z-[100] so it overlays the sticky header properly
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-card border border-border rounded-xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="bg-card-hover px-5 py-4 border-b border-border flex justify-between items-center">

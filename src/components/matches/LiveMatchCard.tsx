@@ -119,33 +119,33 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
 
       {/* Main Result Banner */}
       <div
-        className={`rounded-lg p-2.5 mb-3 text-xs shadow-inner font-medium text-center ${isCompleted ? "bg-primary/10 text-primary border border-primary/20" : "bg-[#0B1F1B] border border-[#1B3530] text-[#9FB7B2]"}`}
+        className={`rounded-lg p-2.5 mb-3 text-xs shadow-inner font-medium text-center ${isCompleted ? "bg-primary/10 text-primary border border-primary/20" : "bg-card border border-border text-muted-foreground"}`}
       >
         {isCompleted ? resultText : tossText}
       </div>
 
       {/* Target Chase Progress Bar (2nd Innings Only) */}
       {isOngoing && match.target > 0 && (
-        <div className="mb-3 bg-[#0D2420] border border-[#1B3530]/70 rounded-xl p-3 shadow-sm text-left">
+        <div className="mb-3 bg-card hover:bg-card-hover border border-border/70 rounded-xl p-3 shadow-sm text-left">
           <div className="flex justify-between items-center mb-2 text-xs">
-            <span className="text-[#9FB7B2] font-medium">
-              Target: {match.target}
+            <span className="text-muted-foreground font-medium">
+              m Target: {match.target}
             </span>
-            <span className="text-[#0FAF9A] font-bold">
+            <span className="text-primary font-bold">
               Need {Math.max(0, match.target - (match.score || 0))} runs
             </span>
           </div>
 
-          <div className="h-1.5 w-full bg-[#1B3530] rounded-full overflow-hidden mb-2">
+          <div className="h-1.5 w-full bg-border rounded-full overflow-hidden mb-2">
             <div
-              className="h-full bg-[#0FAF9A] transition-all duration-500 ease-in-out rounded-full"
+              className="h-full bg-primary transition-all duration-500 ease-in-out rounded-full"
               style={{
                 width: `${Math.min(100, Math.max(0, ((match.score || 0) / match.target) * 100))}%`,
               }}
             ></div>
           </div>
 
-          <div className="flex justify-between items-center text-[10px] text-[#9FB7B2] font-medium">
+          <div className="flex justify-between items-center text-[10px] text-muted-foreground font-medium">
             <span>
               RRR:{" "}
               {match.overs_limit * 6 - (match.legal_balls || 0) > 0
@@ -191,7 +191,7 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
       {/* Bottom Action Area */}
       <div className="mt-auto pt-2 border-t border-border flex justify-between items-center">
         {isOngoing ? (
-          <div className="text-xs font-medium text-[#0FAF9A] animate-pulse">
+          <div className="text-xs font-medium text-primary animate-pulse">
             Match in progress...
           </div>
         ) : (

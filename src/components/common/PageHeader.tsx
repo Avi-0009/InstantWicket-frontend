@@ -14,11 +14,11 @@ const PageHeader = ({ title, backUrl = "/" }: PageHeaderProps) => {
     <div className="flex items-center gap-3 mb-8">
       <button
         onClick={() => navigate(backUrl)}
-        className="p-2 bg-[#0B1F1B] border border-[#1B3530] rounded-full hover:bg-[#122A25] hover:border-[#0FAF9A]/50 transition-all shadow-lg text-[#F4FFFD]"
+        className="p-2 bg-card border border-border rounded-full hover:bg-card-hover hover:border-primary/50 transition-all shadow-lg text-foreground"
       >
         <ChevronLeft className="w-6 h-6" />
       </button>
-      <h1 className="text-[28px] font-bold text-[#F4FFFD]">{title}</h1>
+      <h1 className="text-[28px] font-bold text-foreground">{title}</h1>
     </div>
   );
 };

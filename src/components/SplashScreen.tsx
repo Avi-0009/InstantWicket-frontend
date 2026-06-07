@@ -16,7 +16,7 @@ const SplashScreen = () => {
         </div>
 
         {/* Title & Subtitle */}
-        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-primary to-primary-hover text-transparent bg-clip-text mb-2">
+        <h1 className="text-3xl md:text-4xl font-bold bg-linear-to-br from-primary to-primary-hover text-transparent bg-clip-text mb-2">
           InstantWicket
         </h1>
         <p className="text-muted-foreground text-[15px] mb-8">
@@ -37,10 +37,10 @@ const SplashScreen = () => {
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full max-w-[240px]">
+        <div className="w-full max-w-60">
           <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-3">
             {/* Tailwind arbitrary value for a 2-second fill animation */}
-            <div className="h-full bg-gradient-to-r from-primary to-primary-hover rounded-full w-0 animate-[fillBar_2s_ease-in-out_forwards]"></div>
+            <div className="h-full bg-linear-to-r from-primary to-primary-hover rounded-full w-0 animate-[fillBar_2s_ease-in-out_forwards]"></div>
           </div>
           <p className="text-center text-xs text-muted-foreground">
             Loading...

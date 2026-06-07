@@ -102,11 +102,11 @@ const Dashboard = () => {
     >
       {/* BRANDING HEADER (Visible to everyone) */}
       <div className="mb-8 text-center">
-        <h1 className="text-4xl font-black bg-gradient-to-r from-[#0FAF9A] to-[#1B3530] bg-clip-text text-transparent drop-shadow-sm">
+        <h1 className="text-4xl font-black bg-linear-to-r from-primary bg-clip-text text-transparent drop-shadow-sm">
           InstantWicket
         </h1>
         <div className="flex items-center justify-center gap-2 mt-2">
-          <div className="w-2 h-2 rounded-full bg-[#0FAF9A] animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
           <p className="text-foreground font-bold text-lg">
             {user ? `${displayFullName}'s Dashboard` : "Live Action Dashboard"}
           </p>
@@ -158,7 +158,7 @@ const Dashboard = () => {
               }
             />
             <StatCard
-              icon={<Activity className="text-[#0FAF9A]" />}
+              icon={<Activity className="text-primary" />}
               label="Matches"
               value={
                 isLoadingStats

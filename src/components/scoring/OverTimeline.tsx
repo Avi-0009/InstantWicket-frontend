@@ -17,8 +17,8 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
   }, [recentBalls]);
 
   return (
-    <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-4 shadow-lg w-full mt-5 mb-1 animate-fade-in">
-      <div className="text-[10px] text-[#9FB7B2] font-semibold uppercase tracking-wider mb-3 px-1">
+    <div className="bg-card border border-border rounded-2xl p-4 shadow-lg w-full mt-5 mb-1 animate-fade-in">
+      <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-3 px-1">
         This Over / Recent
       </div>
       <div
@@ -26,7 +26,7 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
         className="flex gap-2 items-center overflow-x-auto no-scrollbar min-h-11 px-1 pb-1 scroll-smooth"
       >
         {displayBalls.length === 0 ? (
-          <span className="text-xs text-[#9FB7B2] italic">
+          <span className="text-xs text-muted-foreground italic">
             Waiting for first ball...
           </span>
         ) : (
@@ -35,8 +35,7 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
             if (b === "0") text = "•";
 
             // Default style for normal runs (1, 2, 3) and dots
-            let bgColor =
-              "bg-transparent text-[#F4FFFD] border border-[#1B3530]";
+            let bgColor = "bg-transparent text-foreground border border-border";
 
             // 🔴 Wickets (Strict check so "1wd" doesn't trigger red)
             if (b.includes("W") && !b.includes("wd")) {
@@ -56,7 +55,7 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
             // 🟢 Boundaries (4, 6)
             else if (b === "4" || b === "6") {
               bgColor =
-                "bg-[#0FAF9A] text-[#0B1F1B] border-[#0FAF9A] font-black shadow-sm";
+                "bg-primary text-card border-primary font-black shadow-sm";
             }
 
             // Identify the ball just delivered
@@ -67,7 +66,7 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
                 key={idx}
                 className={`w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold transition-all shrink-0 ${bgColor} ${
                   isLatest
-                    ? "ring-2 ring-primary ring-offset-2 ring-offset-[#0B1F1B] scale-110"
+                    ? "ring-2 ring-primary ring-offset-2 ring-offset-card scale-110"
                     : "opacity-80"
                 }`}
               >

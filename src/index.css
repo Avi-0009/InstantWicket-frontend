@@ -1,26 +1,51 @@
 /* @import "tailwindcss";
 
 @theme {
-  --color-background: #061311;
-  --color-foreground: #f4fffd;
-
-  --color-card: #0b1f1b;
-  --color-card-hover: #122a25;
-
-  --color-border: #1b3530;
-  --color-muted: #1b3530;
-  --color-muted-foreground: #9fb7b2;
-
-  --color-primary: #0faf9a;
-  --color-primary-hover: #19f0c1;
-
-  --color-destructive: #ff6b6b;
-  --color-warning: #f59e0b;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
 }
 
-body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
+@layer base {
+  :root {
+    --background: #e4e4e7;
+    --foreground: #09090b;
+
+    --card-hover: #56d5ab; 
+
+    --border: #aaaaaa;
+    --muted: #f4f4f5;
+    --muted-foreground: #71717a;
+
+    --primary: #0faf9a;
+    --primary-hover: #0d9684;
+    --destructive: #ef4444;
+    --warning: #f59e0b;
+  }
+
+  .dark {
+    --background: #061311;
+    --foreground: #f4fffd;
+
+    --card: #0b1f1b;
+    --card-hover: #122a25;
+    --border: #1b3530;
+    --muted: #1b3530;
+    --muted-foreground: #9fb7b2;
+
+    --primary: #0faf9a;
+    --primary-hover: #19f0c1;
+    --destructive: #ff6b6b;
+    --warning: #f59e0b;
+  }
 } */
 
 @import "tailwindcss";
@@ -42,18 +67,15 @@ body {
 @layer base {
   :root {
     /* ☀️ LIGHT THEME */
-    --background: #e4e4e7; /* A distinct, nice cool grey (zinc-200) */
-    --foreground: #09090b; /* Almost black text */
+    --background: #e4e4e7;
+    --foreground: #09090b;
 
-    /* 👇 CHANGED TO PINK JUST TO CHECK 👇 */
-    /* --card: #fce7f3; Light pink for the cards */
-    /* --card-hover: #fbcfe8; Slightly darker pink for hover */
-    /* --card: #aaaaaa; */
-    --card-hover: #56d5ab; /* Slightly darker pink for hover */
+    --card: #f4f4f5; /* Adjusted to a standard light card */
+    --card-hover: #e4e4e7;
+    --border: #d4d4d8;
 
-    --border: #aaaaaa; /* Slightly darker grey for borders */
     --muted: #f4f4f5;
-    --muted-foreground: #71717a; /* Grey text for subtitles */
+    --muted-foreground: #71717a;
 
     --primary: #0faf9a; /* Locked Green */
     --primary-hover: #0d9684;
@@ -62,13 +84,14 @@ body {
   }
 
   .dark {
-    /* 🌙 DARK THEME (Your Exact Current Colors) */
+    /* 🌙 DARK THEME */
     --background: #061311;
     --foreground: #f4fffd;
 
     --card: #0b1f1b;
     --card-hover: #122a25;
     --border: #1b3530;
+
     --muted: #1b3530;
     --muted-foreground: #9fb7b2;
 

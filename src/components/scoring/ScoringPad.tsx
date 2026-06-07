@@ -44,7 +44,7 @@ export default function ScoringPad({
 
   return (
     <div
-      className={`bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-4 shadow-sm transition-all duration-200 ${isCooldown ? "opacity-50 pointer-events-none grayscale-[20%]" : ""}`}
+      className={`bg-card border border-border rounded-2xl p-4 shadow-sm transition-all duration-200 ${isCooldown ? "opacity-50 pointer-events-none grayscale-20" : ""}`}
     >
       <div className="grid grid-cols-4 gap-2 mb-4">
         {["WD", "NB", "BYE", "LB"].map((mod) => (
@@ -53,8 +53,8 @@ export default function ScoringPad({
             onClick={() => handleModifier(mod as any)}
             className={`flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${
               modifier === mod
-                ? "bg-[#0FAF9A] text-background shadow-md scale-[0.98]"
-                : "bg-background border border-border text-[#9FB7B2] hover:text-[#F4FFFD] hover:border-[#1B3530]"
+                ? "bg-primary text-background shadow-md scale-[0.98]"
+                : "bg-background border border-border text-muted-foreground hover:text-foreground hover:border-border"
             }`}
           >
             {mod}
@@ -76,10 +76,10 @@ export default function ScoringPad({
             onClick={() => handleScore(run)}
             className={`py-5 rounded-xl font-black text-xl transition-all border ${
               run === 0
-                ? "bg-[#1B3530]/50 text-[#9FB7B2] border-transparent hover:bg-[#1B3530]"
+                ? "bg-border/50 text-muted-foreground border-transparent hover:bg-border"
                 : run === 4 || run === 6
-                  ? "bg-[#0FAF9A]/10 text-[#0FAF9A] border-[#0FAF9A]/30 hover:bg-[#0FAF9A]/20"
-                  : "bg-background border-border text-[#F4FFFD] hover:bg-border/50"
+                  ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
+                  : "bg-background border-border text-foreground hover:bg-border/50"
             } active:scale-95`}
           >
             {run === 0 ? "•" : run}
@@ -100,7 +100,7 @@ export default function ScoringPad({
           onClick={() => {
             if (!isCooldown) onRetire();
           }}
-          className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-background border border-border text-[#9FB7B2] hover:text-[#F4FFFD] transition-all font-bold uppercase tracking-wider text-[10px] active:scale-95"
+          className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-background border border-border text-muted-foreground hover:text-foreground transition-all font-bold uppercase tracking-wider text-[10px] active:scale-95"
         >
           <UserX className="w-4 h-4" />
           Retire
@@ -110,7 +110,7 @@ export default function ScoringPad({
           onClick={() => {
             if (!isCooldown) onUndo();
           }}
-          className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-background border border-border text-[#9FB7B2] hover:text-[#F4FFFD] transition-all font-bold uppercase tracking-wider text-[10px] active:scale-95"
+          className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-background border border-border text-muted-foreground hover:text-foreground transition-all font-bold uppercase tracking-wider text-[10px] active:scale-95"
         >
           <RotateCcw className="w-4 h-4" />
           Undo
@@ -118,7 +118,7 @@ export default function ScoringPad({
 
         <button
           onClick={onComplete}
-          className="py-3 rounded-xl bg-[#0FAF9A] text-[#0B1F1B] font-black uppercase tracking-wider text-[10px] hover:bg-primary/90 transition-all shadow-md active:scale-95"
+          className="py-3 rounded-xl bg-primary text-card font-black uppercase tracking-wider text-[10px] hover:bg-primary/90 transition-all shadow-md active:scale-95"
         >
           End Innings
         </button>

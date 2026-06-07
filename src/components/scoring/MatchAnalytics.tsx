@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -231,34 +231,34 @@ const MatchAnalytics = ({ matchData, scorecard }: MatchAnalyticsProps) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* LINE CHART (WORM) */}
-        <div className="col-span-1 md:col-span-2 bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-4 shadow-sm relative">
+        <div className="col-span-1 md:col-span-2 bg-card border border-border rounded-2xl p-4 shadow-sm relative">
           <h4 className="text-foreground text-sm font-bold text-center mb-1">
             Run Rate Progression
           </h4>
           <p className="text-[10px] text-muted-foreground text-center mb-3 italic">
             *Trendline based on average run rate
           </p>
-          <div className="h-[280px] w-full">
+          <div className="h-70 w-full">
             <Line data={lineData} options={lineOptions} />
           </div>
         </div>
 
         {/* RADAR CHART */}
-        <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-4 shadow-sm">
+        <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
           <h4 className="text-foreground text-sm font-bold text-center mb-4">
             Team Comparison
           </h4>
-          <div className="h-[250px] w-full">
+          <div className="h-62.5 w-full">
             <Radar data={radarData} options={radarOptions} />
           </div>
         </div>
 
         {/* POLAR CHART */}
-        <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-2xl p-4 shadow-sm">
+        <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
           <h4 className="text-foreground text-sm font-bold text-center mb-4">
             Match Run Composition
           </h4>
-          <div className="h-[250px] w-full flex justify-center">
+          <div className="h-62.5 w-full flex justify-center">
             <PolarArea data={polarData} options={polarOptions} />
           </div>
         </div>

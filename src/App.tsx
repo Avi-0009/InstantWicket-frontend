@@ -17,7 +17,7 @@ import { useThemeStore } from "./store/useThemeStore";
 // Extracted a small fallback component to utilize NavLink instead of Navigate redirect
 const NotFoundFallback = () => (
   <div style={{ textAlign: "center", marginTop: "50px" }}>
-    <h2 className="text-[var(--foreground)] text-xl font-bold mb-4">
+    <h2 className="text-(--foreground) text-xl font-bold mb-4">
       404 - Page Not Found
     </h2>
     <NavLink

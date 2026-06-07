@@ -26,23 +26,25 @@ const StatCard = ({
 }: any) => (
   <motion.div
     whileHover={{ y: -2 }}
-    className={`p-5 rounded-xl border ${highlight ? "bg-[#0FAF9A]/10 border-[#0FAF9A]/30" : "bg-[#0B1F1B] border-[#1B3530]"} shadow-lg flex flex-col justify-between`}
+    className={`p-5 rounded-xl border ${highlight ? "bg-primary/10 border-primary/30" : "bg-card border-border"} shadow-lg flex flex-col justify-between`}
   >
     <div className="flex items-start justify-between mb-4">
-      <span className="text-[#9FB7B2] text-xs font-bold uppercase tracking-wider">
+      <span className="text-muted-foreground text-xs font-bold uppercase tracking-wider">
         {title}
       </span>
       <Icon
-        className={`w-5 h-5 ${highlight ? "text-[#0FAF9A]" : "text-[#9FB7B2]"}`}
+        className={`w-5 h-5 ${highlight ? "text-primary" : "text-muted-foreground"}`}
       />
     </div>
     <div>
       <h3
-        className={`text-3xl font-black ${highlight ? "text-[#0FAF9A]" : "text-[#F4FFFD]"}`}
+        className={`text-3xl font-black ${highlight ? "text-primary" : "text-foreground"}`}
       >
         {value}
       </h3>
-      {subtitle && <p className="text-xs text-[#9FB7B2] mt-1">{subtitle}</p>}
+      {subtitle && (
+        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+      )}
     </div>
   </motion.div>
 );
@@ -207,8 +209,8 @@ const PlayerStatsPage = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#0FAF9A] animate-spin mb-4" />
-        <p className="text-[#F4FFFD] font-semibold animate-pulse">
+        <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
+        <p className="text-foreground font-semibold animate-pulse">
           Loading Player Stats...
         </p>
       </div>
@@ -233,25 +235,25 @@ const PlayerStatsPage = () => {
         <PageHeader title="Player Profile" backUrl="/players" />
 
         {/* PROFILE HEADER HERO */}
-        <div className="bg-linear-to-br from-[#0B1F1B] to-background border border-[#1B3530] rounded-2xl p-6 md:p-8 mb-8 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#0FAF9A]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="bg-linear-to-br from-card to-background border border-border rounded-2xl p-6 md:p-8 mb-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
-            <div className="w-24 h-24 rounded-full bg-[#0FAF9A]/20 border-2 border-[#0FAF9A] flex items-center justify-center text-4xl font-bold text-[#0FAF9A] shadow-[0_0_20px_rgba(15,175,154,0.3)] shrink-0 capitalize">
+            <div className="w-24 h-24 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-4xl font-bold text-primary shadow-[0_0_20px_rgba(15,175,154,0.3)] shrink-0 capitalize">
               {stats.name ? stats.name.charAt(0) : "P"}
             </div>
 
             <div className="text-center md:text-left flex-1">
-              <h1 className="text-3xl md:text-4xl font-black text-[#F4FFFD] mb-2 capitalize">
+              <h1 className="text-3xl md:text-4xl font-black text-foreground mb-2 capitalize">
                 {stats.name || "Unknown Player"}
               </h1>
               <div className="flex flex-wrap justify-center md:justify-start gap-3">
-                <span className="px-3 py-1 bg-[#1B3530] text-[#9FB7B2] rounded-full text-xs font-bold flex items-center gap-1.5 capitalize">
-                  <Swords className="w-3.5 h-3.5 text-[#0FAF9A]" />{" "}
+                <span className="px-3 py-1 bg-border text-muted-foreground rounded-full text-xs font-bold flex items-center gap-1.5 capitalize">
+                  <Swords className="w-3.5 h-3.5 text-primary" />{" "}
                   {stats.batting_style || "N/A"}
                 </span>
-                <span className="px-3 py-1 bg-[#1B3530] text-[#9FB7B2] rounded-full text-xs font-bold flex items-center gap-1.5 capitalize">
-                  <Target className="w-3.5 h-3.5 text-[#FF6B6B]" />{" "}
+                <span className="px-3 py-1 bg-border text-muted-foreground rounded-full text-xs font-bold flex items-center gap-1.5 capitalize">
+                  <Target className="w-3.5 h-3.5 text-destructive" />{" "}
                   {stats.bowling_style || "N/A"}
                 </span>
               </div>
@@ -259,18 +261,18 @@ const PlayerStatsPage = () => {
 
             <div className="flex gap-6 md:flex-col justify-center items-center md:items-end">
               <div className="text-center md:text-right">
-                <p className="text-[#9FB7B2] text-xs font-bold uppercase">
+                <p className="text-muted-foreground text-xs font-bold uppercase">
                   Total Points
                 </p>
-                <p className="text-2xl font-black text-[#0FAF9A]">
+                <p className="text-2xl font-black text-primary">
                   {stats.career_total_points || 0}
                 </p>
               </div>
               <div className="text-center md:text-right">
-                <p className="text-[#9FB7B2] text-xs font-bold uppercase">
+                <p className="text-muted-foreground text-xs font-bold uppercase">
                   MVP Awards
                 </p>
-                <p className="text-2xl font-black text-[#F59E0B] flex items-center justify-center md:justify-end gap-1.5">
+                <p className="text-2xl font-black text-warning flex items-center justify-center md:justify-end gap-1.5">
                   {calculatedMvps === null ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
@@ -284,15 +286,15 @@ const PlayerStatsPage = () => {
         </div>
 
         {/* SHADCN-STYLE TABS */}
-        <div className="bg-[#0B1F1B] border border-[#1B3530] p-1 rounded-xl flex gap-1 mb-6 overflow-x-auto no-scrollbar shadow-lg">
+        <div className="bg-card border border-border p-1 rounded-xl flex gap-1 mb-6 overflow-x-auto no-scrollbar shadow-lg">
           {["overview", "batting", "bowling", "fielding"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-bold capitalize transition-all whitespace-nowrap ${
                 activeTab === tab
-                  ? "bg-[#1B3530] text-[#0FAF9A] shadow-md"
-                  : "text-[#9FB7B2] hover:bg-[#122A25] hover:text-[#F4FFFD]"
+                  ? "bg-border text-primary shadow-md"
+                  : "text-muted-foreground hover:bg-card-hover hover:text-foreground"
               }`}
             >
               {tab}
@@ -418,20 +420,20 @@ const PlayerStatsPage = () => {
         )}
 
         {/* REAL MATCHES TABLE */}
-        <div className="bg-[#0B1F1B] border border-[#1B3530] rounded-xl shadow-lg overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-[#1B3530] flex justify-between items-center">
-            <h3 className="text-lg font-bold text-[#F4FFFD]">
+        <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden flex flex-col">
+          <div className="p-5 border-b border-border flex justify-between items-center">
+            <h3 className="text-lg font-bold text-foreground">
               Recent Matches (Last 20)
             </h3>
             {isLoadingMatchStats && (
-              <Loader2 className="w-4 h-4 text-[#0FAF9A] animate-spin" />
+              <Loader2 className="w-4 h-4 text-primary animate-spin" />
             )}
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-background/50 border-b border-[#1B3530] text-[#9FB7B2] text-xs uppercase tracking-wider">
+                <tr className="bg-background/50 border-b border-border text-muted-foreground text-xs uppercase tracking-wider">
                   <th className="p-4 font-semibold">Date</th>
                   <th className="p-4 font-semibold">Match</th>
                   <th className="p-4 font-semibold text-center">Format</th>
@@ -443,13 +445,19 @@ const PlayerStatsPage = () => {
               <tbody className="text-sm">
                 {isFetchingMatches ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-[#9FB7B2]">
+                    <td
+                      colSpan={6}
+                      className="p-8 text-center text-muted-foreground"
+                    >
                       Loading recent matches...
                     </td>
                   </tr>
                 ) : currentMatches.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-[#9FB7B2]">
+                    <td
+                      colSpan={6}
+                      className="p-8 text-center text-muted-foreground"
+                    >
                       No matches found for this player yet.
                     </td>
                   </tr>
@@ -486,18 +494,19 @@ const PlayerStatsPage = () => {
 
                     // Result Badge Logic
                     let resultBadge = "Live";
-                    let badgeClass = "bg-[#F59E0B]/20 text-[#F59E0B]";
+                    let badgeClass = "bg-warning/20 text-warning";
 
                     if (match.status === "completed") {
                       if (match.winner_team_id) {
                         const didWin = match.winner_team_id === myTeamId;
                         resultBadge = didWin ? "Won" : "Lost";
                         badgeClass = didWin
-                          ? "bg-[#0FAF9A]/20 text-[#0FAF9A]"
-                          : "bg-[#FF6B6B]/20 text-[#FF6B6B]";
+                          ? "bg-primary/20 text-primary"
+                          : "bg-destructive/20 text-destructive";
                       } else {
                         resultBadge = "Draw";
-                        badgeClass = "bg-[#9FB7B2]/20 text-[#9FB7B2]";
+                        badgeClass =
+                          "bg-muted-foretext-muted-foreground/20 text-muted-foreground";
                       }
                     }
 
@@ -516,27 +525,29 @@ const PlayerStatsPage = () => {
                     return (
                       <tr
                         key={match.id}
-                        className="border-b border-[#1B3530]/50 hover:bg-[#122A25] transition-colors relative"
+                        className="border-b border-border/50 hover:bg-card-hover transition-colors relative"
                       >
-                        <td className="p-4 text-[#F4FFFD] whitespace-nowrap text-xs">
+                        <td className="p-4 text-foreground whitespace-nowrap text-xs">
                           {matchDate}
                         </td>
                         <td className="p-4 font-medium text-sm">
-                          <span className="text-[#F4FFFD] font-bold">
+                          <span className="text-foreground font-bold">
                             {myTeam}
                           </span>
-                          <span className="text-[#9FB7B2] text-xs px-1.5 italic">
+                          <span className="text-muted-foreground text-xs px-1.5 italic">
                             vs
                           </span>
-                          <span className="text-[#9FB7B2]">{oppTeam}</span>
+                          <span className="text-muted-foreground">
+                            {oppTeam}
+                          </span>
                         </td>
-                        <td className="p-4 text-[#0FAF9A] font-bold text-center text-xs">
+                        <td className="p-4 text-primary font-bold text-center text-xs">
                           {match.overs_limit} Ov
                         </td>
-                        <td className="p-4 text-[#F4FFFD] font-bold text-center align-middle">
+                        <td className="p-4 text-foreground font-bold text-center align-middle">
                           {runsScored}
                         </td>
-                        <td className="p-4 text-[#F4FFFD] font-bold text-center align-middle">
+                        <td className="p-4 text-foreground font-bold text-center align-middle">
                           {wicketsTaken}
                         </td>
                         <td className="p-4 text-center align-middle">
@@ -556,18 +567,18 @@ const PlayerStatsPage = () => {
 
           {/* PAGINATION FOOTER */}
           {!isFetchingMatches && recentMatches.length > 0 && (
-            <div className="p-4 border-t border-[#1B3530] flex items-center justify-between bg-background/30">
-              <p className="text-xs text-[#9FB7B2]">
+            <div className="p-4 border-t border-border flex items-center justify-between bg-background/30">
+              <p className="text-xs text-muted-foreground">
                 Showing{" "}
-                <span className="font-bold text-[#F4FFFD]">
+                <span className="font-bold text-foreground">
                   {(currentPage - 1) * itemsPerPage + 1}
                 </span>{" "}
                 to{" "}
-                <span className="font-bold text-[#F4FFFD]">
+                <span className="font-bold text-foreground">
                   {Math.min(currentPage * itemsPerPage, recentMatches.length)}
                 </span>{" "}
                 of{" "}
-                <span className="font-bold text-[#F4FFFD]">
+                <span className="font-bold text-foreground">
                   {recentMatches.length}
                 </span>{" "}
                 results
@@ -577,7 +588,7 @@ const PlayerStatsPage = () => {
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1B3530] text-[#9FB7B2] hover:bg-[#1B3530] hover:text-[#F4FFFD] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-border hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -590,8 +601,8 @@ const PlayerStatsPage = () => {
                       onClick={() => handlePageChange(pageNum)}
                       className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-semibold transition-colors ${
                         currentPage === pageNum
-                          ? "bg-[#0FAF9A] text-background border border-[#0FAF9A]"
-                          : "border border-transparent text-[#9FB7B2] hover:border-[#1B3530] hover:bg-[#1B3530]"
+                          ? "bg-primary text-background border border-primary"
+                          : "border border-transparent text-muted-foreground hover:border-border hover:bg-border"
                       }`}
                     >
                       {pageNum}
@@ -602,7 +613,7 @@ const PlayerStatsPage = () => {
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="w-8 h-8 flex items-center justify-center rounded-md border border-[#1B3530] text-[#9FB7B2] hover:bg-[#1B3530] hover:text-[#F4FFFD] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-border hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

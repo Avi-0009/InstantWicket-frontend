@@ -317,18 +317,18 @@ export default function MatchDetailsPage() {
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 overflow-hidden">
-          <h1 className="text-lg font-bold text-[#F4FFFD] leading-tight truncate">
+          <h1 className="text-lg font-bold text-foreground leading-tight truncate">
             {matchData.team_a_name} vs {matchData.team_b_name}
           </h1>
 
-          <div className="flex items-center gap-3 mt-1.5 text-[11px] font-medium text-[#9FB7B2]">
+          <div className="flex items-center gap-3 mt-1.5 text-[11px] font-medium text-muted-foreground">
             <div className="flex items-center gap-1 min-w-0">
               <span className="text-primary/70 shrink-0">Host:</span>
               <span className="truncate text-foreground/80">
                 {matchData.creator_name || "Organizer"}
               </span>
             </div>
-            <span className="text-[#1B3530] shrink-0">|</span>
+            <span className="text-border shrink-0">|</span>
             <div className="flex items-center gap-1 min-w-0">
               <span className="text-primary/70 shrink-0">Umpire:</span>
               <span className="truncate text-foreground/80">
@@ -341,13 +341,13 @@ export default function MatchDetailsPage() {
 
       <div className="p-4">
         {/* MAIN TABS */}
-        <div className="flex bg-[#0B1F1B] p-1 rounded-xl border border-[#1B3530] mb-6">
+        <div className="flex bg-card p-1 rounded-xl border border-border mb-6">
           <button
             onClick={() => setActiveTab("Summary")}
             className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
               activeTab === "Summary"
-                ? "bg-[#0FAF9A]/20 text-[#0FAF9A] shadow-sm"
-                : "text-[#9FB7B2] hover:text-[#F4FFFD]"
+                ? "bg-primary/20 text-primary shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Summary
@@ -356,8 +356,8 @@ export default function MatchDetailsPage() {
             onClick={() => setActiveTab("Scoreboard")}
             className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
               activeTab === "Scoreboard"
-                ? "bg-[#0FAF9A]/20 text-[#0FAF9A] shadow-sm"
-                : "text-[#9FB7B2] hover:text-[#F4FFFD]"
+                ? "bg-primary/20 text-primary shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Scoreboard
@@ -379,40 +379,40 @@ export default function MatchDetailsPage() {
                 <div className="flex justify-center items-center gap-6 mt-4 border-t border-primary/20 pt-4">
                   <div className="text-center flex-1">
                     <div
-                      className="text-sm font-bold text-[#F4FFFD] truncate max-w-[120px] mx-auto"
+                      className="text-sm font-bold text-foreground truncate max-w-[120px] mx-auto"
                       title={matchData.team_a_name}
                     >
                       {matchData.team_a_name}
                     </div>
-                    <div className="text-2xl font-black text-[#0FAF9A]">
+                    <div className="text-2xl font-black text-primary">
                       {matchData.team_a_score || 0}
-                      <span className="text-sm font-medium text-[#9FB7B2]">
+                      <span className="text-sm font-medium text-muted-foreground">
                         /{matchData.team_a_wickets || 0}
                       </span>
                     </div>
-                    <div className="text-xs text-[#9FB7B2]">
+                    <div className="text-xs text-muted-foreground">
                       ({formatOvers(matchData.team_a_balls)} ov)
                     </div>
                   </div>
 
-                  <div className="text-xs font-bold text-[#9FB7B2] bg-[#1B3530] px-3 py-1 rounded-full">
+                  <div className="text-xs font-bold text-muted-foreground bg-border px-3 py-1 rounded-full">
                     VS
                   </div>
 
                   <div className="text-center flex-1">
                     <div
-                      className="text-sm font-bold text-[#F4FFFD] truncate max-w-[120px] mx-auto"
+                      className="text-sm font-bold text-foreground truncate max-w-[120px] mx-auto"
                       title={matchData.team_b_name}
                     >
                       {matchData.team_b_name}
                     </div>
-                    <div className="text-2xl font-black text-[#0FAF9A]">
+                    <div className="text-2xl font-black text-primary">
                       {matchData.team_b_score || 0}
-                      <span className="text-sm font-medium text-[#9FB7B2]">
+                      <span className="text-sm font-medium text-muted-foreground">
                         /{matchData.team_b_wickets || 0}
                       </span>
                     </div>
-                    <div className="text-xs text-[#9FB7B2]">
+                    <div className="text-xs text-muted-foreground">
                       ({formatOvers(matchData.team_b_balls)} ov)
                     </div>
                   </div>
@@ -420,19 +420,19 @@ export default function MatchDetailsPage() {
               </div>
             )}
 
-            <div className="bg-[#0B1F1B] border border-[#1B3530] p-5 rounded-2xl shadow-lg">
+            <div className="bg-card border border-border p-5 rounded-2xl shadow-lg">
               {!liveStats?.innings_id && matchData.status !== "completed" ? (
-                <div className="text-center text-[#9FB7B2] py-8">
+                <div className="text-center text-muted-foreground py-8">
                   Match has not started yet.
                 </div>
               ) : matchData.status === "completed" && !liveStats?.innings_id ? (
-                <div className="text-center text-[#9FB7B2] py-8 text-sm">
+                <div className="text-center text-muted-foreground py-8 text-sm">
                   Detailed live summary data is not available for this finalized
                   match. Check the Scoreboard tab.
                 </div>
               ) : (
                 <div className="animate-fade-in text-center">
-                  <div className="text-sm font-bold text-[#9FB7B2] mb-1 uppercase tracking-wider">
+                  <div className="text-sm font-bold text-muted-foreground mb-1 uppercase tracking-wider">
                     {liveStats.batting_team_id === firstInningsTeamId
                       ? firstInningsTeamId === teamAId
                         ? matchData.team_a_name
@@ -445,33 +445,32 @@ export default function MatchDetailsPage() {
                       ? "(Final Live State)"
                       : ""}
                   </div>
-                  <div className="text-5xl font-black text-[#F4FFFD] tracking-tight drop-shadow-md">
+                  <div className="text-5xl font-black text-foreground tracking-tight drop-shadow-md">
                     {liveStats.current_score}{" "}
-                    <span className="text-2xl text-[#9FB7B2] font-semibold">
+                    <span className="text-2xl text-muted-foreground font-semibold">
                       / {liveStats.wickets}
                     </span>
                   </div>
                   <div className="flex justify-center items-center gap-4 mt-2 text-sm font-medium">
-                    <span className="text-[#9FB7B2]">
+                    <span className="text-muted-foreground">
                       Overs:{" "}
-                      <span className="text-[#0FAF9A] font-bold">
+                      <span className="text-primary font-bold">
                         {overs}.{balls}
                       </span>
                     </span>
-                    <span className="text-[#1B3530]">|</span>
-                    <span className="text-[#9FB7B2]">
-                      CRR:{" "}
-                      <span className="text-[#0FAF9A] font-bold">{crr}</span>
+                    <span className="text-border">|</span>
+                    <span className="text-muted-foreground">
+                      CRR: <span className="text-primary font-bold">{crr}</span>
                     </span>
                   </div>
 
                   {liveStats.target_runs > 0 && (
-                    <div className="mt-5 bg-[#0D2420] border border-[#1B3530]/70 rounded-xl p-4 shadow-sm text-left">
+                    <div className="mt-5 bg-muted/50 border border-border/70 rounded-xl p-4 shadow-sm text-left">
                       <div className="flex justify-between items-center mb-2.5 text-sm">
-                        <span className="text-[#9FB7B2] font-medium">
+                        <span className="text-muted-foreground font-medium">
                           Target: {liveStats.target_runs}
                         </span>
-                        <span className="text-[#0FAF9A] font-bold">
+                        <span className="text-primary font-bold">
                           Need{" "}
                           {Math.max(
                             0,
@@ -481,9 +480,9 @@ export default function MatchDetailsPage() {
                         </span>
                       </div>
 
-                      <div className="h-1.5 w-full bg-[#1B3530] rounded-full overflow-hidden mb-2.5">
+                      <div className="h-1.5 w-full bg-border rounded-full overflow-hidden mb-2.5">
                         <div
-                          className="h-full bg-[#0FAF9A] transition-all duration-500 ease-in-out rounded-full"
+                          className="h-full bg-primary transition-all duration-500 ease-in-out rounded-full"
                           style={{
                             width: `${Math.min(
                               100,
@@ -499,7 +498,7 @@ export default function MatchDetailsPage() {
                       </div>
 
                       {/* Update your RRR JSX to just use the new variable */}
-                      <div className="flex justify-between items-center text-xs text-[#9FB7B2] font-medium">
+                      <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
                         <span>RRR: {rrr}</span>
                         <span>{ballsLeft} balls left</span>
                       </div>
@@ -511,20 +510,20 @@ export default function MatchDetailsPage() {
                       {/* ROW 1: STRIKER & NON-STRIKER */}
                       <div className="grid grid-cols-2 gap-3">
                         {/* Striker */}
-                        <div className="bg-[#0D2420] p-3.5 rounded-xl border border-[#1B3530]/50 shadow-sm">
-                          <div className="text-[10px] text-[#9FB7B2] font-bold uppercase tracking-wider mb-2">
+                        <div className="bg-muted/50 p-3.5 rounded-xl border border-border/50 shadow-sm">
+                          <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">
                             Striker
                           </div>
                           <div className="flex justify-between items-center">
-                            <div className="font-bold text-[#F4FFFD] text-sm truncate flex items-center gap-1">
+                            <div className="font-bold text-foreground text-sm truncate flex items-center gap-1">
                               {liveStats.striker_name || "Waiting..."}{" "}
-                              <span className="text-[#0FAF9A] text-lg leading-none">
+                              <span className="text-primary text-lg leading-none">
                                 *
                               </span>
                             </div>
-                            <div className="text-[#0FAF9A] text-sm font-bold shrink-0 ml-2">
+                            <div className="text-primary text-sm font-bold shrink-0 ml-2">
                               {liveStats.striker_runs || 0}{" "}
-                              <span className="text-[#9FB7B2] text-xs font-medium">
+                              <span className="text-muted-foreground text-xs font-medium">
                                 ({liveStats.striker_balls || 0})
                               </span>
                             </div>
@@ -532,15 +531,15 @@ export default function MatchDetailsPage() {
                         </div>
 
                         {/* Non-Striker */}
-                        <div className="bg-[#0D2420] p-3.5 rounded-xl border border-[#1B3530]/50 shadow-sm">
-                          <div className="text-[10px] text-[#9FB7B2] font-bold uppercase tracking-wider mb-2">
+                        <div className="bg-muted/50 p-3.5 rounded-xl border border-border/50 shadow-sm">
+                          <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">
                             Non-Striker
                           </div>
                           <div className="flex justify-between items-center">
-                            <div className="font-medium text-[#9FB7B2] text-sm truncate">
+                            <div className="font-medium text-muted-foreground text-sm truncate">
                               {liveStats.non_striker_name || "Waiting..."}
                             </div>
-                            <div className="text-[#9FB7B2] text-sm font-medium shrink-0 ml-2">
+                            <div className="text-muted-foreground text-sm font-medium shrink-0 ml-2">
                               {liveStats.non_striker_runs || 0}{" "}
                               <span className="text-xs">
                                 ({liveStats.non_striker_balls || 0})
@@ -588,35 +587,35 @@ export default function MatchDetailsPage() {
         {/* ----------------- SCOREBOARD TAB ----------------- */}
         {activeTab === "Scoreboard" && (
           <div className="animate-fade-in space-y-6">
-            <div className="flex gap-6 border-b border-[#1B3530] mb-4 px-2">
+            <div className="flex gap-6 border-b border-border mb-4 px-2">
               <button
                 onClick={() => setInningsTab(1)}
-                className={`pb-3 text-sm font-bold transition-colors relative ${inningsTab === 1 ? "text-[#0FAF9A]" : "text-[#9FB7B2] hover:text-[#F4FFFD]"}`}
+                className={`pb-3 text-sm font-bold transition-colors relative ${inningsTab === 1 ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
               >
                 1st Innings
                 {inningsTab === 1 && (
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-[#0FAF9A] rounded-t-full"></span>
+                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary rounded-t-full"></span>
                 )}
               </button>
               <button
                 onClick={() => setInningsTab(2)}
-                className={`pb-3 text-sm font-bold transition-colors relative ${inningsTab === 2 ? "text-[#0FAF9A]" : "text-[#9FB7B2] hover:text-[#F4FFFD]"}`}
+                className={`pb-3 text-sm font-bold transition-colors relative ${inningsTab === 2 ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
               >
                 2nd Innings
                 {inningsTab === 2 && (
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-[#0FAF9A] rounded-t-full"></span>
+                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary rounded-t-full"></span>
                 )}
               </button>
             </div>
 
-            <h3 className="text-[#F4FFFD] font-bold text-sm px-1">
+            <h3 className="text-foreground font-bold text-sm px-1">
               {battingTeamName} Batting
             </h3>
 
             {/* BATTING SCORECARD */}
             <div className="overflow-x-auto no-scrollbar">
-              <div className="bg-[#0B1F1B] rounded-xl border border-[#1B3530] overflow-hidden shadow-md min-w-[500px]">
-                <div className="bg-[#1B3530]/50 p-2.5 flex items-center text-[11px] text-[#9FB7B2] font-bold uppercase tracking-wider">
+              <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-[500px]">
+                <div className="bg-border/50 p-2.5 flex items-center text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
                   <div className="w-1/3 min-w-[130px]">Batsman</div>
                   <div className="flex-1 text-center">R</div>
                   <div className="flex-1 text-center">B</div>
@@ -625,15 +624,15 @@ export default function MatchDetailsPage() {
                   <div className="flex-1 text-right pr-2">SR</div>
                 </div>
 
-                <div className="divide-y divide-[#1B3530]/50">
+                <div className="divide-y divide-border/50">
                   {batters.map((batter: BatterStats) => {
-                    let statusClass = "text-[#9FB7B2]"; // Default grey for Yet to bat / Did not bat
+                    let statusClass = "text-muted-foreground"; // Default grey for Yet to bat / Did not bat
 
                     if (
                       batter.batting_status === "Batting" ||
                       batter.batting_status === "Not out"
                     ) {
-                      statusClass = "text-[#0FAF9A] font-bold text-[10px]";
+                      statusClass = "text-primary font-bold text-[10px]";
                     } else if (batter.batting_status === "Out") {
                       statusClass = "text-destructive font-bold text-[10px]";
                     }
@@ -651,7 +650,7 @@ export default function MatchDetailsPage() {
                         key={batter.player_id}
                         className="p-2.5 flex items-center text-sm"
                       >
-                        <div className="w-1/3 min-w-[130px] font-bold text-[#F4FFFD] flex flex-col justify-center items-start">
+                        <div className="w-1/3 min-w-[130px] font-bold text-foreground flex flex-col justify-center items-start">
                           <span>{batter.player_name}</span>
                           <span
                             className={`mt-0.5 leading-tight inline-block ${statusClass}`}
@@ -660,19 +659,19 @@ export default function MatchDetailsPage() {
                             {batter.batting_status}
                           </span>
                         </div>
-                        <div className="flex-1 text-center font-bold text-[#F4FFFD]">
+                        <div className="flex-1 text-center font-bold text-foreground">
                           {batter.runs_scored}
                         </div>
-                        <div className="flex-1 text-center text-[#9FB7B2]">
+                        <div className="flex-1 text-center text-muted-foreground">
                           {batter.balls_played}
                         </div>
-                        <div className="flex-1 text-center text-[#9FB7B2]">
+                        <div className="flex-1 text-center text-muted-foreground">
                           {batter.fours}
                         </div>
-                        <div className="flex-1 text-center text-[#9FB7B2]">
+                        <div className="flex-1 text-center text-muted-foreground">
                           {batter.sixes}
                         </div>
-                        <div className="flex-1 text-right pr-2 text-[#9FB7B2]">
+                        <div className="flex-1 text-right pr-2 text-muted-foreground">
                           {sr}
                         </div>
                       </div>
@@ -685,12 +684,12 @@ export default function MatchDetailsPage() {
             {/* BOWLING SCORECARD */}
             {bowlers.length > 0 && (
               <>
-                <h3 className="text-[#F4FFFD] font-bold text-sm px-1 mt-6">
+                <h3 className="text-foreground font-bold text-sm px-1 mt-6">
                   Bowling
                 </h3>
                 <div className="overflow-x-auto no-scrollbar">
-                  <div className="bg-[#0B1F1B] rounded-xl border border-[#1B3530] overflow-hidden shadow-md min-w-[600px]">
-                    <div className="bg-[#1B3530]/50 p-2.5 flex items-center text-[11px] text-[#9FB7B2] font-bold uppercase tracking-wider">
+                  <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-[600px]">
+                    <div className="bg-border/50 p-2.5 flex items-center text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
                       <div className="w-1/4 min-w-[120px]">Bowler</div>
                       <div className="flex-1 text-center">O</div>
                       <div className="flex-1 text-center">M</div>
@@ -701,7 +700,7 @@ export default function MatchDetailsPage() {
                       <div className="flex-1 text-right pr-2">ECO</div>
                     </div>
 
-                    <div className="divide-y divide-[#1B3530]/50">
+                    <div className="divide-y divide-border/50">
                       {bowlers.map((bowler: BowlerStats) => {
                         const bOvers = Math.floor(bowler.balls_bowled / 6);
                         const bBalls = bowler.balls_bowled % 6;
@@ -719,28 +718,28 @@ export default function MatchDetailsPage() {
                             key={bowler.player_id}
                             className="p-2.5 flex items-center text-sm"
                           >
-                            <div className="w-1/4 min-w-[120px] font-bold text-[#F4FFFD]">
+                            <div className="w-1/4 min-w-[120px] font-bold text-foreground">
                               {bowler.player_name}
                             </div>
-                            <div className="flex-1 text-center text-[#9FB7B2]">
+                            <div className="flex-1 text-center text-muted-foreground">
                               {displayOvers}
                             </div>
-                            <div className="flex-1 text-center text-[#9FB7B2]">
+                            <div className="flex-1 text-center text-muted-foreground">
                               {bowler.maidens}
                             </div>
                             <div className="flex-1 text-center font-bold text-destructive">
                               {bowler.runs_conceded}
                             </div>
-                            <div className="flex-1 text-center font-bold text-[#F4FFFD]">
+                            <div className="flex-1 text-center font-bold text-foreground">
                               {bowler.wickets_taken}
                             </div>
-                            <div className="flex-1 text-center text-[#9FB7B2]">
+                            <div className="flex-1 text-center text-muted-foreground">
                               {bowler.no_balls}
                             </div>
-                            <div className="flex-1 text-center text-[#9FB7B2]">
+                            <div className="flex-1 text-center text-muted-foreground">
                               {bowler.wides}
                             </div>
-                            <div className="flex-1 text-right pr-2 text-[#9FB7B2]">
+                            <div className="flex-1 text-right pr-2 text-muted-foreground">
                               {ecoCalc}
                             </div>
                           </div>
@@ -755,28 +754,28 @@ export default function MatchDetailsPage() {
             {/* FIELDING SCORECARD */}
             {fielders.length > 0 && (
               <>
-                <h3 className="text-[#F4FFFD] font-bold text-sm px-1 mt-6">
+                <h3 className="text-foreground font-bold text-sm px-1 mt-6">
                   Fielding
                 </h3>
                 <div className="overflow-x-auto no-scrollbar">
-                  <div className="bg-[#0B1F1B] rounded-xl border border-[#1B3530] overflow-hidden shadow-md min-w-[400px]">
-                    <div className="bg-[#1B3530]/50 p-2.5 flex items-center text-[11px] text-[#9FB7B2] font-bold uppercase tracking-wider">
+                  <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-[400px]">
+                    <div className="bg-border/50 p-2.5 flex items-center text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
                       <div className="w-1/2 min-w-[130px]">Fielder</div>
                       <div className="flex-1 text-center">Catches</div>
                       <div className="flex-1 text-center">Run Outs</div>
                       <div className="flex-1 text-right pr-2">Stumpings</div>
                     </div>
 
-                    <div className="divide-y divide-[#1B3530]/50">
+                    <div className="divide-y divide-border/50">
                       {fielders.map((fielder: FielderStats) => (
                         <div
                           key={fielder.player_id}
                           className="p-2.5 flex items-center text-sm"
                         >
-                          <div className="w-1/2 min-w-[130px] font-bold text-[#F4FFFD]">
+                          <div className="w-1/2 min-w-[130px] font-bold text-foreground">
                             {fielder.player_name}
                           </div>
-                          <div className="flex-1 text-center text-[#0FAF9A] font-bold">
+                          <div className="flex-1 text-center text-primary font-bold">
                             {fielder.catches}
                           </div>
                           <div className="flex-1 text-center text-destructive font-bold">

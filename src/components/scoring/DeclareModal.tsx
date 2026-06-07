@@ -22,7 +22,7 @@ export const DeclareModal: React.FC<DeclareModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-70 p-4 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-[#0B1F1B] border border-red-900/50 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl zoom-in-95">
+      <div className="bg-card border border-red-900/50 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl zoom-in-95">
         <div className="p-6 text-center">
           <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-900/50">
             <AlertOctagon className="w-8 h-8 text-red-500" />
@@ -30,14 +30,14 @@ export const DeclareModal: React.FC<DeclareModalProps> = ({
           <h2 className="text-xl font-bold text-white mb-2">
             Declare Innings?
           </h2>
-          <p className="text-[#9FB7B2] text-sm mb-6">
+          <p className="text-muted-foreground text-sm mb-6">
             Are you sure you want to manually complete this innings? This action
             cannot be undone.
           </p>
 
-          <div className="bg-[#0D2420] border border-[#1B3530] rounded-xl p-4 mb-6 text-left">
+          <div className="bg-card border border-border rounded-xl p-4 mb-6 text-left">
             <div className="flex justify-between mb-2">
-              <span className="text-[#9FB7B2] text-xs font-semibold uppercase">
+              <span className="text-muted-foreground text-xs font-semibold uppercase">
                 Final Score
               </span>
               <span className="text-white font-bold">
@@ -45,7 +45,7 @@ export const DeclareModal: React.FC<DeclareModalProps> = ({
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#9FB7B2] text-xs font-semibold uppercase">
+              <span className="text-muted-foreground text-xs font-semibold uppercase">
                 Overs Played
               </span>
               <span className="text-white font-bold">{overs}</span>
@@ -55,7 +55,7 @@ export const DeclareModal: React.FC<DeclareModalProps> = ({
           <div className="flex gap-3">
             <button
               onClick={onCancel}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold bg-transparent text-[#9FB7B2] border border-[#1B3530] hover:bg-[#1B3530] transition-colors"
+              className="flex-1 py-3 rounded-xl text-sm font-semibold bg-transparent text-muted-foreground border border-border hover:bg-border transition-colors"
             >
               Cancel
             </button>

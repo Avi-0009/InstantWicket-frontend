@@ -55,7 +55,10 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
           id: data.user.id,
           name: data.user.name,
           phone: data.user.phone_no,
-          avatar: getInitials(data.user.name),
+          avatar:
+            data.user.avatar ||
+            data.user.profile_picture ||
+            getInitials(data.user.name),
         },
         data.token,
       );
