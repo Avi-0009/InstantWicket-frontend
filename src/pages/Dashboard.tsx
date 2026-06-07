@@ -216,8 +216,10 @@ const Dashboard = () => {
             </p>
           </div>
         ) : (
-          // @ts-ignore - Assuming LiveMatchCard expects exactly what we are giving it
-          matches.map((match) => <LiveMatchCard key={match.id} match={match} />)
+          // 👇 SLICE APPLIED HERE: Only grab the first 3 matches
+          matches
+            .slice(0, 3)
+            .map((match) => <LiveMatchCard key={match.id} match={match} />)
         )}
       </div>
     </motion.main>

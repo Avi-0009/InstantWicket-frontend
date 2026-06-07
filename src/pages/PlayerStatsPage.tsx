@@ -239,8 +239,15 @@ const PlayerStatsPage = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
-            <div className="w-24 h-24 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-4xl font-bold text-primary shadow-[0_0_20px_rgba(15,175,154,0.3)] shrink-0 capitalize">
-              {stats.name ? stats.name.charAt(0) : "P"}
+            <div className="w-24 h-24 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-4xl font-bold text-primary shadow-[0_0_20px_var(--color-primary)] shrink-0 uppercase">
+              {stats.name
+                ? stats.name
+                    .trim()
+                    .split(/\s+/)
+                    .filter((_, i, arr) => i === 0 || i === arr.length - 1)
+                    .map((word) => word.charAt(0))
+                    .join("")
+                : "P"}
             </div>
 
             <div className="text-center md:text-left flex-1">

@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Trophy } from "lucide-react";
+import { ChevronLeft, Trophy, Share2, Check } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../Api/Auth";
 import { FullScreenEvent } from "../components/scoring/FullScreenEvent";
 import OverTimeline from "../components/scoring/OverTimeline";
 import MatchAnalytics from "../components/scoring/MatchAnalytics";
+import toast from "react-hot-toast";
+import { Button } from "../components/ui/button";
 
 interface BatterStats {
   player_id: string;
@@ -48,6 +50,64 @@ export default function MatchDetailsPage() {
     "Summary",
   );
   const [inningsTab, setInningsTab] = useState<1 | 2>(1);
+
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleShare = async () => {
+    const matchUrl = window.location.href;
+
+    // The "extraordinary" formatting
+    const shareTitle = `Live Cricket: ${matchData.team_a_name} vs ${matchData.team_b_name}`;
+    const shareText = `🏆 LIVE CRICKET ACTION! 🏆\n🏏 ${matchData.team_a_name} vs ${matchData.team_b_name}\n\nCatch the live score here 👇`;
+
+    // 1. Try Native Mobile Sharing First (WhatsApp, Messages, etc.)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: matchUrl,
+        });
+        return; // If successful, exit early
+      } catch (err) {
+        // If the user simply closes the share sheet, do nothing
+        if ((err as Error).name === "AbortError") return;
+        console.log(
+          "Native share not supported or failed, falling back to clipboard.",
+        );
+      }
+    }
+
+    // 2. Fallback: Copy to Clipboard with Formatting
+    const fullTextToCopy = `${shareText}\n${matchUrl}`;
+
+    try {
+      // Modern Clipboard API (Requires HTTPS or localhost)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(fullTextToCopy);
+      } else {
+        // Robust Fallback for HTTP local network testing
+        const textArea = document.createElement("textarea");
+        textArea.value = fullTextToCopy;
+        textArea.style.position = "absolute";
+        textArea.style.left = "-999999px";
+        document.body.prepend(textArea);
+        textArea.select();
+
+        const successful = document.execCommand("copy");
+        textArea.remove();
+
+        if (!successful) throw new Error("Fallback copy failed");
+      }
+
+      setIsCopied(true);
+      toast.success("Epic match link copied!");
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error("Copy error:", err);
+      toast.error("Failed to copy link");
+    }
+  };
 
   // --- TANSTACK QUERIES ---
   const { data: matchData } = useQuery({
@@ -317,8 +377,26 @@ export default function MatchDetailsPage() {
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 overflow-hidden">
-          <h1 className="text-lg font-bold text-foreground leading-tight truncate">
-            {matchData.team_a_name} vs {matchData.team_b_name}
+          <h1 className="text-lg font-bold text-primary leading-tight truncate">
+            {(matchData.team_a_name || "")
+              .split(" ")
+              .map((word: string, i: string) => (
+                <span key={`team-a-${i}`}>
+                  <span className="uppercase">{word.charAt(0)}</span>
+                  {word.slice(1).toLowerCase()}{" "}
+                </span>
+              ))}
+            <span className="mx-1 text-foreground">vs</span>{" "}
+            {(matchData.team_b_name || "")
+              .split(" ")
+              .map((word: string, i: string) => (
+                <span key={`team-b-${i}`}>
+                  <span className="text-primary uppercase">
+                    {word.charAt(0)}
+                  </span>
+                  {word.slice(1).toLowerCase()}{" "}
+                </span>
+              ))}
           </h1>
 
           <div className="flex items-center gap-3 mt-1.5 text-[11px] font-medium text-muted-foreground">
@@ -337,6 +415,20 @@ export default function MatchDetailsPage() {
             </div>
           </div>
         </div>
+        {/* 👇 NEW SHARE BUTTON 👇 */}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleShare}
+          className="mt-0.5 shrink-0 rounded-full w-9 h-9 border-border bg-card hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors"
+        >
+          {isCopied ? (
+            <Check className="w-4 h-4 text-primary" />
+          ) : (
+            <Share2 className="w-4 h-4 text-foreground" />
+          )}
+        </Button>
+        {/* 👆 END OF SHARE BUTTON 👆 */}
       </div>
 
       <div className="p-4">
