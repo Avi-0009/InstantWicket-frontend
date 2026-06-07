@@ -6,13 +6,9 @@ import { Logout, api } from "../Api/Auth";
 import { usePlayerStats } from "../hooks/usePlayerQueries";
 import CustomDropdown from "../components/scoring/CustomDropdown";
 import {
-  Bell,
-  HelpCircle,
   LogOut,
   ChevronRight,
   User,
-  Shield,
-  Info,
   ChevronLeft,
   Moon,
   Sun,
@@ -173,7 +169,7 @@ const SettingsPage = () => {
       </div>
 
       {/* OFFICIAL PLAYER CARD */}
-      <div className="bg-gradient-to-br from-card to-background p-8 rounded-3xl border border-border shadow-lg text-center mb-8 relative overflow-hidden">
+      <div className="bg-linear-to-br from-card to-background p-8 rounded-3xl border border-border shadow-lg text-center mb-8 relative overflow-hidden">
         {/* Background Ambient Glow */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -ml-10 -mb-10"></div>
@@ -221,7 +217,7 @@ const SettingsPage = () => {
 
             {/* Playing Styles */}
             <div className="flex justify-center gap-4 mb-6">
-              <div className="flex-1 max-w-[140px]">
+              <div className="flex-1 max-w-35">
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                   Batting Style
                 </div>
@@ -232,7 +228,7 @@ const SettingsPage = () => {
 
               <div className="w-px bg-border/60"></div>
 
-              <div className="flex-1 max-w-[140px]">
+              <div className="flex-1 max-w-35">
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                   Bowling Style
                 </div>
@@ -339,7 +335,7 @@ const SettingsPage = () => {
 
       {/* 🔥 EDIT PROFILE MODAL */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-200 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-card border border-border w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
             <button
               onClick={() => setIsEditModalOpen(false)}

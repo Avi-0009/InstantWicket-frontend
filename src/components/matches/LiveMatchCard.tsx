@@ -77,7 +77,7 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
         {/* Team A */}
         <div className="flex-1">
           <div
-            className="font-semibold text-sm truncate max-w-[120px]"
+            className="font-semibold text-sm truncate max-w-30"
             title={match.team_a_name}
           >
             {match.team_a_name}
@@ -175,13 +175,13 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
         <div className="flex justify-between items-center pt-1">
           <div className="flex items-center gap-1 truncate" title="Umpire">
             <ShieldAlert className="w-3 h-3 text-primary/70" />
-            <span className="truncate max-w-[100px]">
+            <span className="truncate max-w-25">
               {match.umpire_name || "Self/None"}
             </span>
           </div>
           <div className="flex items-center gap-1 truncate" title="Created By">
             <User className="w-3 h-3 text-primary/70" />
-            <span className="truncate max-w-[100px]">
+            <span className="truncate max-w-25">
               {match.creator_name || "Organizer"}
             </span>
           </div>

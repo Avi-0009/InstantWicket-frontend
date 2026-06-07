@@ -83,9 +83,9 @@ interface BallPayload {
   partnership_balls?: number;
 }
 
-interface ApiError {
-  response?: { data?: { error?: string } };
-}
+// interface ApiError {
+//   response?: { data?: { error?: string } };
+// }
 
 const LiveScoring = () => {
   // 🔥 MOVED HERE: Hooks must be inside the component!
@@ -844,7 +844,7 @@ const LiveScoring = () => {
         ) : (
           <div className="mt-6 animate-fade-in">
             {!hasInningsStarted && matchData.status !== "completed" ? (
-              <div className="bg-card p-6 rounded-3xl border border-border shadow-lg text-center flex items-center justify-center min-h-[200px]">
+              <div className="bg-card p-6 rounded-3xl border border-border shadow-lg text-center flex items-center justify-center min-h-50">
                 <button
                   onClick={handleStartInnings}
                   className="w-full bg-primary hover:bg-primary/90 text-background font-black text-xl py-6 rounded-2xl shadow-md transition-transform active:scale-95"
@@ -853,7 +853,7 @@ const LiveScoring = () => {
                 </button>
               </div>
             ) : matchData.status === "completed" ? (
-              <div className="bg-card p-8 rounded-3xl border-2 border-primary/30 text-center shadow-xl flex flex-col items-center justify-center min-h-[200px]">
+              <div className="bg-card p-8 rounded-3xl border-2 border-primary/30 text-center shadow-xl flex flex-col items-center justify-center min-h-50">
                 <h2 className="text-3xl font-black text-primary mb-3 uppercase tracking-widest">
                   Match Over
                 </h2>
@@ -871,7 +871,7 @@ const LiveScoring = () => {
                 )}
               </div>
             ) : (
-              <div className="bg-card p-8 rounded-3xl border-2 border-warning/50 text-center shadow-xl flex flex-col items-center justify-center min-h-[200px]">
+              <div className="bg-card p-8 rounded-3xl border-2 border-warning/50 text-center shadow-xl flex flex-col items-center justify-center min-h-50">
                 <h2 className="text-3xl font-black text-warning mb-2 uppercase tracking-widest">
                   Innings Break
                 </h2>

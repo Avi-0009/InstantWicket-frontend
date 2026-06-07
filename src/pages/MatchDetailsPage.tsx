@@ -379,7 +379,7 @@ export default function MatchDetailsPage() {
                 <div className="flex justify-center items-center gap-6 mt-4 border-t border-primary/20 pt-4">
                   <div className="text-center flex-1">
                     <div
-                      className="text-sm font-bold text-foreground truncate max-w-[120px] mx-auto"
+                      className="text-sm font-bold text-foreground truncate max-w-30 mx-auto"
                       title={matchData.team_a_name}
                     >
                       {matchData.team_a_name}
@@ -401,7 +401,7 @@ export default function MatchDetailsPage() {
 
                   <div className="text-center flex-1">
                     <div
-                      className="text-sm font-bold text-foreground truncate max-w-[120px] mx-auto"
+                      className="text-sm font-bold text-foreground truncate max-w-30 mx-auto"
                       title={matchData.team_b_name}
                     >
                       {matchData.team_b_name}
@@ -594,7 +594,7 @@ export default function MatchDetailsPage() {
               >
                 1st Innings
                 {inningsTab === 1 && (
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary rounded-t-full"></span>
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full"></span>
                 )}
               </button>
               <button
@@ -603,7 +603,7 @@ export default function MatchDetailsPage() {
               >
                 2nd Innings
                 {inningsTab === 2 && (
-                  <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary rounded-t-full"></span>
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full"></span>
                 )}
               </button>
             </div>
@@ -614,9 +614,9 @@ export default function MatchDetailsPage() {
 
             {/* BATTING SCORECARD */}
             <div className="overflow-x-auto no-scrollbar">
-              <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-[500px]">
+              <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-125">
                 <div className="bg-border/50 p-2.5 flex items-center text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
-                  <div className="w-1/3 min-w-[130px]">Batsman</div>
+                  <div className="w-1/3 min-w-32.5">Batsman</div>
                   <div className="flex-1 text-center">R</div>
                   <div className="flex-1 text-center">B</div>
                   <div className="flex-1 text-center">4s</div>
@@ -650,7 +650,7 @@ export default function MatchDetailsPage() {
                         key={batter.player_id}
                         className="p-2.5 flex items-center text-sm"
                       >
-                        <div className="w-1/3 min-w-[130px] font-bold text-foreground flex flex-col justify-center items-start">
+                        <div className="w-1/3 min-w-32.5 font-bold text-foreground flex flex-col justify-center items-start">
                           <span>{batter.player_name}</span>
                           <span
                             className={`mt-0.5 leading-tight inline-block ${statusClass}`}
@@ -688,9 +688,9 @@ export default function MatchDetailsPage() {
                   Bowling
                 </h3>
                 <div className="overflow-x-auto no-scrollbar">
-                  <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-[600px]">
+                  <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-150">
                     <div className="bg-border/50 p-2.5 flex items-center text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
-                      <div className="w-1/4 min-w-[120px]">Bowler</div>
+                      <div className="w-1/4 min-w-30">Bowler</div>
                       <div className="flex-1 text-center">O</div>
                       <div className="flex-1 text-center">M</div>
                       <div className="flex-1 text-center">R</div>
@@ -718,7 +718,7 @@ export default function MatchDetailsPage() {
                             key={bowler.player_id}
                             className="p-2.5 flex items-center text-sm"
                           >
-                            <div className="w-1/4 min-w-[120px] font-bold text-foreground">
+                            <div className="w-1/4 min-w-30 font-bold text-foreground">
                               {bowler.player_name}
                             </div>
                             <div className="flex-1 text-center text-muted-foreground">
@@ -758,9 +758,9 @@ export default function MatchDetailsPage() {
                   Fielding
                 </h3>
                 <div className="overflow-x-auto no-scrollbar">
-                  <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-[400px]">
+                  <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-100">
                     <div className="bg-border/50 p-2.5 flex items-center text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
-                      <div className="w-1/2 min-w-[130px]">Fielder</div>
+                      <div className="w-1/2 min-w-32.5">Fielder</div>
                       <div className="flex-1 text-center">Catches</div>
                       <div className="flex-1 text-center">Run Outs</div>
                       <div className="flex-1 text-right pr-2">Stumpings</div>
@@ -772,7 +772,7 @@ export default function MatchDetailsPage() {
                           key={fielder.player_id}
                           className="p-2.5 flex items-center text-sm"
                         >
-                          <div className="w-1/2 min-w-[130px] font-bold text-foreground">
+                          <div className="w-1/2 min-w-32.5 font-bold text-foreground">
                             {fielder.player_name}
                           </div>
                           <div className="flex-1 text-center text-primary font-bold">
