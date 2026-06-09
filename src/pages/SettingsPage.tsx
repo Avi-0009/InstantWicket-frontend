@@ -7,8 +7,6 @@ import { usePlayerStats } from "../hooks/usePlayerQueries";
 import CustomDropdown from "../components/scoring/CustomDropdown";
 import {
   LogOut,
-  ChevronRight,
-  User,
   ChevronLeft,
   Moon,
   Sun,
@@ -36,31 +34,6 @@ const SettingsSection = ({
       {children}
     </div>
   </div>
-);
-
-const SettingsMenuItem = ({
-  icon: Icon,
-  label,
-  onClick,
-  hideBorder = false,
-  rightElement,
-}: any) => (
-  <button
-    onClick={onClick}
-    className={`w-full flex items-center justify-between p-4 bg-transparent hover:bg-card-hover transition-colors ${
-      !hideBorder ? "border-b border-border" : ""
-    }`}
-  >
-    <div className="flex items-center gap-3">
-      <Icon className="w-5 h-5 text-primary" />
-      <span className="font-medium text-sm text-foreground">{label}</span>
-    </div>
-    {rightElement ? (
-      rightElement
-    ) : (
-      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-    )}
-  </button>
 );
 
 const SettingsPage = () => {

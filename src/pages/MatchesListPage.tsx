@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Trophy, Activity, Inbox, ChevronDown } from "lucide-react";
+import { Calendar, Activity, Inbox, ChevronDown } from "lucide-react";
 import PageHeader from "../components/common/PageHeader";
 import { api } from "../Api/Auth";
 import toast from "react-hot-toast";
