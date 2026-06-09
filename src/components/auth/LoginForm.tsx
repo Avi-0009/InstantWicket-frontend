@@ -6,8 +6,11 @@ import {
   ShieldCheck,
   KeyRound,
   ChevronLeft,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Login, ResetPassword } from "../../Api/Auth";
 import toast from "react-hot-toast";
@@ -16,6 +19,19 @@ interface LoginFormProps {
   isSignUp: boolean;
   setIsSignUp: (val: boolean) => void;
 }
+
+// 🔥 1. Define Zod Schemas for Phone and Password
+const phoneSchema = z
+  .string()
+  .regex(
+    /^[1-9]\d{9}$/,
+    "Phone number must be exactly 10 digits and cannot start with 0.",
+  );
+
+const passwordSchema = z
+  .string()
+  .min(6, "Password must be at least 6 characters.")
+  .max(16, "Password cannot exceed 16 characters.");
 
 const getInitials = (name: string) => {
   if (!name) return "U";
@@ -33,6 +49,7 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // --- Forgot Password State ---
   const [isForgotMode, setIsForgotMode] = useState(false);
@@ -42,10 +59,36 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
   const [forgotError, setForgotError] = useState("");
   const [forgotSuccess, setForgotSuccess] = useState("");
   const [isResetting, setIsResetting] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, "");
+    if (val.startsWith("0")) {
+      val = val.slice(1);
+    }
+    if (val.length > 10) {
+      val = val.slice(0, 10);
+    }
+    setLoginPhone(val);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
+
+    // 🔥 Validate Phone
+    const phoneValidation = phoneSchema.safeParse(loginPhone);
+    if (!phoneValidation.success) {
+      setLoginError(phoneValidation.error.issues[0].message);
+      return;
+    }
+
+    // 🔥 Validate Password
+    const passwordValidation = passwordSchema.safeParse(loginPassword);
+    if (!passwordValidation.success) {
+      setLoginError(passwordValidation.error.issues[0].message);
+      return;
+    }
 
     try {
       setIsLoggingIn(true);
@@ -77,22 +120,25 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
     setForgotError("");
 
     if (forgotStep === 1) {
-      if (!loginPhone.trim()) {
-        setForgotError("Please enter your phone number.");
+      const phoneValidation = phoneSchema.safeParse(loginPhone);
+      if (!phoneValidation.success) {
+        setForgotError(phoneValidation.error.issues[0].message);
         return;
       }
-      setForgotStep(2); // Move to OTP
+      setForgotStep(2);
     } else if (forgotStep === 2) {
       if (otp !== "8080") {
         setForgotError("Invalid OTP. Try 8080.");
         toast.error("OTP is incorrect, Please try again!");
         return;
       }
-      setForgotStep(3); // Move to New Password
+      setForgotStep(3);
     } else if (forgotStep === 3) {
-      if (!newPassword || newPassword.length < 6) {
-        setForgotError("Password must be at least 6 characters.");
-        toast.success("Password must have at least 6 characters!");
+      // 🔥 Validate New Password with Zod
+      const passwordValidation = passwordSchema.safeParse(newPassword);
+      if (!passwordValidation.success) {
+        setForgotError(passwordValidation.error.issues[0].message);
+        toast.error(passwordValidation.error.issues[0].message);
         return;
       }
 
@@ -102,7 +148,6 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
         setForgotSuccess("Password updated successfully!");
         toast.success("Password updated successfully!");
 
-        // Reset states and go back to login after 2 seconds
         setTimeout(() => {
           setIsForgotMode(false);
           setForgotStep(1);
@@ -110,8 +155,8 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
           setNewPassword("");
           setLoginPassword("");
           setForgotSuccess("");
+          setShowNewPassword(false);
         }, 2000);
-        // toast.success("Please login!");
       } catch (err: any) {
         setForgotError(
           err.response?.data?.error || "Failed to reset password.",
@@ -129,15 +174,21 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
     setOtp("");
     setNewPassword("");
     setForgotError("");
+    setLoginError("");
+    setShowNewPassword(false);
   };
 
   // ---------------------------------------------------------------------------
-  // FORGOT PASSWORD RENDER (Shadcn Aesthetic)
+  // FORGOT PASSWORD RENDER
   // ---------------------------------------------------------------------------
   if (isForgotMode) {
     return (
       <div
-        className={`absolute top-0 left-0 w-full h-full flex flex-col justify-center p-8 md:p-12 transition-all duration-500 ${isSignUp ? "opacity-0 invisible scale-95" : "opacity-100 visible scale-100 delay-200"}`}
+        className={`absolute top-0 left-0 w-full h-full flex flex-col justify-center p-8 md:p-12 transition-all duration-500 ${
+          isSignUp
+            ? "opacity-0 invisible scale-95"
+            : "opacity-100 visible scale-100 delay-200"
+        }`}
       >
         <button
           onClick={resetForgotState}
@@ -165,7 +216,7 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
                 type="tel"
                 required
                 value={loginPhone}
-                onChange={(e) => setLoginPhone(e.target.value)}
+                onChange={handlePhoneChange}
                 placeholder="Phone Number"
                 className="flex h-11 w-full rounded-md border border-border bg-transparent pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
               />
@@ -191,13 +242,25 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
             <div className="relative animate-in fade-in slide-in-from-right-4 duration-300">
               <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
-                type="password"
+                type={showNewPassword ? "text" : "password"}
                 required
+                maxLength={16} // 🔥 Hardware limit
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="New Password"
-                className="flex h-11 w-full rounded-md border border-border bg-transparent pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+                className="flex h-11 w-full rounded-md border border-border bg-transparent pl-10 pr-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
               />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+              >
+                {showNewPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
           )}
 
@@ -234,7 +297,11 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
   // ---------------------------------------------------------------------------
   return (
     <div
-      className={`absolute top-0 left-0 w-full h-full flex flex-col justify-center p-8 md:p-12 transition-all duration-500 ${isSignUp ? "opacity-0 invisible scale-95" : "opacity-100 visible scale-100 delay-200"}`}
+      className={`absolute top-0 left-0 w-full h-full flex flex-col justify-center p-8 md:p-12 transition-all duration-500 ${
+        isSignUp
+          ? "opacity-0 invisible scale-95"
+          : "opacity-100 visible scale-100 delay-200"
+      }`}
     >
       <div className="mb-8 text-center md:text-left">
         <h1 className="text-3xl font-bold tracking-tight text-foreground mb-1.5">
@@ -253,7 +320,7 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
             type="tel"
             required
             value={loginPhone}
-            onChange={(e) => setLoginPhone(e.target.value)}
+            onChange={handlePhoneChange}
             placeholder="Phone Number"
             className="flex h-11 w-full rounded-md border border-border bg-transparent pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
           />
@@ -263,13 +330,25 @@ const LoginForm = ({ isSignUp, setIsSignUp }: LoginFormProps) => {
         <div className="relative">
           <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
-            type="password"
+            type={showLoginPassword ? "text" : "password"}
             required
+            maxLength={16} // 🔥 Hardware limit
             value={loginPassword}
             onChange={(e) => setLoginPassword(e.target.value)}
             placeholder="Password"
-            className="flex h-11 w-full rounded-md border border-border bg-transparent pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+            className="flex h-11 w-full rounded-md border border-border bg-transparent pl-10 pr-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
           />
+          <button
+            type="button"
+            onClick={() => setShowLoginPassword(!showLoginPassword)}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+          >
+            {showLoginPassword ? (
+              <EyeOff className="w-4 h-4" />
+            ) : (
+              <Eye className="w-4 h-4" />
+            )}
+          </button>
         </div>
 
         {/* Error Message */}

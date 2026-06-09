@@ -37,7 +37,10 @@ interface Match {
   team_a_balls: number;
   team_b_balls: number;
   overs_limit: number;
-  [key: string]: unknown; // Allows passing any other required fields into LiveMatchCard
+  host_id?: string;
+  user_id?: string;
+  umpire_id?: string;
+  [key: string]: unknown;
 }
 
 interface StatCardProps {
@@ -62,7 +65,6 @@ const Dashboard = () => {
             res.data) as PlayerStats;
         } catch (e: unknown) {
           const error = e as { response?: { status?: number } };
-          // Gracefully handle the 404 if the user doesn't have stats yet
           if (error.response?.status === 404) {
             console.warn("No player stats found for this user yet (New User).");
             return null;
@@ -70,9 +72,7 @@ const Dashboard = () => {
           throw e;
         }
       },
-      // Only run this query if we have a valid logged-in user
       enabled: !!user?.id,
-      // Refetch stats every 15 seconds in case a match finishes
       refetchInterval: 15000,
     });
 
@@ -85,14 +85,27 @@ const Dashboard = () => {
       const res = await api.get(`/matches?limit=50`);
       const rawMatches = (res.data.matches || res.data || []) as Match[];
 
-      // Base Filter: Must be ONGOING
       return rawMatches.filter((m) => m.status === "ongoing");
     },
-    // 🔥 MAGIC HAPPENS HERE: Automatically poll the server every 5 seconds for live scores!
     refetchInterval: 5000,
   });
 
   const displayFullName = stats?.name || user?.name || "Player";
+
+  // 🔥 3. SEPARATE MATCHES LOGIC
+  // My Matches: Only show if the user is the HOST or the UMPIRE
+  const myMatches = matches.filter(
+    (match) =>
+      user && (match.host_id === user.id || match.umpire_id === user.id),
+  );
+
+  // Global Matches: Show top 3 matches where the user is NOT the host and NOT the umpire
+  const globalMatches = matches
+    .filter(
+      (match) =>
+        !user || (match.host_id !== user.id && match.umpire_id !== user.id),
+    )
+    .slice(0, 3);
 
   return (
     <motion.main
@@ -100,7 +113,7 @@ const Dashboard = () => {
       animate={{ opacity: 1 }}
       className="p-6 max-w-4xl mx-auto pb-24"
     >
-      {/* BRANDING HEADER (Visible to everyone) */}
+      {/* BRANDING HEADER */}
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-black bg-linear-to-r from-primary bg-clip-text text-transparent drop-shadow-sm">
           InstantWicket
@@ -113,10 +126,9 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* CONDITIONAL TOP SECTION: User Stats vs Guest Login */}
+      {/* CONDITIONAL TOP SECTION */}
       {user ? (
         <>
-          {/* CLICKABLE PROFILE PREVIEW */}
           <div
             onClick={() => navigate(`/player_stats/${user.id}`)}
             className="mb-8 flex items-center justify-between bg-card p-6 rounded-3xl border border-border cursor-pointer hover:border-primary/50 transition-all shadow-sm group"
@@ -137,7 +149,6 @@ const Dashboard = () => {
             <ChevronRight className="text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
 
-          {/* FETCHED STATS GRID */}
           <div className="grid grid-cols-3 gap-4 mb-10">
             <StatCard
               icon={<Trophy className="text-primary" />}
@@ -169,7 +180,6 @@ const Dashboard = () => {
           </div>
         </>
       ) : (
-        /* GUEST CTA BANNER */
         <div className="bg-card border border-border p-8 rounded-3xl text-center shadow-sm mb-10 group hover:border-primary/40 transition-colors">
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <UserCircle className="w-8 h-8 text-primary" />
@@ -190,37 +200,75 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* LIVE MATCHES SECTION */}
-      <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
-        <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
-          <Zap className="w-5 h-5 text-primary animate-pulse" />
-          {user ? "My Live Matches" : "Global Live Matches"}
-        </h2>
-      </div>
+      {/* ========================================================= */}
+      {/* MY LIVE MATCHES (Logged-in users only) */}
+      {/* ========================================================= */}
+      {user && (
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+            <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+              <Zap className="w-5 h-5 text-primary animate-pulse" />
+              My Live Matches
+            </h2>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {isFetchingMatches ? (
-          <div className="text-muted-foreground text-sm col-span-2 py-8 text-center bg-card rounded-xl border border-border">
-            Loading live matches...
-          </div>
-        ) : matches.length === 0 ? (
-          <div className="text-muted-foreground text-sm col-span-2 py-8 text-center bg-card rounded-xl border border-border flex flex-col items-center justify-center gap-2 shadow-sm">
-            <Activity className="w-8 h-8 text-border mb-2" />
-            <p className="font-semibold text-foreground">
-              No active matches right now.
-            </p>
-            <p className="text-xs text-muted-foreground text-center px-4">
-              {user
-                ? "Start a new match or get assigned as an umpire to see it appear here live."
-                : "Check back later to see live matches from across the platform."}
-            </p>
-          </div>
-        ) : (
-          // 👇 SLICE APPLIED HERE: Only grab the first 3 matches
-          matches
-            .slice(0, 3)
-            .map((match) => <LiveMatchCard key={match.id} match={match} />)
-        )}
+          {isFetchingMatches ? (
+            <div className="text-muted-foreground text-sm py-8 text-center bg-card rounded-xl border border-border">
+              Loading your matches...
+            </div>
+          ) : myMatches.length === 0 ? (
+            <div className="text-muted-foreground text-sm py-8 text-center bg-card rounded-xl border border-border flex flex-col items-center justify-center gap-2 shadow-sm">
+              <Activity className="w-8 h-8 text-border mb-2" />
+              <p className="font-semibold text-foreground">
+                No active matches for you right now.
+              </p>
+              <p className="text-xs text-muted-foreground text-center px-4">
+                Start a new match or get assigned as an umpire to see it appear
+                here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto no-scrollbar pr-1 pb-2">
+              {myMatches.map((match) => (
+                <LiveMatchCard key={match.id} match={match} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* GLOBAL LIVE MATCHES (Visible to everyone, max 3) */}
+      {/* ========================================================= */}
+      <div>
+        <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+            <Zap className="w-5 h-5 text-muted-foreground" />
+            Global Live Matches
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {isFetchingMatches ? (
+            <div className="text-muted-foreground text-sm col-span-2 py-8 text-center bg-card rounded-xl border border-border">
+              Loading live matches...
+            </div>
+          ) : globalMatches.length === 0 ? (
+            <div className="text-muted-foreground text-sm col-span-2 py-8 text-center bg-card rounded-xl border border-border flex flex-col items-center justify-center gap-2 shadow-sm">
+              <Activity className="w-8 h-8 text-border mb-2" />
+              <p className="font-semibold text-foreground">
+                No active matches right now.
+              </p>
+              <p className="text-xs text-muted-foreground text-center px-4">
+                Check back later to see live matches from across the platform.
+              </p>
+            </div>
+          ) : (
+            globalMatches.map((match) => (
+              <LiveMatchCard key={match.id} match={match} />
+            ))
+          )}
+        </div>
       </div>
     </motion.main>
   );

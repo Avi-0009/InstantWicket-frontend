@@ -280,13 +280,13 @@ const SettingsPage = () => {
       </div>
 
       {/* SETTINGS SECTIONS */}
-      <SettingsSection title="Account">
+      {/* <SettingsSection title="Account">
         <SettingsMenuItem
           icon={User}
           label="Personal Information"
           onClick={() => setIsEditModalOpen(true)}
         />
-      </SettingsSection>
+      </SettingsSection> */}
 
       <SettingsSection title="Preferences">
         {/* THEME TOGGLE */}
@@ -364,7 +364,7 @@ const SettingsPage = () => {
                 />
               </div>
 
-              <div>
+              {/* <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
                   Phone Number
                 </label>
@@ -377,7 +377,7 @@ const SettingsPage = () => {
                   placeholder="+91 9876543210"
                   className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-primary"
                 />
-              </div>
+              </div> */}
 
               <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
