@@ -23,7 +23,7 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
       </div>
       <div
         ref={scrollRef}
-        className="flex gap-2 items-center overflow-x-auto no-scrollbar min-h-11 px-1 pb-1 scroll-smooth"
+        className="flex gap-2 items-center overflow-x-auto no-scrollbar min-h-15 px-2 pb-1 scroll-smooth"
       >
         {displayBalls.length === 0 ? (
           <span className="text-xs text-muted-foreground italic">

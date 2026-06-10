@@ -35,7 +35,13 @@ export default function ScoreHeader({
             {overs} ov
           </div>
           <div className="text-primary-hover font-bold text-sm tracking-wide">
-            CRR: {overs > 0 ? (score / Math.floor(overs)).toFixed(2) : "0.00"}
+            CRR:{" "}
+            {overs > 0
+              ? (
+                  score /
+                  (Math.floor(overs) + ((overs - Math.floor(overs)) * 10) / 6)
+                ).toFixed(2)
+              : "0.00"}
           </div>
         </div>
       </div>
