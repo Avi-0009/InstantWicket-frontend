@@ -646,12 +646,18 @@ const LiveScoring = () => {
       </div>
 
       <ScoreHeader
+        // We compare the current batting ID to Team A. If it matches, use Team A's name. Otherwise, Team B.
         battingTeam={
-          isTeamABatting ? matchData.team_a_name : matchData.team_b_name
+          liveStats?.batting_team_id === matchData?.team_a_id
+            ? matchData?.team_a_name
+            : matchData?.team_b_name || "TBA"
         }
-        score={currentTotalScore}
-        wickets={currentWickets}
+        score={liveStats?.current_score || 0}
+        wickets={liveStats?.wickets || 0}
         overs={oversDisplay}
+        target={liveStats?.target_runs || 0}
+        oversLimit={matchData?.overs_limit || 0}
+        legalBalls={liveStats?.legal_balls || 0}
       />
 
       <div className="px-4 mt-4 space-y-4">

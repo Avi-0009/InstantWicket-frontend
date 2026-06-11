@@ -129,7 +129,7 @@ const LiveMatchCard = ({ match }: LiveMatchCardProps) => {
         <div className="mb-3 bg-card hover:bg-card-hover border border-border/70 rounded-xl p-3 shadow-sm text-left">
           <div className="flex justify-between items-center mb-2 text-xs">
             <span className="text-muted-foreground font-medium">
-              m Target: {match.target}
+              Target: {match.target}
             </span>
             <span className="text-primary font-bold">
               Need {Math.max(0, match.target - (match.score || 0))} runs

@@ -3,13 +3,20 @@ interface ScoreHeaderProps {
   score: number;
   wickets: number;
   overs: number;
+  // --- NEW PROPS ADDED FOR 2ND INNINGS ---
+  target?: number;
+  oversLimit?: number;
+  legalBalls?: number;
 }
 
 export default function ScoreHeader({
   battingTeam,
-  score,
-  wickets,
-  overs,
+  score = 0,
+  wickets = 0,
+  overs = 0,
+  target = 0,
+  oversLimit = 0,
+  legalBalls = 0,
 }: ScoreHeaderProps) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shadow-lg">
@@ -46,16 +53,54 @@ export default function ScoreHeader({
         </div>
       </div>
 
-      {/* Target & Progress (Reset for 1st Innings) */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-xs font-medium">
-          <span className="text-muted-foreground">1st Innings</span>
-          <span className="text-primary-hover">In Progress</span>
+      {/* Target & Progress (Dynamic for 1st/2nd Innings) */}
+      {target > 0 ? (
+        // --- YOUR NEW 2ND INNINGS RUN CHASE UI ---
+        <div className="bg-card hover:bg-card-hover border border-border/70 rounded-xl p-3 shadow-sm text-left transition-colors">
+          <div className="flex justify-between items-center mb-2 text-xs">
+            <span className="text-muted-foreground font-medium">
+              Target: {target}
+            </span>
+            <span className="text-primary font-bold">
+              Need {Math.max(0, target - score)} runs
+            </span>
+          </div>
+
+          <div className="h-1.5 w-full bg-border rounded-full overflow-hidden mb-2">
+            <div
+              className="h-full bg-primary transition-all duration-500 ease-in-out rounded-full"
+              style={{
+                width: `${Math.min(100, Math.max(0, (score / target) * 100))}%`,
+              }}
+            ></div>
+          </div>
+
+          <div className="flex justify-between items-center text-[10px] text-muted-foreground font-medium">
+            <span>
+              RRR:{" "}
+              {oversLimit * 6 - legalBalls > 0
+                ? (
+                    (Math.max(0, target - score) /
+                      (oversLimit * 6 - legalBalls)) *
+                    6
+                  ).toFixed(2)
+                : "0.00"}
+            </span>
+            <span>{Math.max(0, oversLimit * 6 - legalBalls)} balls left</span>
+          </div>
         </div>
-        <div className="h-1.5 bg-border rounded-full overflow-hidden">
-          <div className="h-full bg-linear-to-r from-primary to-primary-text-primary-hover rounded-full w-[0%]"></div>
+      ) : (
+        // --- ORIGINAL 1ST INNINGS UI ---
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs font-medium">
+            <span className="text-muted-foreground">1st Innings</span>
+            <span className="text-primary-hover">In Progress</span>
+          </div>
+          <div className="h-1.5 bg-border rounded-full overflow-hidden">
+            <div className="h-full bg-linear-to-r from-primary to-primary-text-primary-hover rounded-full w-[0%]"></div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
