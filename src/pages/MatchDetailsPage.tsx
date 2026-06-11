@@ -56,11 +56,9 @@ export default function MatchDetailsPage() {
   const handleShare = async () => {
     const matchUrl = window.location.href;
 
-    // The "extraordinary" formatting
     const shareTitle = `Live Cricket: ${matchData.team_a_name} vs ${matchData.team_b_name}`;
     const shareText = `🏆 LIVE CRICKET ACTION! 🏆\n🏏 ${matchData.team_a_name} vs ${matchData.team_b_name}\n\nCatch the live score here 👇`;
 
-    // 1. Try Native Mobile Sharing First (WhatsApp, Messages, etc.)
     if (navigator.share) {
       try {
         await navigator.share({
@@ -68,9 +66,8 @@ export default function MatchDetailsPage() {
           text: shareText,
           url: matchUrl,
         });
-        return; // If successful, exit early
+        return;
       } catch (err) {
-        // If the user simply closes the share sheet, do nothing
         if ((err as Error).name === "AbortError") return;
         console.log(
           "Native share not supported or failed, falling back to clipboard.",
@@ -78,15 +75,12 @@ export default function MatchDetailsPage() {
       }
     }
 
-    // 2. Fallback: Copy to Clipboard with Formatting
     const fullTextToCopy = `${shareText}\n${matchUrl}`;
 
     try {
-      // Modern Clipboard API (Requires HTTPS or localhost)
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(fullTextToCopy);
       } else {
-        // Robust Fallback for HTTP local network testing
         const textArea = document.createElement("textarea");
         textArea.value = fullTextToCopy;
         textArea.style.position = "absolute";
@@ -109,7 +103,6 @@ export default function MatchDetailsPage() {
     }
   };
 
-  // --- TANSTACK QUERIES ---
   const { data: matchData } = useQuery({
     queryKey: ["match", matchId],
     queryFn: async () => {
@@ -139,7 +132,6 @@ export default function MatchDetailsPage() {
 
   const scorecard = scorecardResponse || [];
 
-  // --- TAB AUTO-SWITCH ---
   useEffect(() => {
     if (
       liveStats &&
@@ -150,7 +142,6 @@ export default function MatchDetailsPage() {
     }
   }, [liveStats, activeTab]);
 
-  // --- PUBLIC CONFETTI EVENT QUEUE ---
   const [eventQueue, setEventQueue] = useState<
     ("4" | "6" | "FREE_HIT" | "WICKET")[]
   >([]);
@@ -165,7 +156,6 @@ export default function MatchDetailsPage() {
       const currentWickets = liveStats.wickets || 0;
       const p = prevStats.current;
 
-      // Only pop events if the match is actively progressing in the same innings
       if (p.balls > 0 && liveStats.innings_id === p.innings_id) {
         const runDiff = currentRuns - p.runs;
         const wicketDiff = currentWickets - p.wickets;
@@ -177,13 +167,10 @@ export default function MatchDetailsPage() {
         if (wicketDiff > 0) {
           newEvents.push("WICKET");
         } else if (lastBall) {
-          // 1. Push FREE HIT if it was a No Ball
           if (lastBall.includes("nb")) {
             newEvents.push("FREE_HIT");
           }
 
-          // 2. Safely push the boundary using the exact Run Difference!
-          // (Because 4 runs + 1 nb = 5 run diff, 6 runs + 1 nb = 7 run diff)
           if (runDiff === 4 || (lastBall.includes("nb") && runDiff === 5)) {
             newEvents.push("4");
           }
@@ -214,14 +201,12 @@ export default function MatchDetailsPage() {
     );
   }
 
-  // --- DERIVED DATA CALCULATIONS ---
   const overs = liveStats ? Math.floor((liveStats.legal_balls || 0) / 6) : 0;
   const balls = liveStats ? (liveStats.legal_balls || 0) % 6 : 0;
 
   const totalTeamRuns = liveStats?.current_score || 0;
   const totalTeamBalls = liveStats?.legal_balls || 0;
 
-  // 🔥 Formula: RR = (6 * R_t) / B_t
   const crr =
     totalTeamBalls > 0
       ? ((6 * totalTeamRuns) / totalTeamBalls).toFixed(2)
@@ -233,7 +218,6 @@ export default function MatchDetailsPage() {
     ? Math.max(0, matchData.overs_limit * 6 - totalTeamBalls)
     : 0;
 
-  // 🔥 Required Run Rate (same formula)
   const rrr =
     ballsLeft > 0 ? ((6 * runsNeeded) / ballsLeft).toFixed(2) : "0.00";
 
@@ -280,14 +264,12 @@ export default function MatchDetailsPage() {
     }
   }
 
-  // Scorecard Generation Logic
   const batters: BatterStats[] = (teamPlayers || []).map((p: any) => {
     const stats =
       scorecard.find((s: any) => String(s.player_id) === String(p.id)) || {};
     let runs = stats.runs_scored || 0;
     let playedBalls = stats.balls_played || 0;
 
-    // Keep live ticking for the active batters
     if (String(liveStats?.striker_id) === String(p.id)) {
       runs = liveStats.striker_runs || runs;
       playedBalls = liveStats.striker_balls || playedBalls;
@@ -360,15 +342,23 @@ export default function MatchDetailsPage() {
       (f: FielderStats) => f.catches > 0 || f.runouts > 0 || f.stumpings > 0,
     );
 
+  // 🔥 Ensures absolute sync for Spectators
+  const activeBowlerScorecard = scorecard.find(
+    (s: any) => String(s.player_id) === String(liveStats?.bowler_id),
+  );
+  const activeBowlerBalls = activeBowlerScorecard?.balls_bowled || 0;
+  const activeBowlerRuns =
+    activeBowlerScorecard?.runs_conceded || liveStats?.bowler_runs || 0;
+  const activeBowlerWickets =
+    activeBowlerScorecard?.wickets_taken || liveStats?.bowler_wickets || 0;
+
   return (
     <div className="min-h-screen bg-background pb-8 relative">
       <FullScreenEvent
         eventType={currentEvent}
-        // Pops the first event off the array so the next one can play!
         onComplete={() => setEventQueue((prev) => prev.slice(1))}
       />
 
-      {/* HEADER */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md px-4 py-3 flex items-start gap-3 border-b border-border shadow-sm">
         <button
           onClick={() => navigate(-1)}
@@ -415,7 +405,6 @@ export default function MatchDetailsPage() {
             </div>
           </div>
         </div>
-        {/* 👇 NEW SHARE BUTTON 👇 */}
         <Button
           variant="outline"
           size="icon"
@@ -428,11 +417,9 @@ export default function MatchDetailsPage() {
             <Share2 className="w-4 h-4 text-foreground" />
           )}
         </Button>
-        {/* 👆 END OF SHARE BUTTON 👆 */}
       </div>
 
       <div className="p-4">
-        {/* MAIN TABS */}
         <div className="flex bg-card p-1 rounded-xl border border-border mb-6">
           <button
             onClick={() => setActiveTab("Summary")}
@@ -456,7 +443,6 @@ export default function MatchDetailsPage() {
           </button>
         </div>
 
-        {/* ----------------- SUMMARY TAB ----------------- */}
         {activeTab === "Summary" && (
           <div className="flex flex-col gap-4">
             {matchData.status === "completed" && (
@@ -589,7 +575,6 @@ export default function MatchDetailsPage() {
                         ></div>
                       </div>
 
-                      {/* Update your RRR JSX to just use the new variable */}
                       <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
                         <span>RRR: {rrr}</span>
                         <span>{ballsLeft} balls left</span>
@@ -599,9 +584,7 @@ export default function MatchDetailsPage() {
 
                   {matchData.status !== "completed" && (
                     <div className="flex flex-col gap-3 mt-6 text-left">
-                      {/* ROW 1: STRIKER & NON-STRIKER */}
                       <div className="grid grid-cols-2 gap-3">
-                        {/* Striker */}
                         <div className="bg-muted/50 p-3.5 rounded-xl border border-border/50 shadow-sm">
                           <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">
                             Striker
@@ -622,7 +605,6 @@ export default function MatchDetailsPage() {
                           </div>
                         </div>
 
-                        {/* Non-Striker */}
                         <div className="bg-muted/50 p-3.5 rounded-xl border border-border/50 shadow-sm">
                           <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">
                             Non-Striker
@@ -641,7 +623,6 @@ export default function MatchDetailsPage() {
                         </div>
                       </div>
 
-                      {/* ROW 2: BOWLER */}
                       <div className="bg-destructive/10 p-3.5 rounded-xl border border-destructive/20 shadow-sm">
                         <div className="text-[10px] text-destructive/80 font-bold uppercase tracking-wider mb-2">
                           Bowler
@@ -650,12 +631,18 @@ export default function MatchDetailsPage() {
                           <div className="font-bold text-destructive text-sm truncate">
                             {liveStats.bowler_name || "Waiting..."}
                           </div>
-                          <div className="text-destructive text-sm font-black shrink-0 ml-2">
-                            {liveStats.bowler_wickets || 0}
-                            <span className="text-destructive/70 font-medium mx-0.5">
-                              -
-                            </span>
-                            {liveStats.bowler_runs || 0}
+                          <div className="text-right">
+                            <div className="text-destructive text-sm font-black shrink-0 ml-2">
+                              {activeBowlerWickets}
+                              <span className="text-destructive/70 font-medium mx-0.5">
+                                -
+                              </span>
+                              {activeBowlerRuns}
+                            </div>
+                            <div className="text-[10px] text-destructive/70 font-bold mt-0.5">
+                              ({Math.floor(activeBowlerBalls / 6)}.
+                              {activeBowlerBalls % 6} ov)
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -664,19 +651,48 @@ export default function MatchDetailsPage() {
                 </div>
               )}
             </div>
-            {/* 🔥 SQAURE-STYLE RECENT BALLS TIMELINE (SPECTATOR SCREEN) */}
+
             {matchData.status !== "completed" && (
               <OverTimeline recentBalls={liveStats?.recent_balls || []} />
             )}
 
-            {/* 👇 UPDATED TO PASS ACTUAL DATA 👇 */}
+            {matchData.status !== "completed" &&
+              liveStats &&
+              liveStats.non_striker_name && (
+                <div className="bg-card border border-border p-4 rounded-2xl shadow-sm flex justify-between items-center animate-fade-in mt-4">
+                  <div>
+                    <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-1.5">
+                      Current Partnership
+                    </div>
+                    <div className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                      <span className="truncate max-w-25 sm:max-w-35">
+                        {liveStats.striker_name || "Batsman 1"}
+                      </span>
+                      <span className="text-muted-foreground font-medium text-xs">
+                        &
+                      </span>
+                      <span className="truncate max-w-25 sm:max-w-35">
+                        {liveStats.non_striker_name || "Batsman 2"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-4">
+                    <div className="text-xl font-black text-primary leading-none">
+                      {liveStats.partnership_runs || 0}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-medium mt-1">
+                      ({liveStats.partnership_balls || 0} balls)
+                    </div>
+                  </div>
+                </div>
+              )}
+
             {matchData.status === "completed" && (
               <MatchAnalytics matchData={matchData} scorecard={scorecard} />
             )}
           </div>
         )}
 
-        {/* ----------------- SCOREBOARD TAB ----------------- */}
         {activeTab === "Scoreboard" && (
           <div className="animate-fade-in space-y-6">
             <div className="flex gap-6 border-b border-border mb-4 px-2">
@@ -704,7 +720,6 @@ export default function MatchDetailsPage() {
               {battingTeamName} Batting
             </h3>
 
-            {/* BATTING SCORECARD */}
             <div className="overflow-x-auto no-scrollbar">
               <div className="bg-card rounded-xl border border-border overflow-hidden shadow-md min-w-125">
                 <div className="bg-border/50 p-2.5 flex items-center text-[11px] text-muted-foreground font-bold uppercase tracking-wider">
@@ -718,7 +733,7 @@ export default function MatchDetailsPage() {
 
                 <div className="divide-y divide-border/50">
                   {batters.map((batter: BatterStats) => {
-                    let statusClass = "text-muted-foreground"; // Default grey for Yet to bat / Did not bat
+                    let statusClass = "text-muted-foreground";
 
                     if (
                       batter.batting_status === "Batting" ||
@@ -747,7 +762,6 @@ export default function MatchDetailsPage() {
                           <span
                             className={`mt-0.5 leading-tight inline-block ${statusClass}`}
                           >
-                            {/* 🔥 Render the exact string the backend calculated */}
                             {batter.batting_status}
                           </span>
                         </div>
@@ -773,7 +787,6 @@ export default function MatchDetailsPage() {
               </div>
             </div>
 
-            {/* BOWLING SCORECARD */}
             {bowlers.length > 0 && (
               <>
                 <h3 className="text-foreground font-bold text-sm px-1 mt-6">
@@ -843,7 +856,6 @@ export default function MatchDetailsPage() {
               </>
             )}
 
-            {/* FIELDING SCORECARD */}
             {fielders.length > 0 && (
               <>
                 <h3 className="text-foreground font-bold text-sm px-1 mt-6">

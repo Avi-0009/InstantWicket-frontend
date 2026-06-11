@@ -8,6 +8,7 @@ interface PlayerStatsProps {
   bowlerName: string;
   bowlerRuns: number;
   bowlerWickets: number;
+  bowlerBalls: number;
   partnershipRuns?: number;
   partnershipBalls?: number;
 }
@@ -22,6 +23,7 @@ export default function PlayerStats({
   bowlerName,
   bowlerRuns,
   bowlerWickets,
+  bowlerBalls,
 }: PlayerStatsProps) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4 shadow-lg space-y-3">
@@ -65,9 +67,11 @@ export default function PlayerStats({
           </div>
         </div>
         <div className="text-right">
-          {/* Formats correctly as Wickets/Runs */}
-          <div className="text-primary font-bold text-sm">
+          <div className="text-primary font-bold text-sm leading-none">
             {bowlerWickets}/{bowlerRuns}
+          </div>
+          <div className="text-xs text-muted-foreground font-medium mt-1">
+            ({Math.floor((bowlerBalls || 0) / 6)}.{(bowlerBalls || 0) % 6} ov)
           </div>
         </div>
       </div>

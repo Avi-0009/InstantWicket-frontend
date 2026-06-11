@@ -61,6 +61,9 @@ interface ScorecardItem {
   innings_id?: string;
   balls_played?: number;
   runs_scored?: number;
+  runs_conceded?: number;
+  wickets_taken?: number;
+  balls_bowled?: number;
 }
 
 interface BallPayload {
@@ -83,12 +86,7 @@ interface BallPayload {
   partnership_balls?: number;
 }
 
-// interface ApiError {
-//   response?: { data?: { error?: string } };
-// }
-
 const LiveScoring = () => {
-  // 🔥 MOVED HERE: Hooks must be inside the component!
   const queryClient = useQueryClient();
 
   const { matchId } = useParams<{ matchId: string }>();
@@ -165,14 +163,14 @@ const LiveScoring = () => {
             hundred: false,
           };
         if (strikerRuns >= 100 && !milestones.current[strikerId].hundred) {
-          toast.success(`🎉 CENTURY! 100 by ${strikerName}!`);
+          toast.success(`💯 CENTURY! 100 by ${strikerName}!`);
           milestones.current[strikerId].hundred = true;
         } else if (
           strikerRuns >= 50 &&
           strikerRuns < 100 &&
           !milestones.current[strikerId].fifty
         ) {
-          toast.success(`🔥 HALF-CENTURY for ${strikerName}!`);
+          toast.success(`👏 HALF-CENTURY for ${strikerName}!`);
           milestones.current[strikerId].fifty = true;
         } else if (
           strikerRuns >= 30 &&
@@ -199,6 +197,18 @@ const LiveScoring = () => {
         balls: liveStats.non_striker_balls || 0,
       };
     return { runs: 0, balls: 0 };
+  };
+
+  const getActiveBowlerStats = (playerId?: string) => {
+    if (!playerId) return { runs: 0, wickets: 0, balls: 0 };
+    const stats = scorecard.find(
+      (s: ScorecardItem) => String(s.player_id) === String(playerId),
+    );
+    return {
+      runs: stats?.runs_conceded || 0,
+      wickets: stats?.wickets_taken || 0,
+      balls: stats?.balls_bowled || 0,
+    };
   };
 
   const teamAPlayers: Player[] = matchData?.team_a_players || [];
@@ -296,6 +306,7 @@ const LiveScoring = () => {
   const batterOptions = battingSquad
     .filter((p) => getPlayerCurrentInningsStats(p.id)?.is_out !== true)
     .map((p) => ({ id: p.id, name: p.name }));
+
   const bowlerOptions = bowlingSquad
     .filter((p) => String(p.id) !== String(previousBowlerId))
     .filter(
@@ -304,6 +315,15 @@ const LiveScoring = () => {
         String(p.id) !== String(activeNonStriker?.id),
     )
     .filter((p) => {
+      // 🔥 FIX 1: Absolutely guarantee the active bowler is NEVER removed mid-over,
+      // even if they are a common player who hasn't batted yet and wickets fall!
+      if (
+        String(p.id) === String(activeBowler?.id) ||
+        String(p.id) === String(liveStats?.bowler_id)
+      ) {
+        return true;
+      }
+
       if (commonPlayerIds.includes(p.id) && wicketsRemaining <= 2) {
         const stats = getPlayerCurrentInningsStats(p.id);
         if (!stats || (stats.balls_played === 0 && stats.runs_scored === 0))
@@ -323,10 +343,27 @@ const LiveScoring = () => {
         setActiveNonStriker(
           battingSquad.find((p) => p.id === liveStats.non_striker_id) || null,
         );
-      if (liveStats.bowler_id)
-        setActiveBowler(
-          bowlingSquad.find((p) => p.id === liveStats.bowler_id) || null,
-        );
+
+      const lastBall =
+        liveStats.recent_balls?.[liveStats.recent_balls.length - 1] || "";
+      const isLastBallIllegal =
+        lastBall.includes("wd") || lastBall.includes("nb");
+
+      const isEndOfOver =
+        liveStats.legal_balls > 0 &&
+        liveStats.legal_balls % 6 === 0 &&
+        !isLastBallIllegal;
+
+      if (isEndOfOver) {
+        setPreviousBowlerId(liveStats.bowler_id || null);
+        setActiveBowler(null);
+      } else {
+        if (liveStats.bowler_id)
+          setActiveBowler(
+            bowlingSquad.find((p) => p.id === liveStats.bowler_id) || null,
+          );
+      }
+
       setHasSynced(true);
     }
   }, [
@@ -404,6 +441,7 @@ const LiveScoring = () => {
       await api.post(`/scoring/undo/${matchId}`, {});
 
       setIsInningsDeclared(false);
+      setPreviousBowlerId(null);
       await refetchLiveStats();
       await queryClient.invalidateQueries({ queryKey: ["scorecard", matchId] });
       await queryClient.invalidateQueries({ queryKey: ["match", matchId] });
@@ -478,8 +516,8 @@ const LiveScoring = () => {
       extraType = "wide";
     } else if (modifier === "NB") {
       isLegal = false;
-      runsFromBat = runs;
-      extras = 1;
+      runsFromBat = 0;
+      extras = runs + 1;
       extraType = "no_ball";
       newEvents.push("FREE_HIT");
       setIsFreeHit(true);
@@ -497,14 +535,16 @@ const LiveScoring = () => {
       if (isFreeHit) setIsFreeHit(false);
     }
 
-    if (runsFromBat === 4) newEvents.push("4");
-    if (runsFromBat === 6) newEvents.push("6");
+    const totalRunsScored = runsFromBat + extras;
+
+    if (totalRunsScored === 4 && !isWicket) newEvents.push("4");
+    if (totalRunsScored === 6 && !isWicket) newEvents.push("6");
     if (isWicket) newEvents.push("WICKET");
 
     if (newEvents.length > 0) setEventQueue((prev) => [...prev, ...newEvents]);
 
     const currentPartnershipRuns =
-      (liveStats.partnership_runs || 0) + runsFromBat + extras;
+      (liveStats.partnership_runs || 0) + totalRunsScored;
     const currentPartnershipBalls =
       (liveStats.partnership_balls || 0) + (isLegal ? 1 : 0);
 
@@ -534,10 +574,13 @@ const LiveScoring = () => {
       setModifier(null);
       await refetchLiveStats();
 
+      await queryClient.invalidateQueries({ queryKey: ["scorecard", matchId] });
+
       const isNowSoloBatting =
         matchData?.allow_solo_batting &&
         currentWickets + (isWicket ? 1 : 0) >= maxWickets - 1;
-      let shouldSwapStrikers = runsFromBat % 2 !== 0;
+
+      let shouldSwapStrikers = totalRunsScored % 2 !== 0;
       if (isLegal && ballsInOver === 5)
         shouldSwapStrikers = !shouldSwapStrikers;
       if (isNowSoloBatting) shouldSwapStrikers = false;
@@ -609,6 +652,9 @@ const LiveScoring = () => {
     (user.id === matchData.created_by || user.id === matchData.umpire_id);
   const showPlayerSelection = canUpdateScore && !isCurrentInningsOver;
 
+  const activeBowlerId = activeBowler?.id || liveStats?.bowler_id;
+  const currentBowlerStats = getActiveBowlerStats(activeBowlerId);
+
   return (
     <div className="min-h-screen bg-background pb-8 relative">
       <FullScreenEvent
@@ -646,7 +692,6 @@ const LiveScoring = () => {
       </div>
 
       <ScoreHeader
-        // We compare the current batting ID to Team A. If it matches, use Team A's name. Otherwise, Team B.
         battingTeam={
           liveStats?.batting_team_id === matchData?.team_a_id
             ? matchData?.team_a_name
@@ -722,7 +767,7 @@ const LiveScoring = () => {
                     </div>
                     <CustomDropdown
                       placeholder="Select Bowler..."
-                      value={activeBowler?.id || ""}
+                      value={activeBowler?.id || liveStats?.bowler_id || ""}
                       options={bowlerOptions}
                       onChange={(val) =>
                         setActiveBowler(
@@ -761,16 +806,9 @@ const LiveScoring = () => {
               bowlerName={
                 activeBowler?.name || liveStats?.bowler_name || "Pick Bowler"
               }
-              bowlerRuns={
-                activeBowler?.id === liveStats?.bowler_id
-                  ? liveStats?.bowler_runs || 0
-                  : 0
-              }
-              bowlerWickets={
-                activeBowler?.id === liveStats?.bowler_id
-                  ? liveStats?.bowler_wickets || 0
-                  : 0
-              }
+              bowlerRuns={currentBowlerStats.runs}
+              bowlerWickets={currentBowlerStats.wickets}
+              bowlerBalls={currentBowlerStats.balls}
               partnershipRuns={liveStats?.partnership_runs || 0}
               partnershipBalls={liveStats?.partnership_balls || 0}
             />
@@ -877,13 +915,24 @@ const LiveScoring = () => {
                 )}
               </div>
             ) : (
-              <div className="bg-card p-8 rounded-3xl border-2 border-warning/50 text-center shadow-xl flex flex-col items-center justify-center min-h-50">
-                <h2 className="text-3xl font-black text-warning mb-2 uppercase tracking-widest">
-                  Innings Break
+              <div
+                className={`bg-card p-8 rounded-3xl border-2 text-center shadow-xl flex flex-col items-center justify-center min-h-50 ${
+                  isSecondInnings ? "border-primary/50" : "border-warning/50"
+                }`}
+              >
+                <h2
+                  className={`text-3xl font-black mb-2 uppercase tracking-widest ${
+                    isSecondInnings ? "text-primary" : "text-warning"
+                  }`}
+                >
+                  {isSecondInnings ? "Match Completed" : "Innings Break"}
                 </h2>
                 <p className="text-muted-foreground mb-8 font-medium">
-                  Players are resting. Click below when ready to resume.
+                  {isSecondInnings
+                    ? "The chase is over. Click below to finalize and save the match stats."
+                    : "Players are resting. Click below when ready to resume."}
                 </p>
+
                 {canUpdateScore && (
                   <div className="flex flex-col gap-3 w-full">
                     {!isSecondInnings ? (
