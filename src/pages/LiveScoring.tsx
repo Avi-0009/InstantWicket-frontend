@@ -315,8 +315,6 @@ const LiveScoring = () => {
         String(p.id) !== String(activeNonStriker?.id),
     )
     .filter((p) => {
-      // 🔥 FIX 1: Absolutely guarantee the active bowler is NEVER removed mid-over,
-      // even if they are a common player who hasn't batted yet and wickets fall!
       if (
         String(p.id) === String(activeBowler?.id) ||
         String(p.id) === String(liveStats?.bowler_id)
@@ -347,7 +345,8 @@ const LiveScoring = () => {
       const lastBall =
         liveStats.recent_balls?.[liveStats.recent_balls.length - 1] || "";
       const isLastBallIllegal =
-        lastBall.includes("wd") || lastBall.includes("nb");
+        lastBall.toLowerCase().includes("wd") ||
+        lastBall.toLowerCase().includes("nb");
 
       const isEndOfOver =
         liveStats.legal_balls > 0 &&
@@ -388,6 +387,23 @@ const LiveScoring = () => {
   const overs = Math.floor(currentLegalBalls / 6);
   const ballsInOver = currentLegalBalls % 6;
   const oversDisplay = Number(`${overs}.${ballsInOver}`);
+
+  // 🔥 FORMATTER: Subtracts the 1 penalty run mathematically so it shows purely what the user ran
+  const formatTimelineBall = (ball: string) => {
+    if (!ball) return "";
+    let formatted = ball.toLowerCase();
+
+    // Looks for a number followed by wd or nb (e.g. "1wd", "2nb w", "3wd")
+    formatted = formatted.replace(/(\d+)(wd|nb)/g, (match, num, type) => {
+      const runs = parseInt(num, 10) - 1; // Subtract the 1 penalty run
+      return runs > 0 ? `${runs}${type}` : type; // If 0, just show 'wd' or 'nb'
+    });
+
+    // Strip the '1' from byes and leg byes if you also just want 'B' instead of '1B'
+    formatted = formatted.replace(/^1(b|lb)/, "$1");
+
+    return formatted.toUpperCase(); // Capitalize everything for a clean look
+  };
 
   const handleStartInnings = async () => {
     const currentInningsNo = isPreparingSecondInnings ? 2 : 1;
@@ -509,27 +525,28 @@ const LiveScoring = () => {
       extraType: string | undefined = undefined;
     const newEvents: ("4" | "6" | "FREE_HIT" | "WICKET")[] = [];
 
+    // 🔥 STANDARD CRICKET RULES:
     if (modifier === "WD") {
       isLegal = false;
-      runsFromBat = 0;
-      extras = runs + 1;
+      runsFromBat = 0; // 0 runs to batter
+      extras = runs + 1; // All extras go to bowler
       extraType = "wide";
     } else if (modifier === "NB") {
       isLegal = false;
-      runsFromBat = 0;
-      extras = runs + 1;
+      runsFromBat = runs; // Batter gets runs off bat
+      extras = 1; // 1 penalty to team extras
       extraType = "no_ball";
       newEvents.push("FREE_HIT");
       setIsFreeHit(true);
     } else if (modifier === "BYE") {
       isLegal = true;
-      runsFromBat = 0;
-      extras = runs;
+      runsFromBat = 0; // 0 runs to batter
+      extras = runs; // Untouched backend will assign 0 to bowler
       extraType = "bye";
     } else if (modifier === "LB") {
       isLegal = true;
-      runsFromBat = 0;
-      extras = runs;
+      runsFromBat = 0; // 0 runs to batter
+      extras = runs; // Untouched backend will assign 0 to bowler
       extraType = "leg_bye";
     } else {
       if (isFreeHit) setIsFreeHit(false);
@@ -580,7 +597,9 @@ const LiveScoring = () => {
         matchData?.allow_solo_batting &&
         currentWickets + (isWicket ? 1 : 0) >= maxWickets - 1;
 
-      let shouldSwapStrikers = totalRunsScored % 2 !== 0;
+      // Strike rotation purely based on physical runs ran
+      let shouldSwapStrikers = runs % 2 !== 0;
+
       if (isLegal && ballsInOver === 5)
         shouldSwapStrikers = !shouldSwapStrikers;
       if (isNowSoloBatting) shouldSwapStrikers = false;
@@ -813,7 +832,12 @@ const LiveScoring = () => {
               partnershipBalls={liveStats?.partnership_balls || 0}
             />
 
-            <OverTimeline recentBalls={liveStats?.recent_balls || []} />
+            {/* 🔥 Applies frontend formatting to clean up the backend strings! */}
+            <OverTimeline
+              recentBalls={(liveStats?.recent_balls || []).map(
+                formatTimelineBall,
+              )}
+            />
 
             {canUpdateScore ? (
               <div className="mt-6 animate-fade-in">

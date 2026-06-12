@@ -162,19 +162,27 @@ export default function MatchDetailsPage() {
         const lastBall =
           liveStats.recent_balls?.[liveStats.recent_balls.length - 1] || "";
 
+        const lowerLastBall = lastBall.toLowerCase();
+
         const newEvents: ("4" | "6" | "FREE_HIT" | "WICKET")[] = [];
 
         if (wicketDiff > 0) {
           newEvents.push("WICKET");
-        } else if (lastBall) {
-          if (lastBall.includes("nb")) {
+        } else if (lowerLastBall) {
+          if (lowerLastBall.includes("nb")) {
             newEvents.push("FREE_HIT");
           }
 
-          if (runDiff === 4 || (lastBall.includes("nb") && runDiff === 5)) {
+          if (
+            runDiff === 4 ||
+            (lowerLastBall.includes("nb") && runDiff === 5)
+          ) {
             newEvents.push("4");
           }
-          if (runDiff === 6 || (lastBall.includes("nb") && runDiff === 7)) {
+          if (
+            runDiff === 6 ||
+            (lowerLastBall.includes("nb") && runDiff === 7)
+          ) {
             newEvents.push("6");
           }
         }
@@ -250,6 +258,23 @@ export default function MatchDetailsPage() {
 
   const formatOvers = (totalBalls: number) => {
     return `${Math.floor((totalBalls || 0) / 6)}.${(totalBalls || 0) % 6}`;
+  };
+
+  // 🔥 FORMATTER: Subtracts the 1 penalty run mathematically so it shows purely what the user ran
+  const formatTimelineBall = (ball: string) => {
+    if (!ball) return "";
+    let formatted = ball.toLowerCase();
+
+    // Looks for a number followed by wd or nb (e.g. "1wd", "2nb w", "3wd")
+    formatted = formatted.replace(/(\d+)(wd|nb)/g, (match, num, type) => {
+      const runs = parseInt(num, 10) - 1; // Subtract the 1 penalty run
+      return runs > 0 ? `${runs}${type}` : type; // If 0, just show 'wd' or 'nb'
+    });
+
+    // Strip the '1' from byes and leg byes if you also just want 'B' instead of '1B'
+    formatted = formatted.replace(/^1(b|lb)/, "$1");
+
+    return formatted.toUpperCase(); // Capitalize everything for a clean look
   };
 
   let matchResultText = "";
@@ -342,7 +367,6 @@ export default function MatchDetailsPage() {
       (f: FielderStats) => f.catches > 0 || f.runouts > 0 || f.stumpings > 0,
     );
 
-  // 🔥 Ensures absolute sync for Spectators
   const activeBowlerScorecard = scorecard.find(
     (s: any) => String(s.player_id) === String(liveStats?.bowler_id),
   );
@@ -652,8 +676,13 @@ export default function MatchDetailsPage() {
               )}
             </div>
 
+            {/* 🔥 Applies frontend formatting to clean up the backend timeline strings! */}
             {matchData.status !== "completed" && (
-              <OverTimeline recentBalls={liveStats?.recent_balls || []} />
+              <OverTimeline
+                recentBalls={(liveStats?.recent_balls || []).map(
+                  formatTimelineBall,
+                )}
+              />
             )}
 
             {matchData.status !== "completed" &&

@@ -5,14 +5,17 @@ interface OverTimelineProps {
 }
 
 export default function OverTimeline({ recentBalls }: OverTimelineProps) {
-  // Ensure we only ever show the most recent 15 balls
   const displayBalls = (recentBalls || []).slice(-15);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to the newest ball on the right
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+      // 🔥 FIX 1: Tiny timeout ensures the DOM actually paints the new ball before scrolling
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+        }
+      }, 50);
     }
   }, [recentBalls]);
 
@@ -23,7 +26,8 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
       </div>
       <div
         ref={scrollRef}
-        className="flex gap-2 items-center overflow-x-auto no-scrollbar min-h-15 px-2 pb-1 scroll-smooth"
+        // 🔥 FIX 2: Added `py-3` and `gap-2.5` so the scaled-up active ball NEVER gets its top/bottom clipped!
+        className="flex gap-2.5 items-center overflow-x-auto no-scrollbar min-h-[70px] px-2 py-3 scroll-smooth"
       >
         {displayBalls.length === 0 ? (
           <span className="text-xs text-muted-foreground italic">
@@ -31,44 +35,50 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
           </span>
         ) : (
           displayBalls.map((b, idx) => {
-            let text = b;
-            if (b === "0") text = "•";
+            const bSafe = b || "";
+            let text = bSafe;
+            if (bSafe === "0") text = "•";
 
-            // Default style for normal runs (1, 2, 3) and dots
+            const isWicket = bSafe.endsWith("W");
+            const isWideOrNoBall = bSafe.includes("WD") || bSafe.includes("NB");
+
             let bgColor = "bg-transparent text-foreground border border-border";
+            let customStyle = {};
 
-            // 🔴 Wickets (Strict check so "1wd" doesn't trigger red)
-            if (b.includes("W") && !b.includes("wd")) {
+            // 🔥 FIX 3: Dynamic text sizing + tracking so "1WD W" fits perfectly without wrapping
+            let textSize =
+              bSafe.length > 2
+                ? "text-[11px] tracking-tighter"
+                : "text-sm tracking-tight";
+
+            if (isWicket && isWideOrNoBall) {
+              bgColor = "text-white border-none shadow-sm font-black";
+              customStyle = {
+                background:
+                  "linear-gradient(135deg, var(--warning) 50%, var(--destructive) 50%)",
+              };
+            } else if (isWicket) {
+              bgColor = "bg-destructive text-white border-none shadow-sm";
+            } else if (isWideOrNoBall) {
               bgColor =
-                "bg-destructive text-white border-destructive shadow-sm";
-            }
-            // 🟡 Extras (Wides, No Balls, Byes, Leg Byes)
-            else if (
-              b.includes("wd") ||
-              b.includes("nb") ||
-              b.includes("b") ||
-              b.includes("lb")
-            ) {
+                "bg-warning text-white border-none shadow-sm font-black";
+            } else if (bSafe === "4" || bSafe === "6") {
               bgColor =
-                "bg-warning text-warning-foreground border-warning font-black shadow-sm";
-            }
-            // 🟢 Boundaries (4, 6)
-            else if (b === "4" || b === "6") {
-              bgColor =
-                "bg-primary text-card border-primary font-black shadow-sm";
+                "bg-primary text-primary-foreground border-none shadow-sm font-black";
             }
 
-            // Identify the ball just delivered
             const isLatest = idx === displayBalls.length - 1;
 
             return (
               <div
                 key={idx}
-                className={`w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold transition-all shrink-0 ${bgColor} ${
+                // 🔥 FIX 4: Added `whitespace-nowrap` and `z-10` so long text never breaks to two lines and the active ring sits on top
+                className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold transition-all shrink-0 leading-none whitespace-nowrap ${textSize} ${bgColor} ${
                   isLatest
-                    ? "ring-2 ring-primary ring-offset-2 ring-offset-card scale-110"
+                    ? "ring-2 ring-primary ring-offset-2 ring-offset-card scale-110 z-10"
                     : "opacity-80"
                 }`}
+                style={customStyle}
               >
                 {text}
               </div>
