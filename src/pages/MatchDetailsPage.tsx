@@ -260,21 +260,20 @@ export default function MatchDetailsPage() {
     return `${Math.floor((totalBalls || 0) / 6)}.${(totalBalls || 0) % 6}`;
   };
 
-  // 🔥 FORMATTER: Subtracts the 1 penalty run mathematically so it shows purely what the user ran
+  // 🔥 FORMATTER: Trims penalty '1' visually from spectators screen
   const formatTimelineBall = (ball: string) => {
     if (!ball) return "";
     let formatted = ball.toLowerCase();
 
-    // Looks for a number followed by wd or nb (e.g. "1wd", "2nb w", "3wd")
     formatted = formatted.replace(/(\d+)(wd|nb)/g, (match, num, type) => {
-      const runs = parseInt(num, 10) - 1; // Subtract the 1 penalty run
-      return runs > 0 ? `${runs}${type}` : type; // If 0, just show 'wd' or 'nb'
+      const runs = parseInt(num, 10) - 1;
+      return runs > 0 ? `${runs}${type}` : type;
     });
 
-    // Strip the '1' from byes and leg byes if you also just want 'B' instead of '1B'
-    formatted = formatted.replace(/^1(b|lb)/, "$1");
+    // 🔥 FIX: Converts '0b' or '0lb' to just '0' (so it becomes a standard dot ball in the timeline)
+    formatted = formatted.replace(/^0(b|lb)/, "0");
 
-    return formatted.toUpperCase(); // Capitalize everything for a clean look
+    return formatted.toUpperCase();
   };
 
   let matchResultText = "";
@@ -685,8 +684,10 @@ export default function MatchDetailsPage() {
               />
             )}
 
+            {/* 🔥 FIX: Strictly requires BOTH batsmen to be present. Hides instantly on ANY wicket or Solo Batting! */}
             {matchData.status !== "completed" &&
               liveStats &&
+              liveStats.striker_name &&
               liveStats.non_striker_name && (
                 <div className="bg-card border border-border p-4 rounded-2xl shadow-sm flex justify-between items-center animate-fade-in mt-4">
                   <div>

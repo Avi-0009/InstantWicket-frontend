@@ -184,6 +184,32 @@ const LiveScoring = () => {
     }
   }, [fetchedLiveStats]);
 
+  // 🔥 NEW: Dynamically derives Free Hit state from real match history!
+  // This perfectly fixes the Undo bug because it checks the actual database timeline.
+  useEffect(() => {
+    if (liveStats?.recent_balls) {
+      let freeHitActive = false;
+      const recent = liveStats.recent_balls;
+
+      // Look backwards through the timeline
+      for (let i = recent.length - 1; i >= 0; i--) {
+        const ball = recent[i].toLowerCase();
+
+        if (ball.includes("nb")) {
+          freeHitActive = true;
+          break; // Stop looking, a No Ball is active!
+        }
+        if (!ball.includes("wd")) {
+          // If it's NOT a wide, it's a legal delivery (or bye/leg bye).
+          // Legal deliveries extinguish Free Hits!
+          freeHitActive = false;
+          break;
+        }
+      }
+      setIsFreeHit(freeHitActive);
+    }
+  }, [liveStats?.recent_balls]);
+
   const getBatterStats = (playerId?: string) => {
     if (!playerId || !liveStats) return { runs: 0, balls: 0 };
     if (playerId === liveStats.striker_id)
@@ -388,21 +414,18 @@ const LiveScoring = () => {
   const ballsInOver = currentLegalBalls % 6;
   const oversDisplay = Number(`${overs}.${ballsInOver}`);
 
-  // 🔥 FORMATTER: Subtracts the 1 penalty run mathematically so it shows purely what the user ran
   const formatTimelineBall = (ball: string) => {
     if (!ball) return "";
     let formatted = ball.toLowerCase();
 
-    // Looks for a number followed by wd or nb (e.g. "1wd", "2nb w", "3wd")
-    formatted = formatted.replace(/(\d+)(wd|nb)/g, (match, num, type) => {
-      const runs = parseInt(num, 10) - 1; // Subtract the 1 penalty run
-      return runs > 0 ? `${runs}${type}` : type; // If 0, just show 'wd' or 'nb'
+    formatted = formatted.replace(/(\d+)(wd|nb)/g, (_match, num, type) => {
+      const runs = parseInt(num, 10) - 1;
+      return runs > 0 ? `${runs}${type}` : type;
     });
 
-    // Strip the '1' from byes and leg byes if you also just want 'B' instead of '1B'
-    formatted = formatted.replace(/^1(b|lb)/, "$1");
+    formatted = formatted.replace(/^0(b|lb)/, "0");
 
-    return formatted.toUpperCase(); // Capitalize everything for a clean look
+    return formatted.toUpperCase();
   };
 
   const handleStartInnings = async () => {
@@ -525,31 +548,30 @@ const LiveScoring = () => {
       extraType: string | undefined = undefined;
     const newEvents: ("4" | "6" | "FREE_HIT" | "WICKET")[] = [];
 
-    // 🔥 STANDARD CRICKET RULES:
     if (modifier === "WD") {
       isLegal = false;
-      runsFromBat = 0; // 0 runs to batter
-      extras = runs + 1; // All extras go to bowler
+      runsFromBat = 0;
+      extras = runs + 1;
       extraType = "wide";
     } else if (modifier === "NB") {
       isLegal = false;
-      runsFromBat = runs; // Batter gets runs off bat
-      extras = 1; // 1 penalty to team extras
+      runsFromBat = runs;
+      extras = 1;
       extraType = "no_ball";
       newEvents.push("FREE_HIT");
+      // Note: We keep this true for optimistic UI updating,
+      // but the useEffect will handle the real truth!
       setIsFreeHit(true);
     } else if (modifier === "BYE") {
       isLegal = true;
-      runsFromBat = 0; // 0 runs to batter
-      extras = runs; // Untouched backend will assign 0 to bowler
+      runsFromBat = 0;
+      extras = runs;
       extraType = "bye";
     } else if (modifier === "LB") {
       isLegal = true;
-      runsFromBat = 0; // 0 runs to batter
-      extras = runs; // Untouched backend will assign 0 to bowler
+      runsFromBat = 0;
+      extras = runs;
       extraType = "leg_bye";
-    } else {
-      if (isFreeHit) setIsFreeHit(false);
     }
 
     const totalRunsScored = runsFromBat + extras;
@@ -597,7 +619,6 @@ const LiveScoring = () => {
         matchData?.allow_solo_batting &&
         currentWickets + (isWicket ? 1 : 0) >= maxWickets - 1;
 
-      // Strike rotation purely based on physical runs ran
       let shouldSwapStrikers = runs % 2 !== 0;
 
       if (isLegal && ballsInOver === 5)
@@ -832,7 +853,6 @@ const LiveScoring = () => {
               partnershipBalls={liveStats?.partnership_balls || 0}
             />
 
-            {/* 🔥 Applies frontend formatting to clean up the backend strings! */}
             <OverTimeline
               recentBalls={(liveStats?.recent_balls || []).map(
                 formatTimelineBall,
