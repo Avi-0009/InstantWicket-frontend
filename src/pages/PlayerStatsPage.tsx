@@ -53,7 +53,7 @@ const PlayerStatsPage = () => {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState("overview");
 
-  const [isLoadingMatchStats, setIsLoadingMatchStats] = useState(false);
+  // const [isLoadingMatchStats, setIsLoadingMatchStats] = useState(false);
   // Real Matches State
   const [recentMatches, setRecentMatches] = useState<any[]>([]);
   const [isFetchingMatches, setIsFetchingMatches] = useState(true);
@@ -76,8 +76,6 @@ const PlayerStatsPage = () => {
   // Fetch Player Profile Stats
   const { data: stats, isLoading, isError, error } = usePlayerStats(id);
 
-  // 🚀 THE MASTER FETCH: Filters legit matches, grabs table stats, and counts MVPs simultaneously
-  // 🚀 THE MASTER FETCH: Filters legit matches, grabs table stats, and counts MVPs simultaneously
   useEffect(() => {
     // 🛡️ THE FIX: The URL 'id' might be a user.id, but scorecards use player_id.
     // Once usePlayerStats finishes loading, stats.id holds the TRUE player_id!
@@ -166,7 +164,7 @@ const PlayerStatsPage = () => {
                   isMvp: isMvp,
                 };
               }
-            } catch (err) {
+            } catch {
               // Ignore matches where scorecard fails to load
             }
           }),
@@ -432,7 +430,7 @@ const PlayerStatsPage = () => {
             <h3 className="text-lg font-bold text-foreground">
               Recent Matches (Last 20)
             </h3>
-            {isLoadingMatchStats && (
+            {isFetchingMatches  && (
               <Loader2 className="w-4 h-4 text-primary animate-spin" />
             )}
           </div>
@@ -520,12 +518,13 @@ const PlayerStatsPage = () => {
                     const pStats = matchPlayerStats[match.id];
                     const runsScored = pStats
                       ? pStats.runs
-                      : isLoadingMatchStats
+                      : isFetchingMatches
                         ? "..."
                         : "-";
+
                     const wicketsTaken = pStats
                       ? pStats.wickets
-                      : isLoadingMatchStats
+                      : isFetchingMatches
                         ? "..."
                         : "-";
 
@@ -601,7 +600,7 @@ const PlayerStatsPage = () => {
                 </button>
 
                 {[...Array(totalPages)].map((_, idx) => {
-                  let pageNum = idx + 1;
+                  const pageNum = idx + 1;
                   return (
                     <button
                       key={pageNum}
