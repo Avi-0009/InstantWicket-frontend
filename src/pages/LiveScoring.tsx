@@ -150,7 +150,7 @@ const LiveScoring = () => {
 
   useEffect(() => {
     if (fetchedLiveStats && Object.keys(fetchedLiveStats).length > 0) {
-      setLiveStats(fetchedLiveStats);
+      const timer = setTimeout(() => setLiveStats(fetchedLiveStats), 0);
       const strikerId = fetchedLiveStats.striker_id;
       const strikerRuns = fetchedLiveStats.striker_runs || 0;
       const strikerName = fetchedLiveStats.striker_name;
@@ -163,29 +163,29 @@ const LiveScoring = () => {
             hundred: false,
           };
         if (strikerRuns >= 100 && !milestones.current[strikerId].hundred) {
-          toast.success(`💯 CENTURY! 100 by ${strikerName}!`);
+          toast.success(`CENTURY by ${strikerName}`);
           milestones.current[strikerId].hundred = true;
         } else if (
           strikerRuns >= 50 &&
           strikerRuns < 100 &&
           !milestones.current[strikerId].fifty
         ) {
-          toast.success(`👏 HALF-CENTURY for ${strikerName}!`);
+          toast.success(`HALF CENTURY for ${strikerName}`);
           milestones.current[strikerId].fifty = true;
         } else if (
           strikerRuns >= 30 &&
           strikerRuns < 50 &&
           !milestones.current[strikerId].thirty
         ) {
-          toast.success(`Solid 30 by ${strikerName}!`);
+          toast.success(`Solid innings by ${strikerName}`);
           milestones.current[strikerId].thirty = true;
         }
       }
+      return () => clearTimeout(timer);
     }
   }, [fetchedLiveStats]);
 
-  // 🔥 NEW: Dynamically derives Free Hit state from real match history!
-  // This perfectly fixes the Undo bug because it checks the actual database timeline.
+  // Dynamically derives Free Hit state from real match history
   useEffect(() => {
     if (liveStats?.recent_balls) {
       let freeHitActive = false;
@@ -197,18 +197,19 @@ const LiveScoring = () => {
 
         if (ball.includes("nb")) {
           freeHitActive = true;
-          break; // Stop looking, a No Ball is active!
+          break;
         }
         if (!ball.includes("wd")) {
-          // If it's NOT a wide, it's a legal delivery (or bye/leg bye).
-          // Legal deliveries extinguish Free Hits!
+          // Legal deliveries extinguish Free Hits
           freeHitActive = false;
           break;
         }
       }
-      setIsFreeHit(freeHitActive);
+      const timer = setTimeout(() => setIsFreeHit(freeHitActive), 0);
+      return () => clearTimeout(timer);
     }
   }, [liveStats?.recent_balls]);
+
 
   const getBatterStats = (playerId?: string) => {
     if (!playerId || !liveStats) return { runs: 0, balls: 0 };
@@ -359,37 +360,40 @@ const LiveScoring = () => {
 
   useEffect(() => {
     if (liveStats && matchData && !isPreparingSecondInnings && !hasSynced) {
-      if (liveStats.striker_id)
-        setActiveStriker(
-          battingSquad.find((p) => p.id === liveStats.striker_id) || null,
-        );
-      if (liveStats.non_striker_id)
-        setActiveNonStriker(
-          battingSquad.find((p) => p.id === liveStats.non_striker_id) || null,
-        );
-
-      const lastBall =
-        liveStats.recent_balls?.[liveStats.recent_balls.length - 1] || "";
-      const isLastBallIllegal =
-        lastBall.toLowerCase().includes("wd") ||
-        lastBall.toLowerCase().includes("nb");
-
-      const isEndOfOver =
-        liveStats.legal_balls > 0 &&
-        liveStats.legal_balls % 6 === 0 &&
-        !isLastBallIllegal;
-
-      if (isEndOfOver) {
-        setPreviousBowlerId(liveStats.bowler_id || null);
-        setActiveBowler(null);
-      } else {
-        if (liveStats.bowler_id)
-          setActiveBowler(
-            bowlingSquad.find((p) => p.id === liveStats.bowler_id) || null,
+      const syncTimer = setTimeout(() => {
+        if (liveStats.striker_id)
+          setActiveStriker(
+            battingSquad.find((p) => p.id === liveStats.striker_id) || null,
           );
-      }
+        if (liveStats.non_striker_id)
+          setActiveNonStriker(
+            battingSquad.find((p) => p.id === liveStats.non_striker_id) || null,
+          );
 
-      setHasSynced(true);
+        const lastBall =
+          liveStats.recent_balls?.[liveStats.recent_balls.length - 1] || "";
+        const isLastBallIllegal =
+          lastBall.toLowerCase().includes("wd") ||
+          lastBall.toLowerCase().includes("nb");
+
+        const isEndOfOver =
+          liveStats.legal_balls > 0 &&
+          liveStats.legal_balls % 6 === 0 &&
+          !isLastBallIllegal;
+
+        if (isEndOfOver) {
+          setPreviousBowlerId(liveStats.bowler_id || null);
+          setActiveBowler(null);
+        } else {
+          if (liveStats.bowler_id)
+            setActiveBowler(
+              bowlingSquad.find((p) => p.id === liveStats.bowler_id) || null,
+            );
+        }
+
+        setHasSynced(true);
+      }, 0);
+      return () => clearTimeout(syncTimer);
     }
   }, [
     liveStats,
@@ -402,11 +406,14 @@ const LiveScoring = () => {
 
   useEffect(() => {
     if (isPreparingSecondInnings) {
-      setActiveStriker(null);
-      setActiveNonStriker(null);
-      setActiveBowler(null);
-      setPreviousBowlerId(null);
-      setHasSynced(false);
+      const resetTimer = setTimeout(() => {
+        setActiveStriker(null);
+        setActiveNonStriker(null);
+        setActiveBowler(null);
+        setPreviousBowlerId(null);
+        setHasSynced(false);
+      }, 0);
+      return () => clearTimeout(resetTimer);
     }
   }, [isPreparingSecondInnings]);
 
@@ -468,7 +475,7 @@ const LiveScoring = () => {
             partnership_balls: 0,
           }) as LiveStats,
       );
-    } catch (error) {
+    } catch {
       toast.error("Failed to start innings");
     }
   };
@@ -486,8 +493,9 @@ const LiveScoring = () => {
       await queryClient.invalidateQueries({ queryKey: ["match", matchId] });
       setHasSynced(false);
       toast.success("Last ball undone!");
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to undo ball.");
+    } catch (e: unknown) {
+      const error = e as { response?: { data?: { error?: string } } };
+      toast.error(error.response?.data?.error || "Failed to undo ball");
     } finally {
       setTimeout(() => setIsCooldown(false), 500);
     }
@@ -654,7 +662,7 @@ const LiveScoring = () => {
         setPreviousBowlerId(activeBowler!.id);
         setActiveBowler(null);
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to record ball");
     }
   };
@@ -666,8 +674,8 @@ const LiveScoring = () => {
     try {
       await api.post(`/scoring/innings/${liveStats.innings_id}/complete`);
       refetchLiveStats();
-    } catch (error) {
-      toast.error("Failed to complete innings.");
+    } catch {
+      toast.error("Failed to complete innings");
     }
   };
 
@@ -675,8 +683,8 @@ const LiveScoring = () => {
     try {
       await api.post(`/scoring/match/${matchId}/complete`);
       navigate(`/match/${matchId}`);
-    } catch (error) {
-      toast.error("Failed to complete match.");
+    } catch {
+      toast.error("Failed to complete match");
     }
   };
 

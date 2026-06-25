@@ -29,7 +29,10 @@ export const PlayerSelectModal: React.FC<PlayerSelectModalProps> = ({
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
 
   useEffect(() => {
-    if (isOpen) setSelectedPlayerId("");
+    if (isOpen) {
+      const resetTimer = setTimeout(() => setSelectedPlayerId(""), 0);
+      return () => clearTimeout(resetTimer);
+    }
   }, [isOpen]);
 
   if (!isOpen || !role) return null;

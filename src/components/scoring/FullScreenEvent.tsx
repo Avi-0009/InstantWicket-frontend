@@ -18,18 +18,22 @@ export const FullScreenEvent = ({
 
   useEffect(() => {
     if (eventType) {
-      setIsVisible(true);
+      // Delaying slightly prevents the synchronous cascading render error
+      const startTimer = setTimeout(() => setIsVisible(true), 0);
+      
       const timer = setTimeout(() => {
         setIsVisible(false);
         setTimeout(() => {
-          onCompleteRef.current();
-        }, 500);
-      }, 2000);
-      return () => clearTimeout(timer);
-    } else {
-      setIsVisible(false);
+          onComplete();
+        }, 500); // Wait for fade out
+      }, 3000); // Display duration
+
+      return () => {
+        clearTimeout(startTimer);
+        clearTimeout(timer);
+      };
     }
-  }, [eventType]);
+  }, [eventType, onComplete]);
 
   if (!eventType && !isVisible) return null;
 

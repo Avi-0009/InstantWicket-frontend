@@ -9,36 +9,26 @@ import {
   UserCircle,
   PlusCircle,
 } from "lucide-react";
-import { Logout } from "../Api/Auth";
 import SplashScreen from "../components/SplashScreen"; // Ensure path is correct
 
 const MainLayout = () => {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const location = useLocation();
-  const [showSplash, setShowSplash] = useState(false);
 
-  // Splash Screen Logic: Only show once per session
+  // Initialize state directly from sessionStorage
+  const [showSplash, setShowSplash] = useState(() => {
+    return !sessionStorage.getItem("hasShownSplash");
+  });
+
   useEffect(() => {
-    const hasShownSplash = sessionStorage.getItem("hasShownSplash");
-
-    if (!hasShownSplash) {
-      setShowSplash(true);
+    if (showSplash) {
       sessionStorage.setItem("hasShownSplash", "true");
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setShowSplash(false);
-      }, 2000); // Matches the duration in SplashScreen.tsx
+      }, 2000); 
+      return () => clearTimeout(timer);
     }
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await Logout();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      logout();
-    }
-  };
+  }, [showSplash]);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${

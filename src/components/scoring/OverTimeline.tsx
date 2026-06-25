@@ -43,7 +43,7 @@ export default function OverTimeline({ recentBalls }: OverTimelineProps) {
             let bgColor = "bg-transparent text-foreground border border-border";
             let customStyle = {};
 
-            let textSize =
+            const textSize =
               bSafe.length > 2
                 ? "text-[11px] tracking-tighter"
                 : "text-sm tracking-tight";

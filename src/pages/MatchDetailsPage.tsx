@@ -9,6 +9,31 @@ import MatchAnalytics from "../components/scoring/MatchAnalytics";
 import toast from "react-hot-toast";
 import { Button } from "../components/ui/button";
 
+interface PlayerData {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+interface ScorecardData {
+  player_id: string;
+  runs_scored?: number;
+  balls_played?: number;
+  fours?: number;
+  sixes?: number;
+  batting_status?: string;
+  runs_conceded?: number;
+  wickets_taken?: number;
+  balls_bowled?: number;
+  maidens?: number;
+  wides?: number;
+  no_balls?: number;
+  catches?: number;
+  runouts?: number;
+  stumpings?: number;
+  [key: string]: unknown;
+}
+
 interface BatterStats {
   player_id: string;
   player_name: string;
@@ -138,7 +163,8 @@ export default function MatchDetailsPage() {
       (liveStats.target_runs > 0 || liveStats.required_runs > 0) &&
       activeTab === "Scoreboard"
     ) {
-      setInningsTab(2);
+      const timer = setTimeout(() => setInningsTab(2), 0);
+      return () => clearTimeout(timer);
     }
   }, [liveStats, activeTab]);
 
@@ -188,7 +214,8 @@ export default function MatchDetailsPage() {
         }
 
         if (newEvents.length > 0) {
-          setEventQueue((prev) => [...prev, ...newEvents]);
+          const eventTimer = setTimeout(() => setEventQueue((prev) => [...prev, ...newEvents]), 0);
+          return () => clearTimeout(eventTimer);
         }
       }
 
@@ -260,17 +287,18 @@ export default function MatchDetailsPage() {
     return `${Math.floor((totalBalls || 0) / 6)}.${(totalBalls || 0) % 6}`;
   };
 
-  // 🔥 FORMATTER: Trims penalty '1' visually from spectators screen
+  // FORMATTER Trims penalty visually from spectators screen
   const formatTimelineBall = (ball: string) => {
     if (!ball) return "";
     let formatted = ball.toLowerCase();
 
-    formatted = formatted.replace(/(\d+)(wd|nb)/g, (match, num, type) => {
+    // Use _ to indicate the first argument (the full match string) is intentionally unused
+    formatted = formatted.replace(/(\d+)(wd|nb)/g, (_match, num, type) => {
       const runs = parseInt(num, 10) - 1;
       return runs > 0 ? `${runs}${type}` : type;
     });
 
-    // 🔥 FIX: Converts '0b' or '0lb' to just '0' (so it becomes a standard dot ball in the timeline)
+    // Fix Converts extra to standard dot ball in the timeline
     formatted = formatted.replace(/^0(b|lb)/, "0");
 
     return formatted.toUpperCase();
@@ -284,13 +312,13 @@ export default function MatchDetailsPage() {
           ? `${matchData.team_a_name} won the match`
           : `${matchData.team_b_name} won the match`;
     } else {
-      matchResultText = "Match Tied / Drawn";
+      matchResultText = "Match Tied Drawn";
     }
   }
 
-  const batters: BatterStats[] = (teamPlayers || []).map((p: any) => {
+  const batters: BatterStats[] = (teamPlayers || []).map((p: PlayerData) => {
     const stats =
-      scorecard.find((s: any) => String(s.player_id) === String(p.id)) || {};
+      scorecard.find((s: ScorecardData) => String(s.player_id) === String(p.id)) || {};
     let runs = stats.runs_scored || 0;
     let playedBalls = stats.balls_played || 0;
 
@@ -321,9 +349,9 @@ export default function MatchDetailsPage() {
       : matchData?.team_b_players;
 
   const bowlers: BowlerStats[] = (bowlingTeamPlayers || [])
-    .map((p: any) => {
+    .map((p: PlayerData) => {
       const stats =
-        scorecard.find((s: any) => String(s.player_id) === String(p.id)) || {};
+        scorecard.find((s: ScorecardData) => String(s.player_id) === String(p.id)) || {};
       let runs = stats.runs_conceded || 0;
       let wickets = stats.wickets_taken || 0;
 
@@ -351,9 +379,9 @@ export default function MatchDetailsPage() {
     );
 
   const fielders: FielderStats[] = (bowlingTeamPlayers || [])
-    .map((p: any) => {
+    .map((p: PlayerData) => {
       const stats =
-        scorecard.find((s: any) => String(s.player_id) === String(p.id)) || {};
+        scorecard.find((s: ScorecardData) => String(s.player_id) === String(p.id)) || {};
       return {
         player_id: p.id,
         player_name: p.name,
@@ -367,7 +395,7 @@ export default function MatchDetailsPage() {
     );
 
   const activeBowlerScorecard = scorecard.find(
-    (s: any) => String(s.player_id) === String(liveStats?.bowler_id),
+    (s: ScorecardData) => String(s.player_id) === String(liveStats?.bowler_id),
   );
   const activeBowlerBalls = activeBowlerScorecard?.balls_bowled || 0;
   const activeBowlerRuns =

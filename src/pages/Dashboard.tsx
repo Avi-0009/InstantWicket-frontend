@@ -14,7 +14,7 @@ import { api } from "../Api/Auth";
 import LiveMatchCard from "../components/matches/LiveMatchCard";
 import { useQuery } from "@tanstack/react-query";
 
-// --- STRICT TYPESCRIPT INTERFACES ---
+// STRICT TYPESCRIPT INTERFACES
 interface PlayerStats {
   name?: string;
   career_runs?: number;
@@ -37,9 +37,9 @@ interface Match {
   team_a_balls: number;
   team_b_balls: number;
   overs_limit: number;
-  host_id?: string | number; // Your clean frontend property
+  host_id?: string | number;
   umpire_id?: string | number;
-  [key: string]: unknown; // Allows passing any other required fields into LiveMatchCard
+  [key: string]: unknown;
 }
 
 interface StatCardProps {
@@ -52,7 +52,7 @@ const Dashboard = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  // 1. Fetch Actual Player Stats (Only if Logged In)
+  // Fetch Actual Player Stats Only if Logged In
   const { data: stats, isLoading: isLoadingStats } =
     useQuery<PlayerStats | null>({
       queryKey: ["playerStats", user?.id],
@@ -64,21 +64,21 @@ const Dashboard = () => {
             res.data) as PlayerStats;
         } catch (e: unknown) {
           const error = e as { response?: { status?: number } };
-          // Gracefully handle the 404 if the user doesn't have stats yet
+          // Gracefully handle the error if the user doesn't have stats yet
           if (error.response?.status === 404) {
-            console.warn("No player stats found for this user yet (New User).");
+            console.warn("No player stats found for this user yet");
             return null;
           }
           throw e;
         }
       },
-      // Only run this query if we have a valid logged-in user
+      // Only run this query if we have a valid logged in user
       enabled: !!user?.id,
-      // Refetch stats every 15 seconds in case a match finishes
+      // Refetch stats every fifteen seconds in case a match finishes
       refetchInterval: 15000,
     });
 
-  // 2. Fetch Live Matches (Global for Everyone)
+  // Fetch Live Matches Global for Everyone
   const { data: matches = [], isLoading: isFetchingMatches } = useQuery<
     Match[]
   >({
@@ -87,28 +87,28 @@ const Dashboard = () => {
       const res = await api.get(`/matches?limit=50`);
       const rawMatches = res.data.matches || res.data || [];
 
-      // 🔥 MAP IT HERE: Convert backend's 'created_by' to frontend's 'host_id'
-      const formattedMatches = rawMatches.map((m: any) => ({
+      // Convert backend created by to frontend host id
+      const formattedMatches = rawMatches.map((m: Record<string, unknown>) => ({
         ...m,
         host_id: m.created_by,
       }));
 
-      // Base Filter: Must be ONGOING
+      // Base Filter Must be ongoing
       return formattedMatches.filter((m: Match) => m.status === "ongoing");
     },
-    // 🔥 Automatically poll the server every 5 seconds for live scores!
+    // Automatically poll the server every five seconds for live scores
     refetchInterval: 5000,
   });
 
   const displayFullName = stats?.name || user?.name || "Player";
 
-  // 🔥 3. SEPARATE MATCHES LOGIC
-  // My Matches: Cleanly check against host_id and umpire_id using loose equality (==)
+  // SEPARATE MATCHES LOGIC
+  // My Matches Cleanly check against host id and umpire id
   const myMatches = matches.filter(
     (match) => user && (match.host_id == user.id || match.umpire_id == user.id),
   );
 
-  // Global Matches: Cleanly exclude using host_id
+  // Global Matches Cleanly exclude using host id
   const globalMatches = matches
     .filter(
       (match) =>
@@ -122,7 +122,6 @@ const Dashboard = () => {
       animate={{ opacity: 1 }}
       className="p-6 max-w-4xl mx-auto pb-24"
     >
-      {/* BRANDING HEADER (Visible to everyone) */}
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-black bg-linear-to-r from-primary bg-clip-text text-transparent drop-shadow-sm">
           InstantWicket
@@ -135,10 +134,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* CONDITIONAL TOP SECTION: User Stats vs Guest Login */}
       {user ? (
         <>
-          {/* CLICKABLE PROFILE PREVIEW */}
           <div
             onClick={() => navigate(`/player_stats/${user.id}`)}
             className="mb-8 flex items-center justify-between bg-card p-6 rounded-3xl border border-border cursor-pointer hover:border-primary/50 transition-all shadow-sm group"
@@ -159,7 +156,6 @@ const Dashboard = () => {
             <ChevronRight className="text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
 
-          {/* FETCHED STATS GRID */}
           <div className="grid grid-cols-3 gap-4 mb-10">
             <StatCard
               icon={<Trophy className="text-primary" />}
@@ -191,7 +187,6 @@ const Dashboard = () => {
           </div>
         </>
       ) : (
-        /* GUEST CTA BANNER */
         <div className="bg-card border border-border p-8 rounded-3xl text-center shadow-sm mb-10 group hover:border-primary/40 transition-colors">
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <UserCircle className="w-8 h-8 text-primary" />
@@ -212,9 +207,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* MY LIVE MATCHES (Logged-in users only) */}
-      {/* ========================================================= */}
       {user && (
         <div className="mb-10">
           <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
@@ -240,7 +232,6 @@ const Dashboard = () => {
               </p>
             </div>
           ) : (
-            // 🔥 SCROLLABLE CONTAINER: Fits ~3 matches, scrolls if more
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-125 overflow-y-auto no-scrollbar pr-1 pb-2">
               {myMatches.map((match) => (
                 <LiveMatchCard key={match.id} match={match} />
@@ -250,9 +241,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* GLOBAL LIVE MATCHES (Visible to everyone, max 3) */}
-      {/* ========================================================= */}
       <div>
         <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
           <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
